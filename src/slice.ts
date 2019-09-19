@@ -2,11 +2,11 @@ import { Fragment } from './fragment';
 import { Schema } from './schema';
 
 function removeRange(content: Fragment, from: number, to: number): Fragment {
-   let { index, offset } = content.findIndex(from);
-   let child = content.maybeChild(index);
-   let { index: indexTo, offset: offsetTo } = content.findIndex(to);
+   const { index, offset } = content.findIndex(from);
+   const child = content.maybeChild(index);
+   const { index: indexTo, offset: offsetTo } = content.findIndex(to);
 
-   if (offset == from || child.isText) {
+   if (offset == from || (child !== undefined && child.isText)) {
       if (offsetTo != to && !content.child(indexTo).isText) {
          throw new RangeError('Removing non-flat range');
       }
@@ -31,8 +31,10 @@ function insertInto(
    let { index, offset } = content.findIndex(dist);
    let child = content.maybeChild(index);
 
-   if (offset == dist || child.isText) {
-      if (parent && !parent.canReplace(index, index, insert)) return null;
+   if (offset == dist || (child !== undefined && child.isText)) {
+      if (parent && !parent.canReplace(index, index, insert)) {
+         return null;
+      }
       return content
          .cut(0, dist)
          .append(insert)
