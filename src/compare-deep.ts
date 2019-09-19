@@ -1,10 +1,17 @@
+import { ValueType } from '@toba/tools';
+
 export function compareDeep(a: any, b: any): boolean {
    if (a === b) {
       return true;
    }
-   if (!(a && typeof a == 'object') || !(b && typeof b == 'object'))
+   if (
+      !(a && typeof a == ValueType.Object) ||
+      !(b && typeof b == ValueType.Object)
+   ) {
       return false;
-   let array = Array.isArray(a);
+   }
+   const array: boolean = Array.isArray(a);
+
    if (Array.isArray(b) != array) {
       return false;
    }

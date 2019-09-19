@@ -152,8 +152,8 @@ export class NodeType {
     * if you pass `null` or `Fragment.empty` as content.
     */
    createAndFill(
-      attrs: AttributeMap,
-      content: Fragment | Node | Node[],
+      attrs?: AttributeMap,
+      content?: Fragment | Node | Node[],
       marks?: Mark[]
    ): Node | null {
       attrs = this.computeAttrs(attrs);

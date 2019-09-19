@@ -1,6 +1,8 @@
 import { Fragment } from './fragment';
+import { Node } from './node';
 import { NodeType } from './node-type';
-import { TokenStream, Expression, parseExpr, TokenType } from './token-stream';
+import { nfa, dfa } from './regex';
+import { TokenStream, parseExpr } from './token-stream';
 
 interface NodeEdge {
    type: NodeType;
@@ -21,17 +23,23 @@ interface ActiveMatch {
  */
 export class ContentMatch {
    /**
-    * Whether this match state represents a valid end of the node.
+    * Whether this match state represents a valid end of the nod.
     */
    validEnd: boolean;
-   // interleaved array of NodeType and ContentMatch
-   next: (NodeType | ContentMatch)[]; //[NodeType, ContentMatch];
-   wrapCache: NodeType[];
+   nextType: NodeType[];
+   nextMatch: ContentMatch[];
+   cacheType: NodeType[];
+   cacheMatch: ContentMatch[];
 
+   /**
+    * @param validEnd Whether match state represents a valid end of the node
+    */
    constructor(validEnd: boolean) {
       this.validEnd = validEnd;
-      this.next = [];
-      this.wrapCache = [];
+      this.nextType = [];
+      this.nextMatch = [];
+      this.cacheType = [];
+      this.cacheMatch = [];
    }
 
    static parse(
@@ -40,7 +48,7 @@ export class ContentMatch {
    ): ContentMatch {
       let stream = new TokenStream(string, nodeTypes);
 
-      if (stream.next == null) {
+      if (stream.next === null) {
          return ContentMatch.empty;
       }
       let expr = parseExpr(stream);
@@ -59,12 +67,8 @@ export class ContentMatch {
     * Match a node type, returning a match after that node if successful.
     */
    matchType(type: NodeType): ContentMatch | null {
-      for (let i = 0; i < this.next.length; i += 2) {
-         if (this.next[i] == type) {
-            return this.next[i + 1];
-         }
-      }
-      return null;
+      const index = this.nextType.findIndex(n => n === type);
+      return index >= 0 ? this.nextMatch[index] : null;
    }
 
    /**
@@ -83,8 +87,8 @@ export class ContentMatch {
       return match;
    }
 
-   get inlineContent() {
-      let first = this.next[0];
+   get inlineContent(): boolean {
+      const first = this.nextType[0];
       return first ? first.isInline : false;
    }
 
@@ -93,21 +97,16 @@ export class ContentMatch {
     * generated.
     */
    get defaultType(): NodeType | undefined {
-      for (let i = 0; i < this.next.length; i += 2) {
-         let type = this.next[i];
-         if (!(type.isText || type.hasRequiredAttrs())) {
-            return type;
-         }
-      }
+      return this.nextType.find(t => !(t.isText || t.hasRequiredAttrs));
    }
 
    compatible(other: ContentMatch | null): boolean {
       if (other === null) {
          return false;
       }
-      for (let i = 0; i < this.next.length; i += 2) {
-         for (let j = 0; j < other.next.length; j += 2) {
-            if (this.next[i] == other.next[j]) {
+      for (let i = 0; i < this.nextType.length; i++) {
+         for (let j = 0; j < other.nextType.length; j++) {
+            if (this.nextType[i] === other.nextType[j]) {
                return true;
             }
          }
@@ -127,26 +126,38 @@ export class ContentMatch {
       toEnd = false,
       startIndex = 0
    ): Fragment | undefined {
-      let seen = [this];
+      let seen: ContentMatch[] = [this];
 
       function search(
          match: ContentMatch,
          types: NodeType[]
       ): Fragment | undefined {
-         let finished = match.matchFragment(after, startIndex);
-         if (finished && (!toEnd || finished.validEnd))
-            return Fragment.from(types.map(tp => tp.createAndFill()));
+         let finished: ContentMatch | null = match.matchFragment(
+            after,
+            startIndex
+         );
+         if (finished !== null && (!toEnd || finished.validEnd)) {
+            const nodes = types
+               .map(t => t.createAndFill())
+               .filter(n => n !== null) as Node[];
 
-         for (let i = 0; i < match.next.length; i += 2) {
-            let type = match.next[i],
-               next = match.next[i + 1];
+            return Fragment.from(nodes);
+         }
+
+         for (let i = 0; i < match.nextType.length; i++) {
+            const type = match.nextType[i];
+            const next = match.nextMatch[i];
+
             if (
                !(type.isText || type.hasRequiredAttrs()) &&
                seen.indexOf(next) == -1
             ) {
                seen.push(next);
+
                let found = search(next, types.concat(type));
-               if (found) return found;
+               if (found) {
+                  return found;
+               }
             }
          }
       }
@@ -160,18 +171,18 @@ export class ContentMatch {
     * directly) and will be null when no such wrapping exists.
     */
    findWrapping(target: NodeType): NodeType | undefined {
-      for (let i = 0; i < this.wrapCache.length; i += 2) {
-         if (this.wrapCache[i] == target) {
-            return this.wrapCache[i + 1];
+      for (let i = 0; i < this.cacheType.length; i++) {
+         if (this.cacheType[i] === target) {
+            return this.cacheType[i + 1];
          }
       }
       let computed = this.computeWrapping(target);
-      this.wrapCache.push(target, computed);
+      this.cacheType.push(target, computed);
 
       return computed;
    }
 
-   computeWrapping(target) {
+   computeWrapping(target: NodeType): NodeType[] {
       const seen = Object.create(null);
       const active: ActiveMatch[] = [{ match: this, type: null, via: null }];
 
@@ -179,10 +190,11 @@ export class ContentMatch {
          const current = active.shift()!;
          const match = current.match;
 
-         if (match.matchType(target)) {
+         if (match.matchType(target) !== null) {
             let result = [];
-            for (let obj = current; obj.type; obj = obj.via)
+            for (let obj = current; obj.type; obj = obj.via) {
                result.push(obj.type);
+            }
             return result.reverse();
          }
          for (let i = 0; i < match.next.length; i += 2) {
@@ -270,211 +282,5 @@ function checkForDeadEnds(match: ContentMatch, stream: TokenStream) {
                nodes.join(', ') +
                ') in a required position'
          );
-   }
-}
-
-interface Edge {
-   term?: any;
-   to?: number | null;
-}
-
-/**
- * Non-deterministic Finite Automata
- */
-type NFA = Edge[][];
-
-// The code below helps compile a regular-expression-like language
-// into a deterministic finite automaton. For a good introduction to
-// these concepts, see https://swtch.com/~rsc/regexp/regexp1.html
-
-/**
- * Construct an NFA from an expression as returned by the parser. The NFA is
- * represented as an array of states, which are themselves arrays of edges,
- * which are `{term, to}` objects. The first state is the entry state and the
- * last node is the success state.
- *
- * Note that unlike typical NFAs, the edge ordering in this one is significant,
- * in that it is used to contruct filler content when necessary.
- */
-function nfa(expr: Expression): NFA {
-   const nfa: NFA = [[]];
-   const node = () => nfa.push([]) - 1;
-
-   connect(
-      compile(expr, 0),
-      node()
-   );
-   return nfa;
-
-   /**
-    * Create new edge with `to` and `term` values and add to NFA array at
-    * `from` position.
-    */
-   function edge(from: number, to?: number | null, term?: any): Edge {
-      const edge: Edge = { term, to };
-      nfa[from].push(edge);
-      return edge;
-   }
-
-   /**
-    * Assign `to` number to each edge.
-    */
-   function connect(edges: Edge[], to?: number | null): void {
-      edges.forEach(edge => (edge.to = to));
-   }
-
-   function compile(expr: Expression, from: number): Edge[] {
-      if (expr.type == TokenType.Choice) {
-         if (expr.exprs === undefined) {
-            return [];
-         }
-         return expr.exprs.reduce(
-            (out: Edge[], expr: Expression) => out.concat(compile(expr, from)),
-            []
-         );
-      } else if (expr.type == TokenType.Sequence) {
-         if (expr.exprs === undefined) {
-            return [];
-         }
-         for (let i = 0; ; i++) {
-            let next = compile(expr.exprs[i], from);
-            if (i == expr.exprs.length - 1) {
-               return next;
-            }
-            connect(
-               next,
-               (from = node())
-            );
-         }
-      } else if (expr.type == TokenType.Star) {
-         if (expr.expr === undefined) {
-            return [];
-         }
-         let loop = node();
-         edge(from, loop);
-         connect(
-            compile(expr.expr, loop),
-            loop
-         );
-         return [edge(loop)];
-      } else if (expr.type == TokenType.Plus) {
-         if (expr.expr === undefined) {
-            return [];
-         }
-         let loop = node();
-         connect(
-            compile(expr.expr, from),
-            loop
-         );
-         connect(
-            compile(expr.expr, loop),
-            loop
-         );
-         return [edge(loop)];
-      } else if (expr.type == TokenType.Optional) {
-         return [edge(from)].concat(compile(expr.expr, from));
-      } else if (expr.type == TokenType.Range) {
-         let cur = from;
-         for (let i = 0; i < expr.min; i++) {
-            let next = node();
-            connect(
-               compile(expr.expr, cur),
-               next
-            );
-            cur = next;
-         }
-         if (expr.max == -1) {
-            connect(
-               compile(expr.expr, cur),
-               cur
-            );
-         } else {
-            for (let i = expr.min; i < expr.max; i++) {
-               let next = node();
-               edge(cur, next);
-               connect(
-                  compile(expr.expr, cur),
-                  next
-               );
-               cur = next;
-            }
-         }
-         return [edge(cur)];
-      } else if (expr.type == TokenType.Name) {
-         return [edge(from, null, expr.value)];
-      }
-   }
-}
-
-const cmp = (a: number, b: number) => a - b;
-
-/**
- * Get the set of nodes reachable by `null` edges from `node`. Omit nodes with
- * only a single null-out-edge, since they may lead to needless duplicated
- * nodes.
- */
-function nullFrom(nfa: NFA, node: number) {
-   let result: number[] = [];
-
-   scan(node);
-
-   return result.sort(cmp);
-
-   function scan(node: number): void {
-      const edges: Edge[] = nfa[node];
-
-      if (edges.length == 1 && !edges[0].term) {
-         return scan(edges[0].to!);
-      }
-      result.push(node);
-
-      for (let i = 0; i < edges.length; i++) {
-         let { term, to } = edges[i];
-         if (!term && result.indexOf(to) == -1) {
-            scan(to);
-         }
-      }
-   }
-}
-
-/**
- * Compiles an NFA as produced by `nfa` into a DFA, modeled as a set of state
- * objects (`ContentMatch` instances) with transitions between them.
- */
-function dfa(nfa: NFA): ContentMatch {
-   const labeled = Object.create(null);
-
-   return explore(nullFrom(nfa, 0));
-
-   function explore(states: number[]) {
-      let out: any[] = [];
-
-      states.forEach(node => {
-         nfa[node].forEach(({ term, to }) => {
-            if (!term) {
-               return;
-            }
-            const known: number = out.indexOf(term);
-            let set: number[] = known > -1 && out[known + 1];
-
-            nullFrom(nfa, to).forEach(node => {
-               if (!set) {
-                  out.push(term, (set = []));
-               }
-               if (set.indexOf(node) == -1) {
-                  set.push(node);
-               }
-            });
-         });
-      });
-      let state = (labeled[states.join(',')] = new ContentMatch(
-         states.indexOf(nfa.length - 1) > -1
-      ));
-
-      for (let i = 0; i < out.length; i += 2) {
-         let states = out[i + 1].sort(cmp);
-         state.next.push(out[i], labeled[states.join(',')] || explore(states));
-      }
-      return state;
    }
 }

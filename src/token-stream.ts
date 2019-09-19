@@ -1,5 +1,4 @@
 import { NodeType } from './node-type';
-import { ThrowStatement } from '@babel/types';
 
 export const enum TokenType {
    Choice = 'choice',

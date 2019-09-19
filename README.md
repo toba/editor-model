@@ -17,7 +17,7 @@ This is a fork of [prosemirror-model](https://github.com/ProseMirror/prosemirror
    - Better tree shaking
    - `package.json` configuration facilitates automatic load of correct module types
 
-- ️️No direct forum or community support
+- No direct forum or community support
 
 ## Original ProseMirror documentation
 
