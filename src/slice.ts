@@ -12,7 +12,9 @@ function removeRange(content: Fragment, from: number, to: number): Fragment {
       }
       return content.cut(0, from).append(content.cut(to));
    }
-   if (index != indexTo) { throw new RangeError('Removing non-flat range'); }
+   if (index != indexTo) {
+      throw new RangeError('Removing non-flat range');
+   }
 
    return content.replaceChild(
       index,
@@ -20,9 +22,14 @@ function removeRange(content: Fragment, from: number, to: number): Fragment {
    );
 }
 
-function insertInto(content: Fragment, dist: number, insert: Node, parent?: Node) {
+function insertInto(
+   content: Fragment,
+   dist: number,
+   insert: Fragment,
+   parent?: Node
+) {
    let { index, offset } = content.findIndex(dist);
-   let  child = content.maybeChild(index);
+   let child = content.maybeChild(index);
 
    if (offset == dist || child.isText) {
       if (parent && !parent.canReplace(index, index, insert)) return null;
@@ -32,7 +39,7 @@ function insertInto(content: Fragment, dist: number, insert: Node, parent?: Node
          .append(content.cut(dist));
    }
    let inner = insertInto(child.content, dist - offset - 1, insert);
-
+}
 
 export interface SliceJSON {
    content: string;
@@ -92,30 +99,31 @@ export class Slice {
          this.openEnd
       );
 
-
    /**
     * Tests whether this slice is equal to another slice.
     */
-   eq(other: Slice): boolean {
-      return (
-         this.content.eq(other.content) &&
-         this.openStart == other.openStart &&
-         this.openEnd == other.openEnd
-      );
-   }
+   eq = (other: Slice): boolean =>
+      this.content.eq(other.content) &&
+      this.openStart == other.openStart &&
+      this.openEnd == other.openEnd;
 
-   toString() {
-      return this.content + '(' + this.openStart + ',' + this.openEnd + ')';
-   }
+   toString = () =>
+      this.content + '(' + this.openStart + ',' + this.openEnd + ')';
 
    /**
     * Convert a slice to a JSON-serializable representation.
     */
    toJSON(): SliceJSON | null {
-      if (!this.content.size) { return null; }
+      if (!this.content.size) {
+         return null;
+      }
       const json: SliceJSON = { content: this.content.toJSON() };
-      if (this.openStart > 0) { json.openStart = this.openStart; }
-      if (this.openEnd > 0) { json.openEnd = this.openEnd; }
+      if (this.openStart > 0) {
+         json.openStart = this.openStart;
+      }
+      if (this.openEnd > 0) {
+         json.openEnd = this.openEnd;
+      }
       return json;
    }
 
@@ -123,14 +131,16 @@ export class Slice {
     * Deserialize a slice from its JSON representation.
     */
    static fromJSON(schema: Schema, json?: SliceJSON) {
-      if (json === undefined) { return Slice.empty; }
+      if (json === undefined) {
+         return Slice.empty;
+      }
       let openStart = json.openStart || 0;
       let openEnd = json.openEnd || 0;
 
       if (typeof openStart != 'number' || typeof openEnd != 'number')
          throw new RangeError('Invalid input for Slice.fromJSON');
 
-         return new Slice(
+      return new Slice(
          Fragment.fromJSON(schema, json.content),
          json.openStart || 0,
          json.openEnd || 0
@@ -142,14 +152,17 @@ export class Slice {
     * on both side of the fragment.
     */
    static maxOpen(fragment: Fragment, openIsolating = true): Slice {
-      let openStart = 0,
-         openEnd = 0;
+      let openStart = 0;
+      let openEnd = 0;
+      let n: Node | null;
+
       for (
-         let n = fragment.firstChild;
+         n = fragment.firstChild;
          n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
          n = n.firstChild
-      )
+      ) {
          openStart++;
+      }
       for (
          let n = fragment.lastChild;
          n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);

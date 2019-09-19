@@ -2,6 +2,10 @@ import { is } from '@toba/tools';
 import { Node } from './node';
 import { findDiffStart, findDiffEnd } from './diff';
 
+interface FragmentJSON {
+
+}
+
 /**
  * A fragment represents a node's collection of child nodes.
  *
@@ -97,9 +101,9 @@ export class Fragment {
       if (!this.size) {
          return other;
       }
-      let last = this.lastChild;
-      let first = other.firstChild;
-      let content = this.content.slice();
+      const last: Node|null = this.lastChild;
+      const first: Node|null = other.firstChild;
+      const content = this.content.slice();
       let i = 0;
 
       if (last !== null && first !== null && last.isText && last.sameMarkup(first)) {
@@ -333,11 +337,12 @@ export class Fragment {
     * fragment itself. For a node or array of nodes, a fragment containing those
     * nodes.
     */
-   static from(nodes: Fragment|Node|Node[]): Fragment {
-      if (!nodes) return Fragment.empty;
-      if (nodes instanceof Fragment) return nodes;
-      if (Array.isArray(nodes)) return this.fromArray(nodes);
-      if (nodes.attrs) return new Fragment([nodes], nodes.nodeSize);
+   static from(nodes?: Fragment|Node|Node[]): Fragment {
+      if (nodes === undefined)
+      { return Fragment.empty; }
+      if (nodes instanceof Fragment) { return nodes; }
+      if (Array.isArray(nodes)) { return this.fromArray(nodes); }
+      if (nodes.attrs) { return new Fragment([nodes], nodes.nodeSize); }
       throw new RangeError(
          'Can not convert ' +
             nodes +

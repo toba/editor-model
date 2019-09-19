@@ -7,10 +7,17 @@ import { replace } from './replace';
 import { ResolvedPos } from './resolved-pos';
 import { compareDeep } from './compare-deep';
 import { MarkType } from './mark-type';
+import { DOMOutputSpec } from './to-dom';
+import { ParseRule } from './from-dom';
+import { ContentMatch } from './content';
 
 const emptyAttrs = Object.create(null);
 
-export interface NodeJSON {}
+export interface NodeJSON {
+   attrs: AttributeMap;
+   content: string;
+   marks: string[];
+}
 
 export interface NodeSpec {
    /**
@@ -51,62 +58,73 @@ export interface NodeSpec {
     * The attributes that nodes of this type get.
     */
    attrs?: AttributeMap;
-   //
-   //   selectable:: ?bool
-   //   Controls whether nodes of this type can be selected as a [node
-   //   selection](#state.NodeSelection). Defaults to true for non-text
-   //   nodes.
-   
-   //
-   //   draggable:: ?bool
-   //   Determines whether nodes of this type can be dragged without
-   //   being selected. Defaults to false.
-   //
-   //   code:: ?bool
-   //   Can be used to indicate that this node contains code, which
-   //   causes some commands to behave differently.
-   //
-   //   defining:: ?bool
-   //   Determines whether this node is considered an important parent
-   //   node during replace operations (such as paste). Non-defining (the
-   //   default) nodes get dropped when their entire content is replaced,
-   //   whereas defining nodes persist and wrap the inserted content.
-   //   Likewise, in _inserted_ content the defining parents of the
-   //   content are preserved when possible. Typically,
-   //   non-default-paragraph textblock types, and possibly list items,
-   //   are marked as defining.
-   //
-   //   isolating:: ?bool
-   //   When enabled (default is false), the sides of nodes of this type
-   //   count as boundaries that regular editing operations, like
-   //   backspacing or lifting, won't cross. An example of a node that
-   //   should probably have this enabled is a table cell.
-   //
-   //   toDOM:: ?(node: Node) → DOMOutputSpec
-   //   Defines the default way a node of this type should be serialized
-   //   to DOM/HTML (as used by
-   //   [`DOMSerializer.fromSchema`](#model.DOMSerializer^fromSchema)).
-   //   Should return a DOM node or an [array
-   //   structure](#model.DOMOutputSpec) that describes one, with an
-   //   optional number zero (“hole”) in it to indicate where the node's
-   //   content should be inserted.
-   //
-   //   For text nodes, the default is to create a text DOM node. Though
-   //   it is possible to create a serializer where text is rendered
-   //   differently, this is not supported inside the editor, so you
-   //   shouldn't override that in your text node spec.
-   //
-   //   parseDOM:: ?[ParseRule]
-   //   Associates DOM parser information with this node, which can be
-   //   used by [`DOMParser.fromSchema`](#model.DOMParser^fromSchema) to
-   //   automatically derive a parser. The `node` field in the rules is
-   //   implied (the name of this node will be filled in automatically).
-   //   If you supply your own parser, you do not need to also specify
-   //   parsing rules in your schema.
-   //
-   //   toDebugString:: ?(node: Node) -> string
-   //   Defines the default way a node of this type should be serialized
-   //   to a string representation for debugging (e.g. in error messages).
+
+   /**
+    * Controls whether nodes of this type can be selected as a
+    * [node selection](#state.NodeSelection). Defaults to true for non-text
+    * nodes.
+    */
+   selectable?: boolean;
+
+   /**
+    * Determines whether nodes of this type can be dragged without being
+    * selected. Defaults to `false`.
+    */
+   draggable?: boolean;
+
+   /**
+    * Can be used to indicate that this node contains code, which causes some
+    * commands to behave differently.
+    */
+   code?: boolean;
+
+   /**
+    * Determines whether this node is considered an important parent node during
+    * replace operations (such as paste). Non-defining (the default) nodes get
+    * dropped when their entire content is replaced, whereas defining nodes
+    * persist and wrap the inserted content. Likewise, in _inserted_ content the
+    * defining parents of the content are preserved when possible. Typically,
+    * non-default-paragraph textblock types, and possibly list items, are marked
+    * as defining.
+    */
+   defining?: boolean;
+
+   /**
+    * When enabled (default is `false`), the sides of nodes of this type count
+    * as boundaries that regular editing operations, like backspacing or
+    * lifting, won't cross. An example of a node that should probably have this
+    * enabled is a table cell.
+    */
+   isolating?: boolean;
+
+   /**
+    * Defines the default way a node of this type should be serialized to
+    * DOM/HTML (as used by [`DOMSerializer.fromSchema`](#model.DOMSerializer^fromSchema)).
+    * Should return a DOM node or an [array structure](#model.DOMOutputSpec)
+    * that describes one, with an optional number zero (“hole”) in it to
+    * indicate where the node's content should be inserted.
+    *
+    * For text nodes, the default is to create a text DOM node. Though it is
+    * possible to create a serializer where text is rendered differently, this
+    * is not supported inside the editor, so you shouldn't override that in your
+    * text node spec.
+    */
+   toDOM?: (node: Node) => DOMOutputSpec;
+
+   /**
+    * Associates DOM parser information with this node, which can be used
+    * by [`DOMParser.fromSchema`](#model.DOMParser^fromSchema) to automatically
+    * derive a parser. The `node` field in the rules is implied (the name of
+    * this node will be filled in automatically). If you supply your own parser,
+    * you do not need to also specify parsing rules in your schema.
+    */
+   parseDOM?: ParseRule[];
+
+   /**
+    * Defines the default way a node of this type should be serialized to a
+    * string representation for debugging (e.g. in error messages).
+    */
+   toDebugString?: (node: Node) => string;
 }
 
 /**
@@ -302,10 +320,11 @@ export class Node {
          ? this
          : this.copy(this.content.cut(from, to));
 
-   // :: (number, ?number) → Slice
-   // Cut out the part of the document between the given positions, and
-   // return it as a `Slice` object.
-   slice(from: number, to = this.content.size, includeParents = false) {
+   /**
+    * Cut out the part of the document between the given positions, and return
+    * it as a `Slice` object.
+    */
+   slice(from: number, to = this.content.size, includeParents = false): Slice {
       if (from == to) return Slice.empty;
 
       let $from = this.resolve(from),
@@ -328,12 +347,16 @@ export class Node {
       return replace(this.resolve(from), this.resolve(to), slice);
    }
 
-   // :: (number) → ?Node
-   // Find the node directly after the given position.
+   /**
+    * Find the node directly after the given position.
+    */
    nodeAt(pos: number): Node | null {
-      for (let node = this; ; ) {
+      let node: Node | undefined;
+
+      for (node = this; ; ) {
          let { index, offset } = node.content.findIndex(pos);
          node = node.maybeChild(index);
+
          if (!node) {
             return null;
          }
@@ -377,83 +400,100 @@ export class Node {
       return ResolvedPos.resolve(this, pos);
    }
 
-   // :: (number, number, MarkType) → bool
-   // Test whether a mark of the given type occurs in this document
-   // between the two given positions.
-   rangeHasMark(from: number, to: number, type: MarkType) {
+   /**
+    * Test whether a mark of the given type occurs in this document between the
+    * two given positions.
+    */
+   rangeHasMark(from: number, to: number, type: MarkType): boolean {
       let found = false;
-      if (to > from)
+      if (to > from) {
          this.nodesBetween(from, to, node => {
-            if (type.isInSet(node.marks)) found = true;
+            if (type.isInSet(node.marks)) {
+               found = true;
+            }
             return !found;
          });
+      }
       return found;
    }
 
-   // :: bool
-   // True when this is a block (non-inline node)
-   get isBlock() {
+   /**
+    * True when this is a block (non-inline node)
+    */
+   get isBlock(): boolean {
       return this.type.isBlock;
    }
 
-   // :: bool
-   // True when this is a textblock node, a block node with inline
-   // content.
-   get isTextblock() {
+   /**
+    * True when this is a textblock node, a block node with inline content.
+    */
+   get isTextblock(): boolean {
       return this.type.isTextblock;
    }
 
-   // :: bool
-   // True when this node allows inline content.
-   get inlineContent() {
-      return this.type.inlineContent;
+   /**
+    * True when this node allows inline content.
+    */
+   get inlineContent(): boolean {
+      return this.type.inlineContent === true;
    }
 
-   // :: bool
-   // True when this is an inline node (a text node or a node that can
-   // appear among text).
-   get isInline() {
+   /**
+    * True when this is an inline node (a text node or a node that can appear
+    * among text).
+    */
+   get isInline(): boolean {
       return this.type.isInline;
    }
 
-   // :: bool
-   // True when this is a text node.
-   get isText() {
+   /**
+    * True when this is a text node.
+    */
+   get isText(): boolean {
       return this.type.isText;
    }
 
-   // :: bool
-   // True when this is a leaf node.
-   get isLeaf() {
+   /**
+    * True when this is a leaf node.
+    */
+   get isLeaf(): boolean {
       return this.type.isLeaf;
    }
 
-   // :: bool
-   // True when this is an atom, i.e. when it does not have directly
-   // editable content. This is usually the same as `isLeaf`, but can
-   // be configured with the [`atom` property](#model.NodeSpec.atom) on
-   // a node's spec (typically used when the node is displayed as an
-   // uneditable [node view](#view.NodeView)).
-   get isAtom() {
+   /**
+    * True when this is an atom, i.e. when it does not have directly editable
+    * content. This is usually the same as `isLeaf`, but can be configured with
+    * the [`atom` property](#model.NodeSpec.atom) on a node's spec (typically
+    * used when the node is displayed as an uneditable
+    * [node view](#view.NodeView)).
+    */
+   get isAtom(): boolean {
       return this.type.isAtom;
    }
 
-   // :: () → string
-   // Return a string representation of this node for debugging
-   // purposes.
+   /**
+    * Return a string representation of this node for debugging purposes.
+    */
    toString(): string {
       if (this.type.spec.toDebugString) {
          return this.type.spec.toDebugString(this);
       }
       let name = this.type.name;
-      if (this.content.size) name += '(' + this.content.toStringInner() + ')';
+      if (this.content.size) {
+         name += '(' + this.content.toStringInner() + ')';
+      }
       return wrapMarks(this.marks, name);
    }
 
-   // :: (number) → ContentMatch
-   // Get the content match in this node at the given index.
-   contentMatchAt(index: number) {
-      let match = this.type.contentMatch.matchFragment(this.content, 0, index);
+   /**
+    * Get the content match in this node at the given index.
+    */
+   contentMatchAt(index: number): ContentMatch {
+      const match = this.type.contentMatch.matchFragment(
+         this.content,
+         0,
+         index
+      );
       if (!match)
          throw new Error(
             'Called contentMatchAt on a node with invalid content'
@@ -540,9 +580,10 @@ export class Node {
       this.content.forEach(node => node.check());
    }
 
-   // :: () → Object
-   // Return a JSON-serializeable representation of this node.
-   toJSON() {
+   /**
+    * Return a JSON-serializeable representation of this node.
+    */
+   toJSON(): NodeJSON {
       let obj = { type: this.type.name };
       for (let _ in this.attrs) {
          obj.attrs = this.attrs;
@@ -555,7 +596,7 @@ export class Node {
 
    // :: (Schema, Object) → Node
    // Deserialize a node from its JSON representation.
-   static fromJSON(schema, json) {
+   static fromJSON(schema: Schema, json: NodeJSON) {
       if (!json) throw new RangeError('Invalid input for Node.fromJSON');
       let marks = null;
       if (json.marks) {

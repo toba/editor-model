@@ -15,7 +15,7 @@ export interface AttributeSpec<T> {
  * attributes), build up a single reusable default attribute object, and use it
  * for all nodes that don't specify specific attributes.
  */
-export function defaultAttrs(attrs: Attribute<any>[]) {
+export function defaultAttrs(attrs: { [key: string]: Attribute<any> }) {
    let defaults = Object.create(null);
    for (let attrName in attrs) {
       let attr = attrs[attrName];
@@ -27,7 +27,10 @@ export function defaultAttrs(attrs: Attribute<any>[]) {
    return defaults;
 }
 
-function computeAttrs(attrs: AttributeMap, value: string) {
+export function computeAttrs(
+   attrs: AttributeMap,
+   value: { [key: string]: any }
+) {
    let built = Object.create(null);
 
    for (let name in attrs) {
@@ -45,9 +48,11 @@ function computeAttrs(attrs: AttributeMap, value: string) {
    return built;
 }
 
-export function initAttrs(attrs?: Attribute<any>[]): AttributeMap {
-   const result = Object.create(null);
-   if (attrs) {
+export function initAttrs(attrs?: {
+   [key: string]: AttributeSpec<any>;
+}): AttributeMap {
+   const result: AttributeMap = Object.create(null);
+   if (attrs !== undefined) {
       for (let name in attrs) {
          result[name] = new Attribute(attrs[name]);
       }

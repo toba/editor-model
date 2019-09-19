@@ -1,13 +1,21 @@
+import { is } from '@toba/tools';
 import { compareDeep } from './compare-deep';
-import { AttributeSpec } from './attribute';
+import { MarkType } from './mark-type';
+import { AttributeSpec, AttributeMap } from './attribute';
 import { DOMOutputSpec } from './to-dom';
-import { ParsedUrlQuery } from 'querystring';
+import { ParseRule } from './from-dom';
+import { Schema } from './schema';
+
+export interface MarkJSON {
+   type: string;
+   attrs: AttributeMap;
+}
 
 export interface MarkSpec {
    /**
     * The attributes that marks of this type get.
     */
-   attrs?: AttributeSpec<any>;
+   attrs?: { [key: string]: AttributeSpec<any> };
 
    /**
     * Whether this mark should be active when the cursor is positioned at its
@@ -55,11 +63,7 @@ export interface MarkSpec {
     * [node spec field](#model.NodeSpec.parseDOM)). The `mark` field in the
     * rules is implied.
     */
-   parseDOM?: ParseRule;
-}
-
-export const enum MarkType {
-   One
+   parseDOM?: ParseRule[];
 }
 
 /**
@@ -70,12 +74,12 @@ export const enum MarkType {
  * and which attributes they have.
  */
 export class Mark {
-   /** type of this mark */
+   /** Type of this mark */
    type: MarkType;
-   /** attributes associated with this mark */
-   attrs: string[];
+   /** Attributes associated with this mark */
+   attrs: AttributeMap;
 
-   constructor(type: MarkType, attrs) {
+   constructor(type: MarkType, attrs: AttributeMap) {
       this.type = type;
       this.attrs = attrs;
    }
@@ -155,17 +159,19 @@ export class Mark {
    /**
     * Convert this mark to a JSON-serializeable representation.
     */
-   toJSON() {
-      let obj = { type: this.type.name };
+   toJSON(): MarkJSON {
+      const out: MarkJSON = { type: this.type.name, attrs: {} };
       for (let _ in this.attrs) {
-         obj.attrs = this.attrs;
+         out.attrs = this.attrs;
          break;
       }
-      return obj;
+      return out;
    }
 
-   static fromJSON(schema, json: any): Mark {
-      if (!json) throw new RangeError('Invalid input for Mark.fromJSON');
+   static fromJSON(schema: Schema, json: MarkJSON): Mark {
+      if (!json) {
+         throw new RangeError('Invalid input for Mark.fromJSON');
+      }
       let type = schema.marks[json.type];
       if (!type)
          throw new RangeError(
@@ -174,26 +180,47 @@ export class Mark {
       return type.create(json.attrs);
    }
 
-   // :: ([Mark], [Mark]) → bool
-   // Test whether two sets of marks are identical.
-   static sameSet(a, b) {
-      if (a == b) return true;
-      if (a.length != b.length) return false;
-      for (let i = 0; i < a.length; i++) if (!a[i].eq(b[i])) return false;
+   /**
+    * Test whether two sets of marks are identical.
+    */
+   static sameSet(a: Mark[], b: Mark[]): boolean {
+      if (a === b) {
+         return true;
+      }
+      if (a.length != b.length) {
+         return false;
+      }
+      for (let i = 0; i < a.length; i++) {
+         if (!a[i].eq(b[i])) {
+            return false;
+         }
+      }
       return true;
    }
 
-   // :: (?union<Mark, [Mark]>) → [Mark]
-   // Create a properly sorted mark set from null, a single mark, or an
-   // unsorted array of marks.
-   static setFrom(marks) {
-      if (!marks || marks.length == 0) return Mark.none;
-      if (marks instanceof Mark) return [marks];
-      let copy = marks.slice();
+   /**
+    * Create a properly sorted mark set from null, a single mark, or an unsorted
+    * array of marks.
+    */
+   static setFrom(marks?: Mark[] | Mark | null): Mark[] {
+      if (
+         marks === null ||
+         marks === undefined ||
+         (is.array<Mark>(marks) && marks.length == 0)
+      ) {
+         return Mark.none;
+      }
+      if (marks instanceof Mark) {
+         return [marks];
+      }
+      const copy = marks.slice();
       copy.sort((a, b) => a.type.rank - b.type.rank);
+
       return copy;
    }
-}
 
-// :: [Mark] The empty set of marks.
-Mark.none = [];
+   /**
+    * The empty set of marks.
+    */
+   static none: Mark[] = [];
+}

@@ -1,4 +1,10 @@
-export function findDiffStart(a, b, pos) {
+import { TextNode } from './text-node';
+
+export function findDiffStart(
+   a: TextNode,
+   b: TextNode,
+   pos: number
+): number | null {
    for (let i = 0; ; i++) {
       if (i == a.childCount || i == b.childCount)
          return a.childCount == b.childCount ? null : pos;

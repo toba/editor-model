@@ -10,7 +10,7 @@ export const enum TokenType {
    Star = 'star'
 }
 
-interface Expression {
+export interface Expression {
    type: TokenType;
    min?: number;
    max?: number;
@@ -86,7 +86,7 @@ function parseExprSeq(stream: TokenStream): Expression {
    return exprs.length == 1 ? exprs[0] : { type: TokenType.Sequence, exprs };
 }
 
-function parseExpr(stream: TokenStream) {
+export function parseExpr(stream: TokenStream) {
    const exprs: Expression[] = [];
    do {
       exprs.push(parseExprSeq(stream));
