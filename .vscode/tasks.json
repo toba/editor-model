@@ -1,0 +1,63 @@
+{
+   "version": "2.0.0",
+   "tasks": [
+      {
+         "label": "Test",
+         "command": "./node_modules/.bin/jest",
+         "presentation": {
+            "showReuseMessage": false,
+            "clear": true
+         },
+         "args": ["--verbose"],
+         "type": "shell",
+         "group": "test",
+         "problemMatcher": []
+      },
+      {
+         "label": "Build",
+         "presentation": {
+            "clear": true
+         },
+         "command": "./node_modules/.bin/tsc",
+         "args": ["--project", "tsconfig.build.json"],
+         "type": "shell",
+         "group": "build",
+         "problemMatcher": ["$tsc"]
+      },
+      {
+         "label": "Build CommonJS",
+         "presentation": {
+            "clear": true
+         },
+         "command": "./node_modules/.bin/tsc",
+         "args": ["--project", "tsconfig.cjs.json"],
+         "type": "shell",
+         "group": "build",
+         "problemMatcher": ["$tsc"]
+      },
+      {
+         "label": "Publish",
+         "presentation": {
+            "clear": true
+         },
+         "command": "npm",
+         "args": ["publish"],
+         "type": "shell",
+         "group": "none",
+         "problemMatcher": []
+      },
+      {
+         "label": "List Production Dependencies",
+         "command": "npm",
+         "args": ["ls", "-prod=true"],
+         "type": "shell",
+         "presentation": {
+            "echo": false,
+            "reveal": "always",
+            "focus": true,
+            "panel": "shared"
+         },
+         "problemMatcher": []
+      }
+   ]
+}

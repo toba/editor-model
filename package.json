@@ -1,35 +1,45 @@
 {
-  "name": "prosemirror-model",
-  "version": "1.7.2",
-  "description": "ProseMirror's document model",
-  "main": "dist/index.js",
-  "license": "MIT",
-  "maintainers": [
-    {
-      "name": "Marijn Haverbeke",
-      "email": "marijnh@gmail.com",
-      "web": "http://marijnhaverbeke.nl"
-    }
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/prosemirror/prosemirror-model.git"
-  },
-  "dependencies": {
-    "orderedmap": "^1.0.0"
-  },
-  "devDependencies": {
-    "mocha": "^3.0.2",
-    "ist": "^1.0.0",
-    "jsdom": "^10.1.0",
-    "prosemirror-test-builder": "^1.0.0",
-    "rollup": "^0.49.0",
-    "rollup-plugin-buble": "^0.15.0"
-  },
-  "scripts": {
-    "test": "node etc/link-self.js && mocha test/test-*.js",
-    "build": "rollup -c",
-    "watch": "rollup -c -w",
-    "prepare": "npm run build"
-  }
+   "name": "@toba/editor-model",
+   "version": "2.0.0",
+   "description": "Editor Document Model",
+   "private": false,
+   "publishConfig": {
+      "access": "public"
+   },
+   "main": "cjs/index.js",
+   "module": "esm/index.js",
+   "types": "esm/index.d.ts",
+   "files": [
+      "esm",
+      "cjs"
+   ],
+   "license": "MIT",
+   "maintainers": [
+      {
+         "name": "Marijn Haverbeke",
+         "email": "marijnh@gmail.com",
+         "web": "http://marijnhaverbeke.nl"
+      },
+      {
+         "name": "Jason Abbott"
+      }
+   ],
+   "scripts": {
+      "build:esm": "./node_modules/.bin/tsc --project ./node_modules/@toba/develop/tsconfig.esm.json",
+      "build:cjs": "./node_modules/.bin/tsc --project ./node_modules/@toba/develop/tsconfig.cjs-min.json",
+      "prepublishOnly": "npm run build:esm & npm run build:cjs",
+      "test": "jest --coverage"
+   },
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/toba/editor-model.git"
+   },
+   "dependencies": {
+      "@toba/tools": "^6.7.7",
+      "orderedmap": "^1.0.0"
+   },
+   "devDependencies": {
+      "@toba/develop": "^6.6.12",
+      "@toba/test": "^4.1.14"
+   }
 }
