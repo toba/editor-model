@@ -167,13 +167,20 @@ export class NodeType {
          }
          content = before.append(content);
       }
-      let after =
-         this.contentMatch !== null &&
-         this.contentMatch
-            .matchFragment(content)
-            .fillBefore(Fragment.empty, true);
-      if (!after) return null;
-      return new Node(this, attrs, content.append(after), Mark.setFrom(marks));
+      let after: Fragment | undefined;
+
+      if (this.contentMatch !== null) {
+         const match: ContentMatch | null = this.contentMatch.matchFragment(
+            content
+         );
+         if (match !== null) {
+            after = match.fillBefore(Fragment.empty, true);
+         }
+      }
+
+      return after === undefined
+         ? null
+         : new Node(this, attrs, content.append(after), Mark.setFrom(marks));
    }
 
    /**

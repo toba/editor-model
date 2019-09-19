@@ -75,11 +75,12 @@ export class ContentMatch {
       start = 0,
       end = frag.childCount
    ): ContentMatch | null {
-      let cur: ContentMatch | null = this;
-      for (let i = start; cur && i < end; i++) {
-         cur = cur.matchType(frag.child(i).type);
+      let match: ContentMatch | null = this;
+
+      for (let i = start; match && i < end; i++) {
+         match = match.matchType(frag.child(i).type);
       }
-      return cur;
+      return match;
    }
 
    get inlineContent() {
@@ -100,7 +101,10 @@ export class ContentMatch {
       }
    }
 
-   compatible(other: ContentMatch): boolean {
+   compatible(other: ContentMatch | null): boolean {
+      if (other === null) {
+         return false;
+      }
       for (let i = 0; i < this.next.length; i += 2) {
          for (let j = 0; j < other.next.length; j += 2) {
             if (this.next[i] == other.next[j]) {

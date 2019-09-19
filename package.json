@@ -39,7 +39,7 @@
       "orderedmap": "^1.0.0"
    },
    "devDependencies": {
-      "@toba/develop": "^6.6.12",
+      "@toba/develop": "^6.7.0",
       "@toba/test": "^4.1.14"
    }
 }

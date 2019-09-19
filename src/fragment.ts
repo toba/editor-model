@@ -37,7 +37,7 @@ export class Fragment {
    nodesBetween(
       from: number,
       to: number,
-      fn: (node: Node, start: number, parent?: Node, index: number) => boolean,
+      fn: (node: Node, start: number, parent?: Node, index?: number) => boolean,
       nodeStart = 0,
       parent?: Node
    ) {
