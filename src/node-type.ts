@@ -1,5 +1,6 @@
 import { MarkType } from './mark-type';
 import { Schema } from './schema';
+import { NodeSpec } from './node';
 import { AttributeMap, initAttrs, defaultAttrs } from './attribute';
 
 // ::- Node types are objects allocated once per `Schema` and used to
@@ -8,23 +9,22 @@ import { AttributeMap, initAttrs, defaultAttrs } from './attribute';
 // represents.
 export class NodeType {
    name: string;
-   /** link back to the `Schema` the node type belongs to */
+   /** Link back to the `Schema` the node type belongs to */
    schema: Schema;
+   /** Spec that this type is based on */
+   spec: NodeSpec;
    attrs: AttributeMap;
    inlineContent: boolean;
+   groups: string[];
 
-   constructor(name: string, schema: Schema, spec) {
+   constructor(name: string, schema: Schema, spec: NodeSpec) {
       this.name = name;
       this.schema = schema;
-
-      // :: NodeSpec
-      // The spec that this type is based on
       this.spec = spec;
-
       this.groups = spec.group ? spec.group.split(' ') : [];
       this.attrs = initAttrs(spec.attrs);
 
-      this.defaultAttrs = defaultAttrs(this.attrs);
+      this.defaultAttrs = defaultAttrs(this.attrsNode);
 
       // :: ContentMatch
       // The starting match of the node type's content expression.

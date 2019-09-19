@@ -1,4 +1,16 @@
 /**
+ * Used to [define](#model.NodeSpec.attrs) attributes on nodes or marks.
+ */
+export interface AttributeSpec<T> {
+   /**
+    * The default value for this attribute, to use when no explicit value is
+    * provided. Attributes that have no default must be provided whenever a node
+    * or mark of a type that has them is created.
+    */
+   default?: T;
+}
+
+/**
  * For node types where all attrs have a default value (or which don't have any
  * attributes), build up a single reusable default attribute object, and use it
  * for all nodes that don't specify specific attributes.
@@ -43,17 +55,13 @@ export function initAttrs(attrs?: Attribute<any>[]): AttributeMap {
    return result;
 }
 
-export interface AttributeOptions<T> {
-   default: T;
-}
-
 export type AttributeMap = { [key: string]: Attribute<any> };
 
 export class Attribute<T> {
    hasDefault: boolean;
-   default: T;
+   default: T | undefined;
 
-   constructor(options: AttributeOptions<T>) {
+   constructor(options: AttributeSpec<T>) {
       this.hasDefault = Object.prototype.hasOwnProperty.call(
          options,
          'default'

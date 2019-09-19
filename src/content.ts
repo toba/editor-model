@@ -1,44 +1,80 @@
 import { Fragment } from './fragment';
+import { NodeType } from './node-type';
+import { TokenStream } from './token-stream';
 
-// ::- Instances of this class represent a match state of a node
-// type's [content expression](#model.NodeSpec.content), and can be
-// used to find out whether further content matches here, and whether
-// a given position is a valid end of the node.
+interface Edge {
+   type: NodeType;
+   next: ContentMatch;
+}
+
+interface ActiveMatch {
+   match: ContentMatch;
+   type: NodeType | null;
+   via: ContentMatch | null;
+}
+
+/**
+ * Instances of this class represent a match state of a node type's
+ * [content expression](#model.NodeSpec.content), and can be used to find out
+ * whether further content matches here, and whether a given position is a valid
+ * end of the node.
+ */
 export class ContentMatch {
-   constructor(validEnd) {
-      // :: bool
-      // True when this match state represents a valid end of the node.
+   /**
+    * Whether this match state represents a valid end of the node.
+    */
+   validEnd: boolean;
+   // interleaved array of NodeType and ContentMatch
+   next: [NodeType, ContentMatch];
+   wrapCache: NodeType[];
+
+   constructor(validEnd: boolean) {
       this.validEnd = validEnd;
       this.next = [];
       this.wrapCache = [];
    }
 
-   static parse(string, nodeTypes) {
+   static parse(string: string, nodeTypes: NodeType[]): ContentMatch {
       let stream = new TokenStream(string, nodeTypes);
-      if (stream.next == null) return ContentMatch.empty;
+
+      if (stream.next == null) {
+         return ContentMatch.empty;
+      }
       let expr = parseExpr(stream);
-      if (stream.next) stream.err('Unexpected trailing text');
+
+      if (stream.next) {
+         stream.err('Unexpected trailing text');
+      }
       let match = dfa(nfa(expr));
       checkForDeadEnds(match, stream);
+
       return match;
    }
 
-   // :: (NodeType) → ?ContentMatch
-   // Match a node type, returning a match after that node if
-   // successful.
-   matchType(type) {
-      for (let i = 0; i < this.next.length; i += 2)
-         if (this.next[i] == type) return this.next[i + 1];
+   /**
+    * Match a node type, returning a match after that node if successful.
+    */
+   matchType(type: NodeType): ContentMatch | null {
+      for (let i = 0; i < this.next.length; i += 2) {
+         if (this.next[i] == type) {
+            return this.next[i + 1];
+         }
+      }
       return null;
    }
 
-   // :: (Fragment, ?number, ?number) → ?ContentMatch
-   // Try to match a fragment. Returns the resulting match when
-   // successful.
-   matchFragment(frag, start = 0, end = frag.childCount) {
-      let cur = this;
-      for (let i = start; cur && i < end; i++)
+   /**
+    * Try to match a fragment. Returns the resulting match when successful.
+    */
+   matchFragment(
+      frag: Fragment,
+      start = 0,
+      end = frag.childCount
+   ): ContentMatch | null {
+      let cur: ContentMatch | null = this;
+      for (let i = start; cur && i < end; i++) {
          cur = cur.matchType(frag.child(i).type);
+      }
       return cur;
    }
 
@@ -47,33 +83,48 @@ export class ContentMatch {
       return first ? first.isInline : false;
    }
 
-   // :: ?NodeType
-   // Get the first matching node type at this match position that can
-   // be generated.
-   get defaultType() {
+   /**
+    * Get the first matching node type at this match position that can be
+    * generated.
+    */
+   get defaultType(): NodeType | undefined {
       for (let i = 0; i < this.next.length; i += 2) {
          let type = this.next[i];
-         if (!(type.isText || type.hasRequiredAttrs())) return type;
+         if (!(type.isText || type.hasRequiredAttrs())) {
+            return type;
+         }
       }
    }
 
-   compatible(other) {
-      for (let i = 0; i < this.next.length; i += 2)
-         for (let j = 0; j < other.next.length; j += 2)
-            if (this.next[i] == other.next[j]) return true;
+   compatible(other: ContentMatch): boolean {
+      for (let i = 0; i < this.next.length; i += 2) {
+         for (let j = 0; j < other.next.length; j += 2) {
+            if (this.next[i] == other.next[j]) {
+               return true;
+            }
+         }
+      }
       return false;
    }
 
-   // :: (Fragment, bool, ?number) → ?Fragment
-   // Try to match the given fragment, and if that fails, see if it can
-   // be made to match by inserting nodes in front of it. When
-   // successful, return a fragment of inserted nodes (which may be
-   // empty if nothing had to be inserted). When `toEnd` is true, only
-   // return a fragment if the resulting match goes to the end of the
-   // content expression.
-   fillBefore(after, toEnd = false, startIndex = 0) {
+   /**
+    * Try to match the given fragment, and if that fails, see if it can be made
+    * to match by inserting nodes in front of it. When successful, return a
+    * fragment of inserted nodes (which may be empty if nothing had to be
+    * inserted). When `toEnd` is true, only return a fragment if the resulting
+    * match goes to the end of the content expression.
+    */
+   fillBefore(
+      after: Fragment,
+      toEnd = false,
+      startIndex = 0
+   ): Fragment | undefined {
       let seen = [this];
-      function search(match, types) {
+
+      function search(
+         match: ContentMatch,
+         types: NodeType[]
+      ): Fragment | undefined {
          let finished = match.matchFragment(after, startIndex);
          if (finished && (!toEnd || finished.validEnd))
             return Fragment.from(types.map(tp => tp.createAndFill()));
@@ -95,25 +146,31 @@ export class ContentMatch {
       return search(this, []);
    }
 
-   // :: (NodeType) → ?[NodeType]
-   // Find a set of wrapping node types that would allow a node of the
-   // given type to appear at this position. The result may be empty
-   // (when it fits directly) and will be null when no such wrapping
-   // exists.
-   findWrapping(target) {
-      for (let i = 0; i < this.wrapCache.length; i += 2)
-         if (this.wrapCache[i] == target) return this.wrapCache[i + 1];
+   /**
+    * Find a set of wrapping node types that would allow a node of the given
+    * type to appear at this position. The result may be empty (when it fits
+    * directly) and will be null when no such wrapping exists.
+    */
+   findWrapping(target: NodeType): NodeType | undefined {
+      for (let i = 0; i < this.wrapCache.length; i += 2) {
+         if (this.wrapCache[i] == target) {
+            return this.wrapCache[i + 1];
+         }
+      }
       let computed = this.computeWrapping(target);
       this.wrapCache.push(target, computed);
+
       return computed;
    }
 
    computeWrapping(target) {
-      let seen = Object.create(null),
-         active = [{ match: this, type: null, via: null }];
+      const seen = Object.create(null);
+      const active: ActiveMatch[] = [{ match: this, type: null, via: null }];
+
       while (active.length) {
-         let current = active.shift(),
-            match = current.match;
+         const current = active.shift()!;
+         const match = current.match;
+
          if (match.matchType(target)) {
             let result = [];
             for (let obj = current; obj.type; obj = obj.via)
@@ -135,24 +192,27 @@ export class ContentMatch {
       }
    }
 
-   // :: number
-   // The number of outgoing edges this node has in the finite
-   // automaton that describes the content expression.
-   get edgeCount() {
+   /**
+    * The number of outgoing edges this node has in the finite automaton that
+    * describes the content expression.
+    */
+   get edgeCount(): number {
       return this.next.length >> 1;
    }
 
-   // :: (number) → {type: NodeType, next: ContentMatch}
-   // Get the _n_th outgoing edge from this node in the finite
-   // automaton that describes the content expression.
-   edge(n) {
+   /**
+    * Get the _n_th outgoing edge from this node in the finite automaton that
+    * describes the content expression.
+    */
+   edge(n: number): Edge {
       let i = n << 1;
-      if (i > this.next.length)
+      if (i > this.next.length) {
          throw new RangeError(`There's no ${n}th edge in this content match`);
+      }
       return { type: this.next[i], next: this.next[i + 1] };
    }
 
-   toString() {
+   toString(): string {
       let seen = [];
       function scan(m) {
          seen.push(m);
@@ -173,114 +233,8 @@ export class ContentMatch {
          })
          .join('\n');
    }
-}
 
-ContentMatch.empty = new ContentMatch(true);
-
-class TokenStream {
-   constructor(string, nodeTypes) {
-      this.string = string;
-      this.nodeTypes = nodeTypes;
-      this.inline = null;
-      this.pos = 0;
-      this.tokens = string.split(/\s*(?=\b|\W|$)/);
-      if (this.tokens[this.tokens.length - 1] == '') this.tokens.pop();
-      if (this.tokens[0] == '') this.tokens.unshift();
-   }
-
-   get next() {
-      return this.tokens[this.pos];
-   }
-
-   eat(tok) {
-      return this.next == tok && (this.pos++ || true);
-   }
-
-   err(str) {
-      throw new SyntaxError(
-         str + " (in content expression '" + this.string + "')"
-      );
-   }
-}
-
-function parseExpr(stream) {
-   let exprs = [];
-   do {
-      exprs.push(parseExprSeq(stream));
-   } while (stream.eat('|'));
-   return exprs.length == 1 ? exprs[0] : { type: 'choice', exprs };
-}
-
-function parseExprSeq(stream) {
-   let exprs = [];
-   do {
-      exprs.push(parseExprSubscript(stream));
-   } while (stream.next && stream.next != ')' && stream.next != '|');
-   return exprs.length == 1 ? exprs[0] : { type: 'seq', exprs };
-}
-
-function parseExprSubscript(stream) {
-   let expr = parseExprAtom(stream);
-   for (;;) {
-      if (stream.eat('+')) expr = { type: 'plus', expr };
-      else if (stream.eat('*')) expr = { type: 'star', expr };
-      else if (stream.eat('?')) expr = { type: 'opt', expr };
-      else if (stream.eat('{')) expr = parseExprRange(stream, expr);
-      else break;
-   }
-   return expr;
-}
-
-function parseNum(stream) {
-   if (/\D/.test(stream.next))
-      stream.err("Expected number, got '" + stream.next + "'");
-   let result = Number(stream.next);
-   stream.pos++;
-   return result;
-}
-
-function parseExprRange(stream, expr) {
-   let min = parseNum(stream),
-      max = min;
-   if (stream.eat(',')) {
-      if (stream.next != '}') max = parseNum(stream);
-      else max = -1;
-   }
-   if (!stream.eat('}')) stream.err('Unclosed braced range');
-   return { type: 'range', min, max, expr };
-}
-
-function resolveName(stream, name) {
-   let types = stream.nodeTypes,
-      type = types[name];
-   if (type) return [type];
-   let result = [];
-   for (let typeName in types) {
-      let type = types[typeName];
-      if (type.groups.indexOf(name) > -1) result.push(type);
-   }
-   if (result.length == 0)
-      stream.err("No node type or group '" + name + "' found");
-   return result;
-}
-
-function parseExprAtom(stream) {
-   if (stream.eat('(')) {
-      let expr = parseExpr(stream);
-      if (!stream.eat(')')) stream.err('Missing closing paren');
-      return expr;
-   } else if (!/\W/.test(stream.next)) {
-      let exprs = resolveName(stream, stream.next).map(type => {
-         if (stream.inline == null) stream.inline = type.isInline;
-         else if (stream.inline != type.isInline)
-            stream.err('Mixing inline and block content');
-         return { type: 'name', value: type };
-      });
-      stream.pos++;
-      return exprs.length == 1 ? exprs[0] : { type: 'choice', exprs };
-   } else {
-      stream.err("Unexpected token '" + stream.next + "'");
-   }
+   static empty = new ContentMatch(true);
 }
 
 // The code below helps compile a regular-expression-like language
