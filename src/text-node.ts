@@ -1,4 +1,4 @@
-import { Node } from './node';
+import { Node, wrapMarks } from './node';
 import { NodeType } from './node-type';
 import { AttributeMap } from './attribute';
 import { Mark } from './mark';
@@ -10,7 +10,7 @@ export class TextNode extends Node {
       type: NodeType,
       attrs: AttributeMap,
       content: string,
-      marks: Mark[]
+      marks: Mark[] | null
    ) {
       super(type, attrs, null, marks);
 
@@ -50,9 +50,10 @@ export class TextNode extends Node {
          ? this
          : this.withText(this.text.slice(from, to));
 
-   eq = (other: TextNode) => this.sameMarkup(other) && this.text == other.text;
+   eq = (other: TextNode): boolean =>
+      this.sameMarkup(other) && this.text == other.text;
 
-   toJSON(): string; {
+   toJSON(): string {
       let base = super.toJSON();
       base.text = this.text;
       return base;

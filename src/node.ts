@@ -1,5 +1,5 @@
-import { Fragment } from './fragment';
-import { Mark } from './mark';
+import { Fragment, FragmentJSON } from './fragment';
+import { Mark, MarkJSON } from './mark';
 import { NodeType } from './node-type';
 import { AttributeMap } from './attribute';
 import { Slice } from './slice';
@@ -10,13 +10,22 @@ import { MarkType } from './mark-type';
 import { DOMOutputSpec } from './to-dom';
 import { ParseRule } from './from-dom';
 import { ContentMatch } from './content';
+import { Schema } from './schema';
 
 const emptyAttrs = Object.create(null);
 
+interface NodeMatch {
+   node?: Node | null;
+   index: number;
+   offset: number;
+}
+
 export interface NodeJSON {
-   attrs: AttributeMap;
-   content: string;
-   marks: string[];
+   type: string;
+   text?: string;
+   attrs?: AttributeMap;
+   content?: FragmentJSON | null;
+   marks?: MarkJSON[];
 }
 
 export interface NodeSpec {
@@ -165,8 +174,8 @@ export class Node {
    constructor(
       type: NodeType,
       attrs: AttributeMap,
-      content: Fragment,
-      marks: Mark[]
+      content: Fragment | null,
+      marks: Mark[] | null
    ) {
       this.type = type;
       this.attrs = attrs;
@@ -336,16 +345,15 @@ export class Node {
       return new Slice(content, $from.depth - depth, $to.depth - depth);
    }
 
-   // :: (number, number, Slice) → Node
-   // Replace the part of the document between the given positions with
-   // the given slice. The slice must 'fit', meaning its open sides
-   // must be able to connect to the surrounding content, and its
-   // content nodes must be valid children for the node they are placed
-   // into. If any of this is violated, an error of type
-   // [`ReplaceError`](#model.ReplaceError) is thrown.
-   replace(from: number, to: number, slice: Slice) {
-      return replace(this.resolve(from), this.resolve(to), slice);
-   }
+   /**
+    * Replace the part of the document between the given positions with the
+    * given slice. The slice must 'fit', meaning its open sides must be able to
+    * connect to the surrounding content, and its content nodes must be valid
+    * children for the node they are placed into. If any of this is violated, an
+    * error of type [`ReplaceError`](#model.ReplaceError) is thrown.
+    */
+   replace = (from: number, to: number, slice: Slice): Node =>
+      replace(this.resolve(from), this.resolve(to), slice);
 
    /**
     * Find the node directly after the given position.
@@ -367,11 +375,11 @@ export class Node {
       }
    }
 
-   // :: (number) → {node: ?Node, index: number, offset: number}
-   // Find the (direct) child node after the given offset, if any,
-   // and return it along with its index and offset relative to this
-   // node.
-   childAfter(pos: number) {
+   /**
+    * Find the (direct) child node after the given offset, if any, and return
+    * it along with its index and offset relative to this node.
+    */
+   childAfter(pos: number): NodeMatch {
       let { index, offset } = this.content.findIndex(pos);
       return { node: this.content.maybeChild(index), index, offset };
    }
@@ -380,7 +388,7 @@ export class Node {
    // Find the (direct) child node before the given offset, if any,
    // and return it along with its index and offset relative to this
    // node.
-   childBefore(pos: number) {
+   childBefore(pos: number): NodeMatch {
       if (pos == 0) return { node: null, index: 0, offset: 0 };
       let { index, offset } = this.content.findIndex(pos);
       if (offset < pos)
@@ -489,15 +497,16 @@ export class Node {
     * Get the content match in this node at the given index.
     */
    contentMatchAt(index: number): ContentMatch {
-      const match = this.type.contentMatch.matchFragment(
-         this.content,
-         0,
-         index
-      );
-      if (!match)
+      const match =
+         this.type.contentMatch === null
+            ? null
+            : this.type.contentMatch.matchFragment(this.content, 0, index);
+
+      if (!match) {
          throw new Error(
             'Called contentMatchAt on a node with invalid content'
          );
+      }
       return match;
    }
 
@@ -577,45 +586,57 @@ export class Node {
             }: ${this.content.toString().slice(0, 50)}`
          );
       }
-      this.content.forEach(node => node.check());
+      this.content.forEach((node: Node) => node.check());
    }
 
    /**
     * Return a JSON-serializeable representation of this node.
     */
    toJSON(): NodeJSON {
-      let obj = { type: this.type.name };
+      const out: NodeJSON = { type: this.type.name };
       for (let _ in this.attrs) {
-         obj.attrs = this.attrs;
+         out.attrs = this.attrs;
          break;
       }
-      if (this.content.size) obj.content = this.content.toJSON();
-      if (this.marks.length) obj.marks = this.marks.map(n => n.toJSON());
-      return obj;
+      if (this.content.size) {
+         out.content = this.content.toJSON();
+      }
+      if (this.marks.length) {
+         out.marks = this.marks.map(n => n.toJSON());
+      }
+      return out;
    }
 
-   // :: (Schema, Object) → Node
-   // Deserialize a node from its JSON representation.
-   static fromJSON(schema: Schema, json: NodeJSON) {
-      if (!json) throw new RangeError('Invalid input for Node.fromJSON');
-      let marks = null;
+   /**
+    * Deserialize a node from its JSON representation.
+    */
+   static fromJSON(schema: Schema, json: NodeJSON): Node {
+      if (!json) {
+         throw new RangeError('Invalid input for Node.fromJSON');
+      }
+      let marks: Mark[] | null = null;
+
       if (json.marks) {
-         if (!Array.isArray(json.marks))
+         if (!Array.isArray(json.marks)) {
             throw new RangeError('Invalid mark data for Node.fromJSON');
+         }
          marks = json.marks.map(schema.markFromJSON);
       }
       if (json.type == 'text') {
-         if (typeof json.text != 'string')
+         if (typeof json.text != 'string') {
             throw new RangeError('Invalid text node in JSON');
+         }
          return schema.text(json.text, marks);
       }
-      let content = Fragment.fromJSON(schema, json.content);
+      const content = Fragment.fromJSON(schema, json.content);
+
       return schema.nodeType(json.type).create(json.attrs, content, marks);
    }
 }
 
-function wrapMarks(marks, str) {
-   for (let i = marks.length - 1; i >= 0; i--)
+export function wrapMarks(marks: Mark[], str: string): string {
+   for (let i = marks.length - 1; i >= 0; i--) {
       str = marks[i].type.name + '(' + str + ')';
+   }
    return str;
 }

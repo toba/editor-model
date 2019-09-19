@@ -153,10 +153,9 @@ export class Schema {
    }
 
    /**
-    * Create a text node in the schema. Empty text nodes are not
-    * allowed.
+    * Create a text node in the schema. Empty text nodes are not allowed.
     */
-   text(text: string, marks?: Mark[]): TextNode {
+   text(text: string, marks?: Mark[] | null): TextNode {
       const type: NodeType = this.nodes.text;
       return new TextNode(type, type.defaultAttrs, text, Mark.setFrom(marks));
    }

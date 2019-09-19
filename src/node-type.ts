@@ -95,7 +95,7 @@ export class NodeType {
       (this.contentMatch !== null &&
          this.contentMatch.compatible(other.contentMatch));
 
-   computeAttrs = (attrs: AttributeMap): AttributeMap =>
+   computeAttrs = (attrs?: AttributeMap): AttributeMap =>
       !attrs && this.defaultAttrs
          ? this.defaultAttrs
          : computeAttrs(this.attrs, attrs);
@@ -108,9 +108,9 @@ export class NodeType {
     * the empty set of marks.
     */
    create(
-      attrs: AttributeMap,
+      attrs?: AttributeMap,
       content?: Fragment | Node | Node[],
-      marks?: Mark[]
+      marks?: Mark[] | null
    ): Node {
       if (this.isText) {
          throw new Error("NodeType.create can't construct text nodes");

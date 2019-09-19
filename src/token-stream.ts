@@ -1,4 +1,5 @@
 import { NodeType } from './node-type';
+import { ThrowStatement } from '@babel/types';
 
 export const enum TokenType {
    Choice = 'choice',
@@ -48,11 +49,10 @@ export class TokenStream {
       return this.tokens[this.pos];
    }
 
-   eat(token: string): number | boolean {
-      return this.next == token && (this.pos++ || true);
-   }
+   eat = (token: string): number | boolean =>
+      this.next == token && (this.pos++ || true);
 
-   err(str: string) {
+   err(str: string): never {
       throw new SyntaxError(
          str + " (in content expression '" + this.string + "')"
       );
@@ -142,9 +142,10 @@ function resolveName(stream: TokenStream, name: string): NodeType[] {
    return result;
 }
 
-function parseExprAtom(stream: TokenStream): Expression | undefined {
+function parseExprAtom(stream: TokenStream): Expression {
    if (stream.eat('(')) {
       const expr = parseExpr(stream);
+
       if (!stream.eat(')')) {
          stream.err('Missing closing paren');
       }
@@ -161,8 +162,12 @@ function parseExprAtom(stream: TokenStream): Expression | undefined {
          }
       );
       stream.pos++;
+
       return exprs.length == 1 ? exprs[0] : { type: TokenType.Choice, exprs };
    } else {
       stream.err("Unexpected token '" + stream.next + "'");
+      // this return is here only to make TypeScript happy since it can't tell
+      // that stream.err() will always throw an error
+      return { type: TokenType.Choice };
    }
 }

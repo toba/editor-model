@@ -29,7 +29,7 @@ export function defaultAttrs(attrs: { [key: string]: Attribute<any> }) {
 
 export function computeAttrs(
    attrs: AttributeMap,
-   value: { [key: string]: any }
+   value?: { [key: string]: any }
 ) {
    let built = Object.create(null);
 

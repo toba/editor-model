@@ -1,10 +1,7 @@
-import { is } from '@toba/tools';
-import { Node } from './node';
-import { findDiffStart, findDiffEnd } from './diff';
+import { Node, NodeJSON } from './node';
+import { Schema } from './schema';
 
-interface FragmentJSON {
-
-}
+export type FragmentJSON = NodeJSON[];
 
 /**
  * A fragment represents a node's collection of child nodes.
@@ -37,7 +34,13 @@ export class Fragment {
     * (relative to start of this fragment). Doesn't descend into a node when the
     * callback returns `false`.
     */
-   nodesBetween(from: number, to: number, fn: (node: Node, start: number, parent?: Node, index: number) => boolean, nodeStart = 0, parent?: Node) {
+   nodesBetween(
+      from: number,
+      to: number,
+      fn: (node: Node, start: number, parent?: Node, index: number) => boolean,
+      nodeStart = 0,
+      parent?: Node
+   ) {
       for (let i = 0, pos = 0; pos < to; i++) {
          let child = this.content[i];
          let end = pos + child.nodeSize;
@@ -62,11 +65,16 @@ export class Fragment {
     * Call the given callback for every descendant node. The callback may return
     * `false` to prevent traversal of a given node's children.
     */
-   descendants(fn: (node: Node, pos: number, parent: Node)=>boolean) {
+   descendants(fn: (node: Node, pos: number, parent: Node) => boolean) {
       this.nodesBetween(0, this.size, fn);
    }
 
-   textBetween(from: number, to: number, blockSeparator?: string, leafText?: string) {
+   textBetween(
+      from: number,
+      to: number,
+      blockSeparator?: string,
+      leafText?: string
+   ) {
       let text = '';
       let separated = true;
 
@@ -101,12 +109,17 @@ export class Fragment {
       if (!this.size) {
          return other;
       }
-      const last: Node|null = this.lastChild;
-      const first: Node|null = other.firstChild;
+      const last: Node | null = this.lastChild;
+      const first: Node | null = other.firstChild;
       const content = this.content.slice();
       let i = 0;
 
-      if (last !== null && first !== null && last.isText && last.sameMarkup(first)) {
+      if (
+         last !== null &&
+         first !== null &&
+         last.isText &&
+         last.sameMarkup(first)
+      ) {
          content[content.length - 1] = last.withText(last.text + first.text);
          i = 1;
       }
@@ -155,20 +168,29 @@ export class Fragment {
    }
 
    cutByIndex(from: number, to: number): Fragment {
-      if (from == to) { return Fragment.empty; }
-      if (from == 0 && to == this.content.length) { return this; }
+      if (from == to) {
+         return Fragment.empty;
+      }
+      if (from == 0 && to == this.content.length) {
+         return this;
+      }
       return new Fragment(this.content.slice(from, to));
    }
 
-   // :: (number, Node) → Fragment
-   // Create a new fragment in which the node at the given index is
-   // replaced by the given node.
-   replaceChild(index, node) {
-      let current = this.content[index];
-      if (current == node) return this;
-      let copy = this.content.slice();
-      let size = this.size + node.nodeSize - current.nodeSize;
+   /**
+    * Create a new fragment in which the node at the given index is replaced by
+    * the given node.
+    */
+   replaceChild(index: number, node: Node): Fragment {
+      const current = this.content[index];
+      if (current === node) {
+         return this;
+      }
+      const copy = this.content.slice();
+      const size = this.size + node.nodeSize - current.nodeSize;
+
       copy[index] = node;
+
       return new Fragment(copy, size);
    }
 
@@ -176,10 +198,7 @@ export class Fragment {
     * Create a new fragment by prepending the given node to this fragment.
     */
    addToStart = (node: Node): Fragment =>
-      new Fragment(
-         [node].concat(this.content),
-         this.size + node.nodeSize
-      );
+      new Fragment([node].concat(this.content), this.size + node.nodeSize);
 
    /**
     * Create a new fragment by appending the given node to this fragment.
@@ -187,14 +206,18 @@ export class Fragment {
    addToEnd = (node: Node): Fragment =>
       new Fragment(this.content.concat(node), this.size + node.nodeSize);
 
-
    /**
     * Compare this fragment to another one.
     */
    eq(other: Fragment): boolean {
-      if (this.content.length != other.content.length) { return false; }
+      if (this.content.length != other.content.length) {
+         return false;
+      }
       for (let i = 0; i < this.content.length; i++) {
-         if (!this.content[i].eq(other.content[i])) { return false; }}
+         if (!this.content[i].eq(other.content[i])) {
+            return false;
+         }
+      }
       return true;
    }
 
@@ -231,45 +254,52 @@ export class Fragment {
       return found;
    }
 
-   // :: (number) → ?Node
-   // Get the child node at the given index, if it exists.
-   maybeChild(index) {
-      return this.content[index];
-   }
+   /**
+    * Get the child node at the given index, if it exists.
+    */
+   maybeChild = (index: number): Node | undefined => this.content[index];
 
-   // :: ((node: Node, offset: number, index: number))
-   // Call `f` for every child node, passing the node, its offset
-   // into this parent node, and its index.
-   forEach(f) {
+   /**
+    * Call `fn` for every child node, passing the node, its offset into this
+    * parent node, and its index.
+    */
+   forEach(fn: (node: Node, offset: number, index: number) => void) {
       for (let i = 0, p = 0; i < this.content.length; i++) {
-         let child = this.content[i];
-         f(child, p, i);
+         const child = this.content[i];
+         fn(child, p, i);
          p += child.nodeSize;
       }
    }
 
-   // :: (Fragment) → ?number
-   // Find the first position at which this fragment and another
-   // fragment differ, or `null` if they are the same.
-   findDiffStart(other, pos = 0) {
-      return findDiffStart(this, other, pos);
-   }
+   /**
+    * Find the first position at which this fragment and another fragment
+    * differ, or `null` if they are the same.
+    */
+   findDiffStart = (other: Fragment, pos = 0): number | null =>
+      findDiffStart(this, other, pos);
 
-   // :: (Fragment) → ?{a: number, b: number}
-   // Find the first position, searching from the end, at which this
-   // fragment and the given fragment differ, or `null` if they are the
-   // same. Since this position will not be the same in both nodes, an
-   // object with two separate positions is returned.
-   findDiffEnd(other, pos = this.size, otherPos = other.size) {
-      return findDiffEnd(this, other, pos, otherPos);
-   }
+   /**
+    * Find the first position, searching from the end, at which this fragment
+    * and the given fragment differ, or `null` if they are the same. Since this
+    * position will not be the same in both nodes, an object with two separate
+    * positions is returned.
+    */
+   findDiffEnd = (
+      other: Fragment,
+      pos = this.size,
+      otherPos = other.size
+   ): { a: number; b: number } | null =>
+      findDiffEnd(this, other, pos, otherPos);
 
-   // : (number, ?number) → {index: number, offset: number}
-   // Find the index and inner offset corresponding to a given relative
-   // position in this fragment. The result object will be reused
-   // (overwritten) the next time the function is called. (Not public.)
-   findIndex(pos, round = -1) {
-      if (pos == 0) return retIndex(0, pos);
+   /**
+    * Find the index and inner offset corresponding to a given relative
+    * position in this fragment. The result object will be reused (overwritten)
+    * the next time the function is called. (Not public.)
+    */
+   findIndex(pos: number, round = -1): { index: number; offset: number } {
+      if (pos == 0) {
+         return retIndex(0, pos);
+      }
       if (pos == this.size) return retIndex(this.content.length, pos);
       if (pos > this.size || pos < 0)
          throw new RangeError(`Position ${pos} outside of fragment (${this})`);
@@ -284,43 +314,51 @@ export class Fragment {
       }
    }
 
-   // :: () → string
-   // Return a debugging string that describes this fragment.
-   toString() {
-      return '<' + this.toStringInner() + '>';
-   }
+   /**
+    * Return a debugging string that describes this fragment.
+    */
+   toString = (): string => '<' + this.toStringInner() + '>';
 
-   toStringInner() {
-      return this.content.join(', ');
-   }
+   toStringInner = () => this.content.join(', ');
 
-   // :: () → ?Object
-   // Create a JSON-serializeable representation of this fragment.
-   toJSON(): string[] | null {
-      return this.content.length ? this.content.map(n => n.toJSON()) : null;
-   }
+   /**
+    * Ceate a JSON-serializeable representation of this fragment.
+    */
+   toJSON = (): FragmentJSON | null =>
+      this.content.length ? this.content.map(n => n.toJSON()) : null;
 
-   // :: (Schema, ?Object) → Fragment
-   // Deserialize a fragment from its JSON representation.
-   static fromJSON(schema, value) {
-      if (!value) return Fragment.empty;
-      if (!Array.isArray(value))
+   /**
+    * Deserialize a fragment from its JSON representation.
+    */
+   static fromJSON(schema: Schema, value?: FragmentJSON | null): Fragment {
+      if (!value) {
+         return Fragment.empty;
+      }
+      if (!Array.isArray(value)) {
          throw new RangeError('Invalid input for Fragment.fromJSON');
+      }
       return new Fragment(value.map(schema.nodeFromJSON));
    }
 
-   // :: ([Node]) → Fragment
-   // Build a fragment from an array of nodes. Ensures that adjacent
-   // text nodes with the same marks are joined together.
-   static fromArray(array) {
-      if (!array.length) return Fragment.empty;
-      let joined,
-         size = 0;
+   /**
+    * Build a fragment from an array of nodes. Ensures that adjacent text nodes
+    * with the same marks are joined together.
+    */
+   static fromArray(array: Node[]): Fragment {
+      if (!array.length) {
+         return Fragment.empty;
+      }
+      let joined: Node[] = [];
+      let size = 0;
+
       for (let i = 0; i < array.length; i++) {
          let node = array[i];
          size += node.nodeSize;
+
          if (i && node.isText && array[i - 1].sameMarkup(node)) {
-            if (!joined) joined = array.slice(0, i);
+            if (!joined) {
+               joined = array.slice(0, i);
+            }
             joined[joined.length - 1] = node.withText(
                joined[joined.length - 1].text + node.text
             );
@@ -337,12 +375,19 @@ export class Fragment {
     * fragment itself. For a node or array of nodes, a fragment containing those
     * nodes.
     */
-   static from(nodes?: Fragment|Node|Node[]): Fragment {
-      if (nodes === undefined)
-      { return Fragment.empty; }
-      if (nodes instanceof Fragment) { return nodes; }
-      if (Array.isArray(nodes)) { return this.fromArray(nodes); }
-      if (nodes.attrs) { return new Fragment([nodes], nodes.nodeSize); }
+   static from(nodes?: Fragment | Node | Node[]): Fragment {
+      if (nodes === undefined) {
+         return Fragment.empty;
+      }
+      if (nodes instanceof Fragment) {
+         return nodes;
+      }
+      if (Array.isArray(nodes)) {
+         return this.fromArray(nodes);
+      }
+      if (nodes.attrs) {
+         return new Fragment([nodes], nodes.nodeSize);
+      }
       throw new RangeError(
          'Can not convert ' +
             nodes +
@@ -357,13 +402,96 @@ export class Fragment {
     * An empty fragment. Intended to be reused whenever a node doesn't contain
     * anything (rather than allocating a new empty fragment for each leaf node).
     */
-   static empty = new Fragment([], 0):
+   static empty = new Fragment([], 0);
 }
 
 const found = { index: 0, offset: 0 };
-function retIndex(index, offset) {
+function retIndex(index: number, offset: number) {
    found.index = index;
    found.offset = offset;
    return found;
 }
 
+export function findDiffStart(
+   a: Fragment,
+   b: Fragment,
+   pos: number
+): number | null {
+   for (let i = 0; ; i++) {
+      if (i == a.childCount || i == b.childCount)
+         return a.childCount == b.childCount ? null : pos;
+
+      let childA = a.child(i),
+         childB = b.child(i);
+      if (childA == childB) {
+         pos += childA.nodeSize;
+         continue;
+      }
+
+      if (!childA.sameMarkup(childB)) return pos;
+
+      if (childA.isText && childA.text != childB.text) {
+         for (let j = 0; childA.text[j] == childB.text[j]; j++) pos++;
+         return pos;
+      }
+      if (childA.content.size || childB.content.size) {
+         let inner = findDiffStart(childA.content, childB.content, pos + 1);
+         if (inner != null) return inner;
+      }
+      pos += childA.nodeSize;
+   }
+}
+
+export function findDiffEnd(
+   a: Fragment,
+   b: Fragment,
+   posA: number,
+   posB: number
+): { a: number; b: number } | null {
+   for (let iA = a.childCount, iB = b.childCount; ; ) {
+      if (iA == 0 || iB == 0) {
+         return iA == iB ? null : { a: posA, b: posB };
+      }
+
+      const childA = a.child(--iA);
+      const childB = b.child(--iB);
+      const size = childA.nodeSize;
+
+      if (childA == childB) {
+         posA -= size;
+         posB -= size;
+         continue;
+      }
+
+      if (!childA.sameMarkup(childB)) {
+         return { a: posA, b: posB };
+      }
+
+      if (childA.isText && childA.text != childB.text) {
+         let same = 0;
+         const minSize = Math.min(childA.text.length, childB.text.length);
+
+         while (
+            same < minSize &&
+            childA.text[childA.text.length - same - 1] ==
+               childB.text[childB.text.length - same - 1]
+         ) {
+            same++;
+            posA--;
+            posB--;
+         }
+         return { a: posA, b: posB };
+      }
+      if (childA.content.size || childB.content.size) {
+         let inner = findDiffEnd(
+            childA.content,
+            childB.content,
+            posA - 1,
+            posB - 1
+         );
+         if (inner) return inner;
+      }
+      posA -= size;
+      posB -= size;
+   }
+}
