@@ -1,11 +1,21 @@
 import { Fragment } from './fragment';
 import { Mark } from './mark';
-import { Attribute, AttributeMap } from './attribute';
-import { Slice, replace } from './replace';
+import { NodeType } from './node-type';
+import { AttributeMap } from './attribute';
+import { Slice } from './slice';
+import { replace } from './replace';
 import { ResolvedPos } from './resolved-pos';
 import { compareDeep } from './compare-deep';
+import { MarkType } from './mark-type';
 
 const emptyAttrs = Object.create(null);
+
+export interface NodeJSON {}
+
+/**
+ * Node, ofsfset and index
+ */
+type Iteration = [Node, number, number];
 
 /**
  * This class represents a node in the tree that makes up a document. So a
@@ -22,7 +32,7 @@ const emptyAttrs = Object.create(null);
  * [the guide](/docs/guide/#doc) for more information.
  */
 export class Node {
-   type: string;
+   type: NodeType;
    /** Container holding the node's children */
    content: Fragment;
    /**
@@ -38,7 +48,7 @@ export class Node {
    attrs: AttributeMap;
 
    constructor(
-      type: string,
+      type: NodeType,
       attrs: AttributeMap,
       content: Fragment,
       marks: Mark[]
@@ -70,129 +80,135 @@ export class Node {
     * Get the child node at the given index. Raises an error when the index is
     * out of range.
     */
-   child(index: number): Node {
-      return this.content.child(index);
+   child = (index: number): Node => this.content.child(index);
+
+   /**
+    * Get the child node at the given index, if it exists.
+    */
+   maybeChild = (index: number): Node | undefined =>
+      this.content.maybeChild(index);
+
+   /**
+    * Call `f` for every child node, passing the node, its offset into this
+    * parent node, and its index.
+    */
+   forEach(fn: (node: Node, offset: number, index: number) => void) {
+      this.content.forEach(fn);
    }
 
-   // :: (number) → ?Node
-   // Get the child node at the given index, if it exists.
-   maybeChild(index) {
-      return this.content.maybeChild(index);
+   /**
+    * Invoke a callback for all descendant nodes recursively between the given
+    * two positions that are relative to start of this node's content. The
+    * callback is invoked with the node, its parent-relative position, its
+    * parent node, and its child index. When the callback returns false for a
+    * given node, that node's children will not be recursed over. The last
+    * parameter can be used to specify a starting position to count from.
+    */
+   nodesBetween(
+      from: number,
+      to: number,
+      fn: (node: Node, pos: number, parent: Node, index: number) => boolean,
+      startPos = 0
+   ) {
+      this.content.nodesBetween(from, to, fn, startPos, this);
    }
 
-   // :: ((node: Node, offset: number, index: number))
-   // Call `f` for every child node, passing the node, its offset
-   // into this parent node, and its index.
-   forEach(f) {
-      this.content.forEach(f);
+   /**
+    * Call the given callback for every descendant node. Doesn't descend into a
+    * node when the callback returns `false`.
+    */
+   descendants(fn: (node: Node, pos: number, parent: Node) => boolean) {
+      this.nodesBetween(0, this.content.size, fn);
    }
 
-   // :: (number, number, (node: Node, pos: number, parent: Node, index: number) → ?bool, ?number)
-   // Invoke a callback for all descendant nodes recursively between
-   // the given two positions that are relative to start of this node's
-   // content. The callback is invoked with the node, its
-   // parent-relative position, its parent node, and its child index.
-   // When the callback returns false for a given node, that node's
-   // children will not be recursed over. The last parameter can be
-   // used to specify a starting position to count from.
-   nodesBetween(from, to, f, startPos = 0) {
-      this.content.nodesBetween(from, to, f, startPos, this);
-   }
-
-   // :: ((node: Node, pos: number, parent: Node) → ?bool)
-   // Call the given callback for every descendant node. Doesn't
-   // descend into a node when the callback returns `false`.
-   descendants(f) {
-      this.nodesBetween(0, this.content.size, f);
-   }
-
-   // :: string
-   // Concatenates all the text nodes found in this fragment and its
-   // children.
-   get textContent() {
+   /**
+    * Concatenates all the text nodes found in this fragment and its children.
+    */
+   get textContent(): string {
       return this.textBetween(0, this.content.size, '');
    }
 
-   // :: (number, number, ?string, ?string) → string
-   // Get all text between positions `from` and `to`. When
-   // `blockSeparator` is given, it will be inserted whenever a new
-   // block node is started. When `leafText` is given, it'll be
-   // inserted for every non-text leaf node encountered.
-   textBetween(from, to, blockSeparator, leafText) {
-      return this.content.textBetween(from, to, blockSeparator, leafText);
-   }
+   /**
+    * Get all text between positions `from` and `to`. When `blockSeparator` is
+    * given, it will be inserted whenever a new block node is started. When
+    * `leafText` is given, it'll be inserted for every non-text leaf node
+    * encountered.
+    */
+   textBetween = (
+      from: number,
+      to: number,
+      blockSeparator?: string,
+      leafText?: string
+   ): string => this.content.textBetween(from, to, blockSeparator, leafText);
 
-   // :: ?Node
-   // Returns this node's first child, or `null` if there are no
-   // children.
-   get firstChild() {
+   /**
+    * Returns this node's first child, or `null` if there are no children.
+    */
+   get firstChild(): Node | null {
       return this.content.firstChild;
    }
 
-   // :: ?Node
-   // Returns this node's last child, or `null` if there are no
-   // children.
-   get lastChild() {
+   /**
+    * Returns this node's last child, or `null` if there are no children.
+    */
+   get lastChild(): Node | null {
       return this.content.lastChild;
    }
 
-   // :: (Node) → bool
-   // Test whether two nodes represent the same piece of document.
-   eq(other) {
-      return (
-         this == other ||
-         (this.sameMarkup(other) && this.content.eq(other.content))
-      );
-   }
+   /**
+    * Test whether two nodes represent the same piece of document.
+    */
+   eq = (other: Node): boolean =>
+      this === other ||
+      (this.sameMarkup(other) && this.content.eq(other.content));
 
-   // :: (Node) → bool
-   // Compare the markup (type, attributes, and marks) of this node to
-   // those of another. Returns `true` if both have the same markup.
-   sameMarkup(other) {
-      return this.hasMarkup(other.type, other.attrs, other.marks);
-   }
+   /**
+    * Compare the markup (type, attributes, and marks) of this node to those of
+    * another. Returns `true` if both have the same markup.
+    */
+   sameMarkup = (other: Node): boolean =>
+      this.hasMarkup(other.type, other.attrs, other.marks);
 
-   // :: (NodeType, ?Object, ?[Mark]) → bool
-   // Check whether this node's markup correspond to the given type,
-   // attributes, and marks.
-   hasMarkup(type, attrs, marks) {
-      return (
-         this.type == type &&
-         compareDeep(this.attrs, attrs || type.defaultAttrs || emptyAttrs) &&
-         Mark.sameSet(this.marks, marks || Mark.none)
-      );
-   }
+   /**
+    * Check whether this node's markup correspond to the given type, attributes,
+    * and marks.
+    */
+   hasMarkup = (type: NodeType, attrs: AttributeMap, marks?: Mark[]): boolean =>
+      this.type === type &&
+      compareDeep(this.attrs, attrs || type.defaultAttrs || emptyAttrs) &&
+      Mark.sameSet(this.marks, marks || Mark.none);
 
-   // :: (?Fragment) → Node
-   // Create a new node with the same markup as this node, containing
-   // the given content (or empty, if no content is given).
-   copy(content = null) {
-      if (content == this.content) return this;
-      return new this.constructor(this.type, this.attrs, content, this.marks);
-   }
-
-   // :: ([Mark]) → Node
-   // Create a copy of this node, with the given set of marks instead
-   // of the node's own marks.
-   mark(marks) {
-      return marks == this.marks
+   /**
+    * Create a new node with the same markup as this node, containing the given
+    * content (or empty, if no content is given).
+    */
+   copy = (content: Fragment | null = null): Node =>
+      content === this.content
          ? this
-         : new this.constructor(this.type, this.attrs, this.content, marks);
-   }
+         : new Node(this.type, this.attrs, content, this.marks);
 
-   // :: (number, ?number) → Node
-   // Create a copy of this node with only the content between the
-   // given positions. If `to` is not given, it defaults to the end of
-   // the node.
-   cut(from, to) {
-      if (from == 0 && to == this.content.size) return this;
-      return this.copy(this.content.cut(from, to));
-   }
+   /**
+    * Create a copy of this node, with the given set of marks instead of the
+    * node's own marks.
+    */
+   mark = (marks: Mark[]): Node =>
+      marks === this.marks
+         ? this
+         : new Node(this.type, this.attrs, this.content, marks);
+
+   /**
+    * Create a copy of this node with only the content between the given
+    * positions. If `to` is not given, it defaults to the end of the node.
+    */
+   cut = (from: number, to?: number): Node =>
+      from == 0 && to == this.content.size
+         ? this
+         : this.copy(this.content.cut(from, to));
 
    // :: (number, ?number) → Slice
    // Cut out the part of the document between the given positions, and
    // return it as a `Slice` object.
-   slice(from, to = this.content.size, includeParents = false) {
+   slice(from: number, to = this.content.size, includeParents = false) {
       if (from == to) return Slice.empty;
 
       let $from = this.resolve(from),
@@ -211,18 +227,22 @@ export class Node {
    // content nodes must be valid children for the node they are placed
    // into. If any of this is violated, an error of type
    // [`ReplaceError`](#model.ReplaceError) is thrown.
-   replace(from, to, slice) {
+   replace(from: number, to: number, slice: Slice) {
       return replace(this.resolve(from), this.resolve(to), slice);
    }
 
    // :: (number) → ?Node
    // Find the node directly after the given position.
-   nodeAt(pos) {
+   nodeAt(pos: number): Node | null {
       for (let node = this; ; ) {
          let { index, offset } = node.content.findIndex(pos);
          node = node.maybeChild(index);
-         if (!node) return null;
-         if (offset == pos || node.isText) return node;
+         if (!node) {
+            return null;
+         }
+         if (offset == pos || node.isText) {
+            return node;
+         }
          pos -= offset + 1;
       }
    }
@@ -231,7 +251,7 @@ export class Node {
    // Find the (direct) child node after the given offset, if any,
    // and return it along with its index and offset relative to this
    // node.
-   childAfter(pos) {
+   childAfter(pos: number) {
       let { index, offset } = this.content.findIndex(pos);
       return { node: this.content.maybeChild(index), index, offset };
    }
@@ -240,7 +260,7 @@ export class Node {
    // Find the (direct) child node before the given offset, if any,
    // and return it along with its index and offset relative to this
    // node.
-   childBefore(pos) {
+   childBefore(pos: number) {
       if (pos == 0) return { node: null, index: 0, offset: 0 };
       let { index, offset } = this.content.findIndex(pos);
       if (offset < pos)
@@ -252,18 +272,18 @@ export class Node {
    // :: (number) → ResolvedPos
    // Resolve the given position in the document, returning an
    // [object](#model.ResolvedPos) with information about its context.
-   resolve(pos) {
+   resolve(pos: number) {
       return ResolvedPos.resolveCached(this, pos);
    }
 
-   resolveNoCache(pos) {
+   resolveNoCache(pos: number) {
       return ResolvedPos.resolve(this, pos);
    }
 
    // :: (number, number, MarkType) → bool
    // Test whether a mark of the given type occurs in this document
    // between the two given positions.
-   rangeHasMark(from, to, type) {
+   rangeHasMark(from: number, to: number, type: MarkType) {
       let found = false;
       if (to > from)
          this.nodesBetween(from, to, node => {
@@ -324,9 +344,10 @@ export class Node {
    // :: () → string
    // Return a string representation of this node for debugging
    // purposes.
-   toString() {
-      if (this.type.spec.toDebugString)
+   toString(): string {
+      if (this.type.spec.toDebugString) {
          return this.type.spec.toDebugString(this);
+      }
       let name = this.type.name;
       if (this.content.size) name += '(' + this.content.toStringInner() + ')';
       return wrapMarks(this.marks, name);
@@ -334,7 +355,7 @@ export class Node {
 
    // :: (number) → ContentMatch
    // Get the content match in this node at the given index.
-   contentMatchAt(index) {
+   contentMatchAt(index: number) {
       let match = this.type.contentMatch.matchFragment(this.content, 0, index);
       if (!match)
          throw new Error(
@@ -343,71 +364,82 @@ export class Node {
       return match;
    }
 
-   // :: (number, number, ?Fragment, ?number, ?number) → bool
-   // Test whether replacing the range between `from` and `to` (by
-   // child index) with the given replacement fragment (which defaults
-   // to the empty fragment) would leave the node's content valid. You
-   // can optionally pass `start` and `end` indices into the
-   // replacement fragment.
+   /**
+    * Test whether replacing the range between `from` and `to` (by child index)
+    * with the given replacement fragment (which defaults to the empty fragment)
+    * would leave the node's content valid. You can optionally pass `start` and
+    * `end` indices into the replacement fragment.
+    */
    canReplace(
-      from,
-      to,
+      from: number,
+      to: number,
       replacement = Fragment.empty,
       start = 0,
       end = replacement.childCount
-   ) {
-      let one = this.contentMatchAt(from).matchFragment(
+   ): boolean {
+      const one = this.contentMatchAt(from).matchFragment(
          replacement,
          start,
          end
       );
-      let two = one && one.matchFragment(this.content, to);
-      if (!two || !two.validEnd) return false;
-      for (let i = start; i < end; i++)
-         if (!this.type.allowsMarks(replacement.child(i).marks)) return false;
+      const two = one && one.matchFragment(this.content, to);
+
+      if (!two || !two.validEnd) {
+         return false;
+      }
+      for (let i = start; i < end; i++) {
+         if (!this.type.allowsMarks(replacement.child(i).marks)) {
+            return false;
+         }
+      }
       return true;
    }
 
-   // :: (number, number, NodeType, ?[Mark]) → bool
-   // Test whether replacing the range `from` to `to` (by index) with a
-   // node of the given type would leave the node's content valid.
-   canReplaceWith(from, to, type, marks) {
-      if (marks && !this.type.allowsMarks(marks)) return false;
-      let start = this.contentMatchAt(from).matchType(type);
-      let end = start && start.matchFragment(this.content, to);
+   /**
+    * Test whether replacing the range `from` to `to` (by index) with a node of
+    * the given type would leave the node's content valid.
+    */
+   canReplaceWith(
+      from: number,
+      to: number,
+      type: NodeType,
+      marks?: Mark[]
+   ): boolean {
+      if (marks && !this.type.allowsMarks(marks)) {
+         return false;
+      }
+      const start = this.contentMatchAt(from).matchType(type);
+      const end = start && start.matchFragment(this.content, to);
+
       return end ? end.validEnd : false;
    }
 
-   // :: (Node) → bool
-   // Test whether the given node's content could be appended to this
-   // node. If that node is empty, this will only return true if there
-   // is at least one node type that can appear in both nodes (to avoid
-   // merging completely incompatible nodes).
-   canAppend(other) {
-      if (other.content.size)
-         return this.canReplace(
-            this.childCount,
-            this.childCount,
-            other.content
-         );
-      else return this.type.compatibleContent(other.type);
-   }
+   /**
+    * Test whether the given node's content could be appended to this node. If
+    * that node is empty, this will only return true if there is at least one
+    * node type that can appear in both nodes (to avoid merging completely
+    * incompatible nodes).
+    */
+   canAppend = (other: Node): boolean =>
+      other.content.size
+         ? this.canReplace(this.childCount, this.childCount, other.content)
+         : this.type.compatibleContent(other.type);
 
    // Unused. Left for backwards compatibility.
-   defaultContentType(at) {
-      return this.contentMatchAt(at).defaultType;
-   }
+   defaultContentType = (at: number) => this.contentMatchAt(at).defaultType;
 
-   // :: ()
-   // Check whether this node and its descendants conform to the
-   // schema, and raise error when they do not.
+   /**
+    * Check whether this node and its descendants conform to the schema, and
+    * raise error when they do not.
+    */
    check() {
-      if (!this.type.validContent(this.content))
+      if (!this.type.validContent(this.content)) {
          throw new RangeError(
             `Invalid content for node ${
                this.type.name
             }: ${this.content.toString().slice(0, 50)}`
          );
+      }
       this.content.forEach(node => node.check());
    }
 
@@ -441,60 +473,6 @@ export class Node {
       }
       let content = Fragment.fromJSON(schema, json.content);
       return schema.nodeType(json.type).create(json.attrs, content, marks);
-   }
-}
-
-export class TextNode extends Node {
-   constructor(type, attrs, content, marks) {
-      super(type, attrs, null, marks);
-
-      if (!content) throw new RangeError('Empty text nodes are not allowed');
-
-      this.text = content;
-   }
-
-   toString() {
-      if (this.type.spec.toDebugString)
-         return this.type.spec.toDebugString(this);
-      return wrapMarks(this.marks, JSON.stringify(this.text));
-   }
-
-   get textContent() {
-      return this.text;
-   }
-
-   textBetween(from, to) {
-      return this.text.slice(from, to);
-   }
-
-   get nodeSize() {
-      return this.text.length;
-   }
-
-   mark(marks) {
-      return marks == this.marks
-         ? this
-         : new TextNode(this.type, this.attrs, this.text, marks);
-   }
-
-   withText(text) {
-      if (text == this.text) return this;
-      return new TextNode(this.type, this.attrs, text, this.marks);
-   }
-
-   cut(from = 0, to = this.text.length) {
-      if (from == 0 && to == this.text.length) return this;
-      return this.withText(this.text.slice(from, to));
-   }
-
-   eq(other) {
-      return this.sameMarkup(other) && this.text == other.text;
-   }
-
-   toJSON() {
-      let base = super.toJSON();
-      base.text = this.text;
-      return base;
    }
 }
 

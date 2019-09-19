@@ -3,7 +3,7 @@
  * attributes), build up a single reusable default attribute object, and use it
  * for all nodes that don't specify specific attributes.
  */
-function defaultAttrs(attrs: Attribute<any>[]) {
+export function defaultAttrs(attrs: Attribute<any>[]) {
    let defaults = Object.create(null);
    for (let attrName in attrs) {
       let attr = attrs[attrName];
@@ -15,7 +15,7 @@ function defaultAttrs(attrs: Attribute<any>[]) {
    return defaults;
 }
 
-function computeAttrs(attrs: Attribute<any>[], value) {
+function computeAttrs(attrs: AttributeMap, value: string) {
    let built = Object.create(null);
 
    for (let name in attrs) {
@@ -33,9 +33,13 @@ function computeAttrs(attrs: Attribute<any>[], value) {
    return built;
 }
 
-function initAttrs(attrs: Attribute<any>[]) {
-   let result = Object.create(null);
-   if (attrs) for (let name in attrs) result[name] = new Attribute(attrs[name]);
+export function initAttrs(attrs?: Attribute<any>[]): AttributeMap {
+   const result = Object.create(null);
+   if (attrs) {
+      for (let name in attrs) {
+         result[name] = new Attribute(attrs[name]);
+      }
+   }
    return result;
 }
 

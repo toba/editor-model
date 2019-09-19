@@ -1,5 +1,6 @@
 import { MarkType } from './mark-type';
 import { Schema } from './schema';
+import { AttributeMap, initAttrs, defaultAttrs } from './attribute';
 
 // ::- Node types are objects allocated once per `Schema` and used to
 // [tag](#model.Node.type) `Node` instances. They contain information
@@ -9,6 +10,8 @@ export class NodeType {
    name: string;
    /** link back to the `Schema` the node type belongs to */
    schema: Schema;
+   attrs: AttributeMap;
+   inlineContent: boolean;
 
    constructor(name: string, schema: Schema, spec) {
       this.name = name;

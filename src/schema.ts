@@ -1,7 +1,6 @@
 import OrderedMap from 'ordered-map';
-
-import { Node, TextNode } from './node';
-import { Fragment } from './fragment';
+import { Node } from './node';
+import { TextNode } from './text-node';
 import { Mark } from './mark';
 import { ContentMatch } from './content';
 

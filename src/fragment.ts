@@ -1,22 +1,25 @@
+import { is } from '@toba/tools';
 import { Node } from './node';
 import { findDiffStart, findDiffEnd } from './diff';
 
-// ::- A fragment represents a node's collection of child nodes.
-//
-// Like nodes, fragments are persistent data structures, and you
-// should not mutate them or their content. Rather, you create new
-// instances whenever needed. The API tries to make this easy.
-
+/**
+ * A fragment represents a node's collection of child nodes.
+ *
+ * Like nodes, fragments are persistent data structures, and you should not
+ * mutate them or their content. Rather, you create new instances whenever
+ * needed. The API tries to make this easy.
+ */
 export class Fragment {
-   content: Node;
+   content: Node[];
+   /**
+    * The size of the fragment, which is the total of the size of its content
+    * nodes.
+    */
    size: number;
 
-   constructor(content: Node, size: number) {
+   constructor(content: Node[], size: number = 0) {
       this.content = content;
-      // :: number
-      // The size of the fragment, which is the total of the size of its
-      // content nodes.
-      this.size = size || 0;
+      this.size = size;
 
       if (size == null) {
          for (let i = 0; i < content.length; i++) {
@@ -25,24 +28,25 @@ export class Fragment {
       }
    }
 
-   // :: (number, number, (node: Node, start: number, parent: Node, index: number) → ?bool, ?number)
-   // Invoke a callback for all descendant nodes between the given two
-   // positions (relative to start of this fragment). Doesn't descend
-   // into a node when the callback returns `false`.
-   nodesBetween(from, to, f, nodeStart = 0, parent) {
+   /**
+    * Invoke a callback for all descendant nodes between the given two positions
+    * (relative to start of this fragment). Doesn't descend into a node when the
+    * callback returns `false`.
+    */
+   nodesBetween(from: number, to: number, fn: (node: Node, start: number, parent?: Node, index: number) => boolean, nodeStart = 0, parent?: Node) {
       for (let i = 0, pos = 0; pos < to; i++) {
-         let child = this.content[i],
-            end = pos + child.nodeSize;
+         let child = this.content[i];
+         let end = pos + child.nodeSize;
          if (
             end > from &&
-            f(child, nodeStart + pos, parent, i) !== false &&
+            fn(child, nodeStart + pos, parent, i) !== false &&
             child.content.size
          ) {
             let start = pos + 1;
             child.nodesBetween(
                Math.max(0, from - start),
                Math.min(child.content.size, to - start),
-               f,
+               fn,
                nodeStart + start
             );
          }
@@ -50,17 +54,18 @@ export class Fragment {
       }
    }
 
-   // :: ((node: Node, pos: number, parent: Node) → ?bool)
-   // Call the given callback for every descendant node. The callback
-   // may return `false` to prevent traversal of a given node's children.
-   descendants(f) {
-      this.nodesBetween(0, this.size, f);
+   /**
+    * Call the given callback for every descendant node. The callback may return
+    * `false` to prevent traversal of a given node's children.
+    */
+   descendants(fn: (node: Node, pos: number, parent: Node)=>boolean) {
+      this.nodesBetween(0, this.size, fn);
    }
 
-   // : (number, number, ?string, ?string) → string
-   textBetween(from, to, blockSeparator, leafText) {
-      let text = '',
-         separated = true;
+   textBetween(from: number, to: number, blockSeparator?: string, leafText?: string) {
+      let text = '';
+      let separated = true;
+
       this.nodesBetween(
          from,
          to,
@@ -81,31 +86,45 @@ export class Fragment {
       return text;
    }
 
-   // :: (Fragment) → Fragment
-   // Create a new fragment containing the combined content of this
-   // fragment and the other.
-   append(other) {
-      if (!other.size) return this;
-      if (!this.size) return other;
-      let last = this.lastChild,
-         first = other.firstChild,
-         content = this.content.slice(),
-         i = 0;
-      if (last.isText && last.sameMarkup(first)) {
+   /**
+    * Create a new fragment containing the combined content of this fragment and
+    * the other.
+    */
+   append(other: Fragment): Fragment {
+      if (!other.size) {
+         return this;
+      }
+      if (!this.size) {
+         return other;
+      }
+      let last = this.lastChild;
+      let first = other.firstChild;
+      let content = this.content.slice();
+      let i = 0;
+
+      if (last !== null && first !== null && last.isText && last.sameMarkup(first)) {
          content[content.length - 1] = last.withText(last.text + first.text);
          i = 1;
       }
-      for (; i < other.content.length; i++) content.push(other.content[i]);
+      for (; i < other.content.length; i++) {
+         content.push(other.content[i]);
+      }
       return new Fragment(content, this.size + other.size);
    }
 
-   // :: (number, ?number) → Fragment
-   // Cut out the sub-fragment between the two given positions.
-   cut(from, to) {
-      if (to == null) to = this.size;
-      if (from == 0 && to == this.size) return this;
-      let result = [],
-         size = 0;
+   /**
+    * Cut out the sub-fragment between the two given positions.
+    */
+   cut(from: number, to?: number): Fragment {
+      if (to == null) {
+         to = this.size;
+      }
+      if (from == 0 && to == this.size) {
+         return this;
+      }
+      let result = [];
+      let size = 0;
+
       if (to > from)
          for (let i = 0, pos = 0; pos < to; i++) {
             let child = this.content[i],
@@ -131,9 +150,9 @@ export class Fragment {
       return new Fragment(result, size);
    }
 
-   cutByIndex(from, to) {
-      if (from == to) return Fragment.empty;
-      if (from == 0 && to == this.content.length) return this;
+   cutByIndex(from: number, to: number): Fragment {
+      if (from == to) { return Fragment.empty; }
+      if (from == 0 && to == this.content.length) { return this; }
       return new Fragment(this.content.slice(from, to));
    }
 
@@ -149,57 +168,62 @@ export class Fragment {
       return new Fragment(copy, size);
    }
 
-   // : (Node) → Fragment
-   // Create a new fragment by prepending the given node to this
-   // fragment.
-   addToStart(node) {
-      return new Fragment(
+   /**
+    * Create a new fragment by prepending the given node to this fragment.
+    */
+   addToStart = (node: Node): Fragment =>
+      new Fragment(
          [node].concat(this.content),
          this.size + node.nodeSize
       );
-   }
 
-   // : (Node) → Fragment
-   // Create a new fragment by appending the given node to this
-   // fragment.
-   addToEnd(node) {
-      return new Fragment(this.content.concat(node), this.size + node.nodeSize);
-   }
+   /**
+    * Create a new fragment by appending the given node to this fragment.
+    */
+   addToEnd = (node: Node): Fragment =>
+      new Fragment(this.content.concat(node), this.size + node.nodeSize);
 
-   // :: (Fragment) → bool
-   // Compare this fragment to another one.
-   eq(other) {
-      if (this.content.length != other.content.length) return false;
-      for (let i = 0; i < this.content.length; i++)
-         if (!this.content[i].eq(other.content[i])) return false;
+
+   /**
+    * Compare this fragment to another one.
+    */
+   eq(other: Fragment): boolean {
+      if (this.content.length != other.content.length) { return false; }
+      for (let i = 0; i < this.content.length; i++) {
+         if (!this.content[i].eq(other.content[i])) { return false; }}
       return true;
    }
 
-   // :: ?Node
-   // The first child of the fragment, or `null` if it is empty.
-   get firstChild() {
+   /**
+    * The first child of the fragment, or `null` if it is empty.
+    */
+   get firstChild(): Node | null {
       return this.content.length ? this.content[0] : null;
    }
 
-   // :: ?Node
-   // The last child of the fragment, or `null` if it is empty.
-   get lastChild() {
+   /**
+    * The last child of the fragment, or `null` if it is empty.
+    */
+   get lastChild(): Node | null {
       return this.content.length ? this.content[this.content.length - 1] : null;
    }
 
-   // :: number
-   // The number of child nodes in this fragment.
-   get childCount() {
+   /**
+    * The number of child nodes in this fragment.
+    */
+   get childCount(): number {
       return this.content.length;
    }
 
-   // :: (number) → Node
-   // Get the child node at the given index. Raise an error when the
-   // index is out of range.
-   child(index) {
-      let found = this.content[index];
-      if (!found)
+   /**
+    * Get the child node at the given index. Raise an error when the index is
+    * out of range.
+    */
+   child(index: number): Node {
+      const found = this.content[index];
+      if (!found) {
          throw new RangeError('Index ' + index + ' out of range for ' + this);
+      }
       return found;
    }
 
@@ -268,7 +292,7 @@ export class Fragment {
 
    // :: () → ?Object
    // Create a JSON-serializeable representation of this fragment.
-   toJSON() {
+   toJSON(): string[] | null {
       return this.content.length ? this.content.map(n => n.toJSON()) : null;
    }
 
@@ -303,12 +327,13 @@ export class Fragment {
       return new Fragment(joined || array, size);
    }
 
-   // :: (?union<Fragment, Node, [Node]>) → Fragment
-   // Create a fragment from something that can be interpreted as a set
-   // of nodes. For `null`, it returns the empty fragment. For a
-   // fragment, the fragment itself. For a node or array of nodes, a
-   // fragment containing those nodes.
-   static from(nodes) {
+   /**
+    * Create a fragment from something that can be interpreted as a set of
+    * nodes. For `null`, it returns the empty fragment. For a fragment, the
+    * fragment itself. For a node or array of nodes, a fragment containing those
+    * nodes.
+    */
+   static from(nodes: Fragment|Node|Node[]): Fragment {
       if (!nodes) return Fragment.empty;
       if (nodes instanceof Fragment) return nodes;
       if (Array.isArray(nodes)) return this.fromArray(nodes);
@@ -322,6 +347,12 @@ export class Fragment {
                : '')
       );
    }
+
+   /**
+    * An empty fragment. Intended to be reused whenever a node doesn't contain
+    * anything (rather than allocating a new empty fragment for each leaf node).
+    */
+   static empty = new Fragment([], 0):
 }
 
 const found = { index: 0, offset: 0 };
@@ -331,8 +362,3 @@ function retIndex(index, offset) {
    return found;
 }
 
-// :: Fragment
-// An empty fragment. Intended to be reused whenever a node doesn't
-// contain anything (rather than allocating a new empty fragment for
-// each leaf node).
-Fragment.empty = new Fragment([], 0);
