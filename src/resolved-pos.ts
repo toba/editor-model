@@ -193,16 +193,16 @@ export class ResolvedPos {
       let main = parent.maybeChild(index - 1);
       let other = parent.maybeChild(index);
 
-      // If the `after` flag is true of there is no node before, make
-      // the node after this position the main reference.
+      // If the `after` flag is true of there is no node before, make the node
+      // after this position the main reference.
       if (!main) {
          let tmp = main;
          main = other;
          other = tmp;
       }
 
-      // Use all marks in the main node, except those that have
-      // `inclusive` set to false and are not present in the other node.
+      // Use all marks in the main node, except those that have `inclusive` set
+      // to false and are not present in the other node.
       let marks = main === undefined ? [] : main.marks;
 
       for (var i = 0; i < marks.length; i++)

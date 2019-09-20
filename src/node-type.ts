@@ -129,13 +129,15 @@ export class NodeType {
     * doesn't match.
     */
    createChecked(
-      attrs: AttributeMap,
+      attrs?: AttributeMap,
       content?: Fragment | Node | Node[],
       marks?: Mark[]
    ): Node {
       content = Fragment.from(content);
-      if (!this.validContent(content))
+
+      if (!this.validContent(content)) {
          throw new RangeError('Invalid content for node ' + this.name);
+      }
       return new Node(
          this,
          this.computeAttrs(attrs),
@@ -244,7 +246,7 @@ export class NodeType {
       return !copy ? marks : copy.length ? copy : Mark.none;
    }
 
-   static compile(nodes, schema: Schema) {
+   static compile(nodes: Node[], schema: Schema) {
       const result = Object.create(null);
 
       nodes.forEach(

@@ -2,7 +2,7 @@ import { is } from '@toba/tools';
 import { compareDeep } from './compare-deep';
 import { MarkType } from './mark-type';
 import { AttributeSpec, AttributeMap } from './attribute';
-import { DOMOutputSpec } from './to-dom';
+import { DOMOutputSpec, MarkSerializer } from './to-dom';
 import { ParseRule } from './from-dom';
 import { Schema } from './schema';
 
@@ -56,7 +56,7 @@ export interface MarkSpec {
     * DOM/HTML. When the resulting spec contains a hole, that is where the
     * marked content is placed. Otherwise, it is appended to the top node.
     */
-   toDom?: (mark: Mark, inline: boolean) => DOMOutputSpec;
+   toDOM?: MarkSerializer;
 
    /**
     * Associates DOM parser information with this mark (see the corresponding

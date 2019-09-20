@@ -1,3 +1,4 @@
+import { ValueType, is } from '@toba/tools';
 import OrderedMap from 'ordered-map';
 import { Node, NodeSpec, NodeJSON } from './node';
 import { TextNode } from './text-node';
@@ -89,9 +90,9 @@ export class Schema {
          if (prop in this.marks) {
             throw new RangeError(prop + ' can not be both a node and a mark');
          }
-         const type = this.nodes[prop];
-         const contentExpr = type.spec.content || '';
-         const markExpr = type.spec.marks;
+         const type: NodeType = this.nodes[prop];
+         const contentExpr: string = type.spec.content || '';
+         const markExpr: string | undefined = type.spec.marks;
 
          type.contentMatch =
             contentExprCache[contentExpr] ||
@@ -140,11 +141,11 @@ export class Schema {
       content?: Fragment | Node | Node[] | null,
       marks?: Mark[]
    ): Node {
-      if (typeof type == 'string') {
+      if (is.text(type)) {
          type = this.nodeType(type);
       } else if (!(type instanceof NodeType)) {
          throw new RangeError('Invalid node type: ' + type);
-      } else if (type.schema != this) {
+      } else if (type.schema !== this) {
          throw new RangeError(
             'Node type from different schema used (' + type.name + ')'
          );

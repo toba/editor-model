@@ -7,7 +7,7 @@ import { replace } from './replace';
 import { ResolvedPos } from './resolved-pos';
 import { compareDeep } from './compare-deep';
 import { MarkType } from './mark-type';
-import { DOMOutputSpec } from './to-dom';
+import { DOMOutputSpec, NodeSerializer } from './to-dom';
 import { ParseRule } from './from-dom';
 import { ContentMatch } from './content';
 import { Schema } from './schema';
@@ -118,7 +118,7 @@ export interface NodeSpec {
     * is not supported inside the editor, so you shouldn't override that in your
     * text node spec.
     */
-   toDOM?: (node: Node) => DOMOutputSpec;
+   toDOM?: NodeSerializer;
 
    /**
     * Associates DOM parser information with this node, which can be used
