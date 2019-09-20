@@ -15,7 +15,7 @@ import { Schema } from './schema';
 const emptyAttrs = Object.create(null);
 
 interface NodeMatch {
-   node?: Node | null;
+   node?: EditorNode | null;
    index: number;
    offset: number;
 }
@@ -133,13 +133,13 @@ export interface NodeSpec {
     * Defines the default way a node of this type should be serialized to a
     * string representation for debugging (e.g. in error messages).
     */
-   toDebugString?: (node: Node) => string;
+   toDebugString?: (node: EditorNode) => string;
 }
 
 /**
  * Node, ofsfset and index
  */
-type Iteration = [Node, number, number];
+type Iteration = [EditorNode, number, number];
 
 /**
  * This class represents a node in the tree that makes up a document. So a
@@ -155,7 +155,7 @@ type Iteration = [Node, number, number];
  * **Do not** directly mutate the properties of a `Node` object. See
  * [the guide](/docs/guide/#doc) for more information.
  */
-export class Node {
+export class EditorNode {
    type: NodeType;
    /** Container holding the node's children */
    content: Fragment;
@@ -204,19 +204,19 @@ export class Node {
     * Get the child node at the given index. Raises an error when the index is
     * out of range.
     */
-   child = (index: number): Node => this.content.child(index);
+   child = (index: number): EditorNode => this.content.child(index);
 
    /**
     * Get the child node at the given index, if it exists.
     */
-   maybeChild = (index: number): Node | undefined =>
+   maybeChild = (index: number): EditorNode | undefined =>
       this.content.maybeChild(index);
 
    /**
     * Call `f` for every child node, passing the node, its offset into this
     * parent node, and its index.
     */
-   forEach(fn: (node: Node, offset: number, index: number) => void) {
+   forEach(fn: (node: EditorNode, offset: number, index: number) => void) {
       this.content.forEach(fn);
    }
 
@@ -231,7 +231,7 @@ export class Node {
    nodesBetween(
       from: number,
       to: number,
-      fn: (node: Node, pos: number, parent: Node, index: number) => boolean,
+      fn: (node: EditorNode, pos: number, parent: EditorNode, index: number) => boolean,
       startPos = 0
    ) {
       this.content.nodesBetween(from, to, fn, startPos, this);
@@ -241,7 +241,7 @@ export class Node {
     * Call the given callback for every descendant node. Doesn't descend into a
     * node when the callback returns `false`.
     */
-   descendants(fn: (node: Node, pos: number, parent: Node) => boolean) {
+   descendants(fn: (node: EditorNode, pos: number, parent: EditorNode) => boolean) {
       this.nodesBetween(0, this.content.size, fn);
    }
 
@@ -268,21 +268,21 @@ export class Node {
    /**
     * Returns this node's first child, or `null` if there are no children.
     */
-   get firstChild(): Node | null {
+   get firstChild(): EditorNode | null {
       return this.content.firstChild;
    }
 
    /**
     * Returns this node's last child, or `null` if there are no children.
     */
-   get lastChild(): Node | null {
+   get lastChild(): EditorNode | null {
       return this.content.lastChild;
    }
 
    /**
     * Test whether two nodes represent the same piece of document.
     */
-   eq = (other: Node): boolean =>
+   eq = (other: EditorNode): boolean =>
       this === other ||
       (this.sameMarkup(other) && this.content.eq(other.content));
 
@@ -290,7 +290,7 @@ export class Node {
     * Compare the markup (type, attributes, and marks) of this node to those of
     * another. Returns `true` if both have the same markup.
     */
-   sameMarkup = (other: Node): boolean =>
+   sameMarkup = (other: EditorNode): boolean =>
       this.hasMarkup(other.type, other.attrs, other.marks);
 
    /**
@@ -306,25 +306,25 @@ export class Node {
     * Create a new node with the same markup as this node, containing the given
     * content (or empty, if no content is given).
     */
-   copy = (content: Fragment | null = null): Node =>
+   copy = (content: Fragment | null = null): EditorNode =>
       content === this.content
          ? this
-         : new Node(this.type, this.attrs, content, this.marks);
+         : new EditorNode(this.type, this.attrs, content, this.marks);
 
    /**
     * Create a copy of this node, with the given set of marks instead of the
     * node's own marks.
     */
-   mark = (marks: Mark[]): Node =>
+   mark = (marks: Mark[]): EditorNode =>
       marks === this.marks
          ? this
-         : new Node(this.type, this.attrs, this.content, marks);
+         : new EditorNode(this.type, this.attrs, this.content, marks);
 
    /**
     * Create a copy of this node with only the content between the given
     * positions. If `to` is not given, it defaults to the end of the node.
     */
-   cut = (from: number, to?: number): Node =>
+   cut = (from: number, to?: number): EditorNode =>
       from == 0 && to == this.content.size
          ? this
          : this.copy(this.content.cut(from, to));
@@ -352,14 +352,14 @@ export class Node {
     * children for the node they are placed into. If any of this is violated, an
     * error of type [`ReplaceError`](#model.ReplaceError) is thrown.
     */
-   replace = (from: number, to: number, slice: Slice): Node =>
+   replace = (from: number, to: number, slice: Slice): EditorNode =>
       replace(this.resolve(from), this.resolve(to), slice);
 
    /**
     * Find the node directly after the given position.
     */
-   nodeAt(pos: number): Node | null {
-      let node: Node | undefined;
+   nodeAt(pos: number): EditorNode | null {
+      let node: EditorNode | undefined;
 
       for (node = this; ; ) {
          let { index, offset } = node.content.findIndex(pos);
@@ -566,7 +566,7 @@ export class Node {
     * node type that can appear in both nodes (to avoid merging completely
     * incompatible nodes).
     */
-   canAppend = (other: Node): boolean =>
+   canAppend = (other: EditorNode): boolean =>
       other.content.size
          ? this.canReplace(this.childCount, this.childCount, other.content)
          : this.type.compatibleContent(other.type);
@@ -586,7 +586,7 @@ export class Node {
             }: ${this.content.toString().slice(0, 50)}`
          );
       }
-      this.content.forEach((node: Node) => node.check());
+      this.content.forEach((node: EditorNode) => node.check());
    }
 
    /**
@@ -610,7 +610,7 @@ export class Node {
    /**
     * Deserialize a node from its JSON representation.
     */
-   static fromJSON(schema: Schema, json: NodeJSON): Node {
+   static fromJSON(schema: Schema, json: NodeJSON): EditorNode {
       if (!json) {
          throw new RangeError('Invalid input for Node.fromJSON');
       }

@@ -1,7 +1,7 @@
 import { Fragment } from './fragment';
 import { Slice } from './slice';
 import { ResolvedPos } from './resolved-pos';
-import { Node } from './node';
+import { EditorNode } from './node';
 
 /**
  * Error type raised by [`Node.replace`](#model.Node.replace) when given an
@@ -41,12 +41,12 @@ function replaceOuter(
    to: ResolvedPos,
    slice: Slice,
    depth: number
-): Node {
+): EditorNode {
    const index: number = from.index(depth);
-   const node: Node = from.node(depth);
+   const node: EditorNode = from.node(depth);
 
    if (index == to.index(depth) && depth < from.depth - slice.openStart) {
-      const inner: Node = replaceOuter(from, to, slice, depth + 1);
+      const inner: EditorNode = replaceOuter(from, to, slice, depth + 1);
       return node.copy(node.content.replaceChild(index, inner));
    } else if (!slice.content.size) {
       return close(node, replaceTwoWay(from, to, depth));
@@ -73,7 +73,7 @@ function replaceOuter(
    }
 }
 
-function checkJoin(main: Node, sub: Node): void {
+function checkJoin(main: EditorNode, sub: EditorNode): void {
    if (!sub.type.compatibleContent(main.type)) {
       throw new ReplaceError(
          'Cannot join ' + sub.type.name + ' onto ' + main.type.name
@@ -85,14 +85,14 @@ function joinable(
    before: ResolvedPos,
    after: ResolvedPos,
    depth: number
-): Node {
-   const node: Node = before.node(depth);
+): EditorNode {
+   const node: EditorNode = before.node(depth);
    checkJoin(node, after.node(depth));
    return node;
    //return true;
 }
 
-function addNode(child: Node | null, target) {
+function addNode(child: EditorNode | null, target) {
    if (child === null) {
       return;
    }
@@ -114,7 +114,7 @@ function addRange(
    if (start === null && end === null) {
       return;
    }
-   const node: Node = (end || start)!.node(depth);
+   const node: EditorNode = (end || start)!.node(depth);
    const endIndex = end ? end.index(depth) : node.childCount;
    let startIndex = 0;
 
@@ -135,7 +135,7 @@ function addRange(
    }
 }
 
-function close(node: Node, content: Fragment): Node {
+function close(node: EditorNode, content: Fragment): EditorNode {
    if (!node.type.validContent(content)) {
       throw new ReplaceError('Invalid content for node ' + node.type.name);
    }
@@ -149,11 +149,11 @@ function replaceThreeWay(
    to: ResolvedPos,
    depth: number
 ) {
-   const openStart: false | Node =
+   const openStart: false | EditorNode =
       from.depth > depth && joinable(from, start, depth + 1);
-   const openEnd: false | Node =
+   const openEnd: false | EditorNode =
       to.depth > depth && joinable(end, to, depth + 1);
-   const content: Node[] = [];
+   const content: EditorNode[] = [];
 
    addRange(null, from, depth, content);
 
@@ -186,7 +186,7 @@ function replaceThreeWay(
 }
 
 function replaceTwoWay(from: ResolvedPos, to: ResolvedPos, depth: number) {
-   const content: Node[] = [];
+   const content: EditorNode[] = [];
 
    addRange(null, from, depth, content);
 
@@ -204,8 +204,8 @@ function prepareSliceForReplace(
    along: ResolvedPos
 ): { start: ResolvedPos; end: ResolvedPos } {
    const extra: number = along.depth - slice.openStart;
-   const parent: Node = along.node(extra);
-   let node: Node = parent.copy(slice.content);
+   const parent: EditorNode = along.node(extra);
+   let node: EditorNode = parent.copy(slice.content);
 
    for (let i = extra - 1; i >= 0; i--) {
       node = along.node(i).copy(Fragment.from(node));

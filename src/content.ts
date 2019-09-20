@@ -1,7 +1,7 @@
 import { Fragment } from './fragment';
-import { Node } from './node';
+import { EditorNode } from './node';
 import { NodeType } from './node-type';
-import { nfa, dfa } from './regex';
+import { nfa, dfa } from './finite-automata';
 import { TokenStream, parseExpr } from './token-stream';
 
 interface NodeEdge {
@@ -139,7 +139,7 @@ export class ContentMatch {
          if (finished !== null && (!toEnd || finished.validEnd)) {
             const nodes = types
                .map(t => t.createAndFill())
-               .filter(n => n !== null) as Node[];
+               .filter(n => n !== null) as EditorNode[];
 
             return Fragment.from(nodes);
          }

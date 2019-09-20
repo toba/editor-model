@@ -4,6 +4,7 @@ import { AttributeMap } from './attribute';
 import { Slice } from './slice';
 import { Mark } from './mark';
 import { ContentMatch } from './content';
+import { EditorNode } from './node';
 
 /**
  * These are the options recognized by the [`parse`](#model.DOMParser.parse) and
@@ -179,7 +180,7 @@ export class DOMParser {
    // :: (Schema, [ParseRule])
    // Create a parser that targets the given schema, using the given
    // parsing rules.
-   constructor(schema, rules) {
+   constructor(schema: Schema, rules: ParseRule[]) {
       // :: Schema
       // The schema into which the parser parses.
       this.schema = schema;
@@ -196,9 +197,10 @@ export class DOMParser {
       });
    }
 
-   // :: (dom.Node, ?ParseOptions) → Node
-   // Parse a document from the content of a DOM node.
-   parse(dom, options = {}) {
+   /**
+    * Parse a document from the content of a DOM node.
+    */
+   parse(dom: Node, options: ParseOptions = {}): EditorNode {
       let context = new ParseContext(this, options, false);
       context.addAll(dom, null, options.from, options.to);
       return context.finish();

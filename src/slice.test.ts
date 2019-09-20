@@ -1,11 +1,11 @@
 import '@toba/test';
 import { Slice } from './slice';
-import { Node } from './node';
+import { EditorNode } from './node';
 import { doc, p, li, ul, em, a, blockquote } from '@toba/editor-test';
 
 function expectSlice(
-   doc1: Node,
-   doc2: Node,
+   doc1: EditorNode,
+   doc2: EditorNode,
    openStart: number,
    openEnd: number
 ) {

@@ -1,6 +1,6 @@
 import { MarkType } from './mark-type';
 import { Schema } from './schema';
-import { NodeSpec, Node } from './node';
+import { NodeSpec, EditorNode } from './node';
 import {
    AttributeMap,
    initAttrs,
@@ -109,13 +109,13 @@ export class NodeType {
     */
    create(
       attrs?: AttributeMap,
-      content?: Fragment | Node | Node[],
+      content?: Fragment | EditorNode | EditorNode[],
       marks?: Mark[] | null
-   ): Node {
+   ): EditorNode {
       if (this.isText) {
          throw new Error("NodeType.create can't construct text nodes");
       }
-      return new Node(
+      return new EditorNode(
          this,
          this.computeAttrs(attrs),
          Fragment.from(content),
@@ -130,15 +130,15 @@ export class NodeType {
     */
    createChecked(
       attrs?: AttributeMap,
-      content?: Fragment | Node | Node[],
+      content?: Fragment | EditorNode | EditorNode[],
       marks?: Mark[]
-   ): Node {
+   ): EditorNode {
       content = Fragment.from(content);
 
       if (!this.validContent(content)) {
          throw new RangeError('Invalid content for node ' + this.name);
       }
-      return new Node(
+      return new EditorNode(
          this,
          this.computeAttrs(attrs),
          content,
@@ -155,9 +155,9 @@ export class NodeType {
     */
    createAndFill(
       attrs?: AttributeMap,
-      content?: Fragment | Node | Node[],
+      content?: Fragment | EditorNode | EditorNode[],
       marks?: Mark[]
-   ): Node | null {
+   ): EditorNode | null {
       attrs = this.computeAttrs(attrs);
       content = Fragment.from(content);
 
@@ -182,7 +182,7 @@ export class NodeType {
 
       return after === undefined
          ? null
-         : new Node(this, attrs, content.append(after), Mark.setFrom(marks));
+         : new EditorNode(this, attrs, content.append(after), Mark.setFrom(marks));
    }
 
    /**
@@ -246,7 +246,7 @@ export class NodeType {
       return !copy ? marks : copy.length ? copy : Mark.none;
    }
 
-   static compile(nodes: Node[], schema: Schema) {
+   static compile(nodes: EditorNode[], schema: Schema) {
       const result = Object.create(null);
 
       nodes.forEach(

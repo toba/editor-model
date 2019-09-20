@@ -1,4 +1,4 @@
-import { Node, NodeJSON } from './node';
+import { EditorNode, NodeJSON } from './node';
 import { Schema } from './schema';
 
 export type FragmentJSON = NodeJSON[];
@@ -11,14 +11,14 @@ export type FragmentJSON = NodeJSON[];
  * needed. The API tries to make this easy.
  */
 export class Fragment {
-   content: Node[];
+   content: EditorNode[];
    /**
     * The size of the fragment, which is the total of the size of its content
     * nodes.
     */
    size: number;
 
-   constructor(content: Node[], size: number = 0) {
+   constructor(content: EditorNode[], size: number = 0) {
       this.content = content;
       this.size = size;
 
@@ -37,9 +37,9 @@ export class Fragment {
    nodesBetween(
       from: number,
       to: number,
-      fn: (node: Node, start: number, parent?: Node, index?: number) => boolean,
+      fn: (node: EditorNode, start: number, parent?: EditorNode, index?: number) => boolean,
       nodeStart = 0,
-      parent?: Node
+      parent?: EditorNode
    ) {
       for (let i = 0, pos = 0; pos < to; i++) {
          let child = this.content[i];
@@ -65,7 +65,7 @@ export class Fragment {
     * Call the given callback for every descendant node. The callback may return
     * `false` to prevent traversal of a given node's children.
     */
-   descendants(fn: (node: Node, pos: number, parent: Node) => boolean) {
+   descendants(fn: (node: EditorNode, pos: number, parent: EditorNode) => boolean) {
       this.nodesBetween(0, this.size, fn);
    }
 
@@ -109,8 +109,8 @@ export class Fragment {
       if (!this.size) {
          return other;
       }
-      const last: Node | null = this.lastChild;
-      const first: Node | null = other.firstChild;
+      const last: EditorNode | null = this.lastChild;
+      const first: EditorNode | null = other.firstChild;
       const content = this.content.slice();
       let i = 0;
 
@@ -181,7 +181,7 @@ export class Fragment {
     * Create a new fragment in which the node at the given index is replaced by
     * the given node.
     */
-   replaceChild(index: number, node: Node): Fragment {
+   replaceChild(index: number, node: EditorNode): Fragment {
       const current = this.content[index];
       if (current === node) {
          return this;
@@ -197,13 +197,13 @@ export class Fragment {
    /**
     * Create a new fragment by prepending the given node to this fragment.
     */
-   addToStart = (node: Node): Fragment =>
+   addToStart = (node: EditorNode): Fragment =>
       new Fragment([node].concat(this.content), this.size + node.nodeSize);
 
    /**
     * Create a new fragment by appending the given node to this fragment.
     */
-   addToEnd = (node: Node): Fragment =>
+   addToEnd = (node: EditorNode): Fragment =>
       new Fragment(this.content.concat(node), this.size + node.nodeSize);
 
    /**
@@ -224,14 +224,14 @@ export class Fragment {
    /**
     * The first child of the fragment, or `null` if it is empty.
     */
-   get firstChild(): Node | null {
+   get firstChild(): EditorNode | null {
       return this.content.length ? this.content[0] : null;
    }
 
    /**
     * The last child of the fragment, or `null` if it is empty.
     */
-   get lastChild(): Node | null {
+   get lastChild(): EditorNode | null {
       return this.content.length ? this.content[this.content.length - 1] : null;
    }
 
@@ -246,7 +246,7 @@ export class Fragment {
     * Get the child node at the given index. Raise an error when the index is
     * out of range.
     */
-   child(index: number): Node {
+   child(index: number): EditorNode {
       const found = this.content[index];
       if (!found) {
          throw new RangeError('Index ' + index + ' out of range for ' + this);
@@ -257,13 +257,13 @@ export class Fragment {
    /**
     * Get the child node at the given index, if it exists.
     */
-   maybeChild = (index: number): Node | undefined => this.content[index];
+   maybeChild = (index: number): EditorNode | undefined => this.content[index];
 
    /**
     * Call `fn` for every child node, passing the node, its offset into this
     * parent node, and its index.
     */
-   forEach(fn: (node: Node, offset: number, index: number) => void) {
+   forEach(fn: (node: EditorNode, offset: number, index: number) => void) {
       for (let i = 0, p = 0; i < this.content.length; i++) {
          const child = this.content[i];
          fn(child, p, i);
@@ -344,11 +344,11 @@ export class Fragment {
     * Build a fragment from an array of nodes. Ensures that adjacent text nodes
     * with the same marks are joined together.
     */
-   static fromArray(array: Node[]): Fragment {
+   static fromArray(array: EditorNode[]): Fragment {
       if (!array.length) {
          return Fragment.empty;
       }
-      let joined: Node[] = [];
+      let joined: EditorNode[] = [];
       let size = 0;
 
       for (let i = 0; i < array.length; i++) {
@@ -375,7 +375,7 @@ export class Fragment {
     * fragment itself. For a node or array of nodes, a fragment containing those
     * nodes.
     */
-   static from(nodes?: Fragment | Node | Node[]): Fragment {
+   static from(nodes?: Fragment | EditorNode | EditorNode[]): Fragment {
       if (nodes === undefined) {
          return Fragment.empty;
       }

@@ -1,6 +1,6 @@
 import { ValueType, is } from '@toba/tools';
 import OrderedMap from 'ordered-map';
-import { Node, NodeSpec, NodeJSON } from './node';
+import { EditorNode, NodeSpec, NodeJSON } from './node';
 import { TextNode } from './text-node';
 import { Mark, MarkSpec, MarkJSON } from './mark';
 import { ContentMatch } from './content';
@@ -138,9 +138,9 @@ export class Schema {
    node(
       type: string | NodeType,
       attrs?: AttributeMap,
-      content?: Fragment | Node | Node[] | null,
+      content?: Fragment | EditorNode | EditorNode[] | null,
       marks?: Mark[]
-   ): Node {
+   ): EditorNode {
       if (is.text(type)) {
          type = this.nodeType(type);
       } else if (!(type instanceof NodeType)) {
@@ -174,7 +174,7 @@ export class Schema {
    /**
     * Deserialize a node from its JSON representation. This method is bound.
     */
-   nodeFromJSON = (json: NodeJSON): Node => Node.fromJSON(this, json);
+   nodeFromJSON = (json: NodeJSON): EditorNode => EditorNode.fromJSON(this, json);
 
    /**
     * Deserialize a mark from its JSON representation. This method is bound.

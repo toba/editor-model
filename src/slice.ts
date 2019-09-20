@@ -1,5 +1,12 @@
 import { Fragment } from './fragment';
 import { Schema } from './schema';
+import { NodeJSON } from './node';
+
+export interface SliceJSON {
+   content: NodeJSON[];
+   openStart?: number;
+   openEnd?: number;
+}
 
 function removeRange(content: Fragment, from: number, to: number): Fragment {
    const { index, offset } = content.findIndex(from);
@@ -27,7 +34,7 @@ function insertInto(
    dist: number,
    insert: Fragment,
    parent?: Node
-) {
+): Fragment | null {
    let { index, offset } = content.findIndex(dist);
    let child = content.maybeChild(index);
 
@@ -41,12 +48,8 @@ function insertInto(
          .append(content.cut(dist));
    }
    let inner = insertInto(child.content, dist - offset - 1, insert);
-}
 
-export interface SliceJSON {
-   content: string;
-   openStart?: number;
-   openEnd?: number;
+   return null;
 }
 
 /**
@@ -85,12 +88,7 @@ export class Slice {
    }
 
    insertAt(pos: number, fragment: Fragment) {
-      let content = insertInto(
-         this.content,
-         pos + this.openStart,
-         fragment,
-         null
-      );
+      const content = insertInto(this.content, pos + this.openStart, fragment);
       return content && new Slice(content, this.openStart, this.openEnd);
    }
 
@@ -120,6 +118,7 @@ export class Slice {
          return null;
       }
       const json: SliceJSON = { content: this.content.toJSON() };
+
       if (this.openStart > 0) {
          json.openStart = this.openStart;
       }
@@ -136,11 +135,12 @@ export class Slice {
       if (json === undefined) {
          return Slice.empty;
       }
-      let openStart = json.openStart || 0;
-      let openEnd = json.openEnd || 0;
+      const openStart = json.openStart || 0;
+      const openEnd = json.openEnd || 0;
 
-      if (typeof openStart != 'number' || typeof openEnd != 'number')
+      if (typeof openStart != 'number' || typeof openEnd != 'number') {
          throw new RangeError('Invalid input for Slice.fromJSON');
+      }
 
       return new Slice(
          Fragment.fromJSON(schema, json.content),

@@ -1,5 +1,5 @@
 import { ResolvedPos } from './resolved-pos';
-import { Node } from './node';
+import { EditorNode } from './node';
 
 /**
  * Represents a flat range of content, i.e. one that starts and ends in the same
@@ -49,7 +49,7 @@ export class NodeRange {
    /**
     * The parent node that the range points into.
     */
-   get parent(): Node {
+   get parent(): EditorNode {
       return this.from.node(this.depth);
    }
 

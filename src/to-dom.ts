@@ -1,5 +1,5 @@
 import { is } from '@toba/tools';
-import { Node as EditorNode } from './node';
+import { EditorNode } from './node';
 import { Mark } from './mark';
 import { Fragment as EditorFragment } from './fragment';
 import { Schema } from './schema';

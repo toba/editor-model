@@ -1,4 +1,4 @@
-export { Node } from './node';
+export { EditorNode as Node } from './node';
 export { NodeType } from './node-type';
 export { NodeRange } from './node-range';
 export { ResolvedPos } from './resolved-pos';

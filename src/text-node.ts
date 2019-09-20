@@ -1,9 +1,9 @@
-import { Node, wrapMarks } from './node';
+import { EditorNode, wrapMarks } from './node';
 import { NodeType } from './node-type';
 import { AttributeMap } from './attribute';
 import { Mark } from './mark';
 
-export class TextNode extends Node {
+export class TextNode extends EditorNode {
    text: string;
 
    constructor(

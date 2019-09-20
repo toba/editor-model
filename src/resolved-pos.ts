@@ -1,5 +1,5 @@
 import { Mark } from './mark';
-import { Node } from './node';
+import { EditorNode } from './node';
 import { NodeRange } from './node-range';
 
 const resolveCache: ResolvedPos[] = [];
@@ -18,7 +18,7 @@ let resolveCacheSize = 12;
 export class ResolvedPos {
    /** Position that was resolved */
    pos: number;
-   path: Node[];
+   path: EditorNode[];
    /**
     * The number of levels the parent node is from the root. If this position
     * points directly into the root node, it is 0. If it points into a top-level
@@ -28,7 +28,7 @@ export class ResolvedPos {
    /** Offset this position has into its parent node */
    parentOffset: number;
 
-   constructor(pos: number, path: Node[], parentOffset: number) {
+   constructor(pos: number, path: EditorNode[], parentOffset: number) {
       this.pos = pos;
       this.path = path;
       this.depth = path.length / 3 - 1;
@@ -50,14 +50,14 @@ export class ResolvedPos {
     * position points into a text node, that node is not considered the
     * parent—text nodes are ‘flat’ in this model, and have no content.
     */
-   get parent(): Node {
+   get parent(): EditorNode {
       return this.node(this.depth);
    }
 
    /**
     * The root node in which the position was resolved.
     */
-   get doc(): Node {
+   get doc(): EditorNode {
       return this.node(0);
    }
 
@@ -65,7 +65,7 @@ export class ResolvedPos {
     * The ancestor node at the given level. `p.node(p.depth)` is the same as
     * `p.parent`.
     */
-   node = (depth?: number): Node => this.path[this.resolveDepth(depth) * 3];
+   node = (depth?: number): EditorNode => this.path[this.resolveDepth(depth) * 3];
 
    /**
     * :: (?number) → number
@@ -142,7 +142,7 @@ export class ResolvedPos {
     * into a text node, only the part of that node after the position is
     * returned.
     */
-   get nodeAfter(): Node | null {
+   get nodeAfter(): EditorNode | null {
       const parent = this.parent;
       const index = this.index(this.depth);
 
@@ -160,7 +160,7 @@ export class ResolvedPos {
     * into a text node, only the part of that node before the position is
     * returned.
     */
-   get nodeBefore(): Node | null {
+   get nodeBefore(): EditorNode | null {
       let index = this.index(this.depth);
       let dOff = this.pos - this.path[this.path.length - 1];
 
@@ -228,7 +228,7 @@ export class ResolvedPos {
          return null;
       }
       let marks: Mark[] = after.marks;
-      let next: Node | undefined = end.parent.maybeChild(end.index());
+      let next: EditorNode | undefined = end.parent.maybeChild(end.index());
 
       for (let i = 0; i < marks.length; i++) {
          if (
@@ -265,7 +265,7 @@ export class ResolvedPos {
     */
    blockRange(
       other: ResolvedPos = this,
-      pred?: (node: Node) => boolean
+      pred?: (node: EditorNode) => boolean
    ): NodeRange | null {
       if (other.pos < this.pos) {
          return other.blockRange(this);
@@ -312,11 +312,11 @@ export class ResolvedPos {
       return str + ':' + this.parentOffset;
    }
 
-   static resolve(doc: Node, pos: number): ResolvedPos {
+   static resolve(doc: EditorNode, pos: number): ResolvedPos {
       if (!(pos >= 0 && pos <= doc.content.size)) {
          throw new RangeError('Position ' + pos + ' out of range');
       }
-      const path: Node[] = [];
+      const path: EditorNode[] = [];
       let start = 0;
       let parentOffset = pos;
 
@@ -340,7 +340,7 @@ export class ResolvedPos {
       return new ResolvedPos(pos, path, parentOffset);
    }
 
-   static resolveCached(doc: Node, pos: number): ResolvedPos {
+   static resolveCached(doc: EditorNode, pos: number): ResolvedPos {
       for (let i = 0; i < resolveCache.length; i++) {
          let cached: ResolvedPos = resolveCache[i];
          if (cached.pos == pos && cached.doc === doc) {
