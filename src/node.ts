@@ -7,10 +7,11 @@ import { replace } from './replace';
 import { ResolvedPos } from './resolved-pos';
 import { compareDeep } from './compare-deep';
 import { MarkType } from './mark-type';
-import { DOMOutputSpec, NodeSerializer } from './to-dom';
-import { ParseRule } from './from-dom';
+import { NodeSerializer } from './to-dom';
+import { ParseRule } from './parse-dom';
 import { ContentMatch } from './content';
 import { Schema } from './schema';
+import { TextNode } from './text-node';
 
 const emptyAttrs = Object.create(null);
 
@@ -28,6 +29,9 @@ export interface NodeJSON {
    marks?: MarkJSON[];
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L319
+ */
 export interface NodeSpec {
    /**
     * The content expression for this node, as described in the
@@ -137,11 +141,6 @@ export interface NodeSpec {
 }
 
 /**
- * Node, ofsfset and index
- */
-type Iteration = [EditorNode, number, number];
-
-/**
  * This class represents a node in the tree that makes up a document. So a
  * document is an instance of `Node`, with children that are also instances of
  * `Node`.
@@ -154,22 +153,24 @@ type Iteration = [EditorNode, number, number];
  *
  * **Do not** directly mutate the properties of a `Node` object. See
  * [the guide](/docs/guide/#doc) for more information.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/node.js
  */
 export class EditorNode {
-   type: NodeType;
+   readonly type: NodeType;
    /** Container holding the node's children */
-   content: Fragment;
+   readonly content: Fragment;
    /**
     * The marks (things like whether it is emphasized or part of a link) applied
     * to this node.
     */
-   marks: Mark[];
+   readonly marks: Mark[];
    /**
     * An object mapping attribute names to values. The kind of attributes
     * allowed and required are [determined](#model.NodeSpec.attrs) by the node
     * type.
     */
-   attrs: AttributeMap;
+   readonly attrs: AttributeMap;
 
    constructor(
       type: NodeType,
@@ -228,21 +229,28 @@ export class EditorNode {
     * given node, that node's children will not be recursed over. The last
     * parameter can be used to specify a starting position to count from.
     */
-   nodesBetween(
+   forEachNodeBetween(
       from: number,
       to: number,
-      fn: (node: EditorNode, pos: number, parent: EditorNode, index: number) => boolean,
+      fn: (
+         node: EditorNode,
+         pos: number,
+         parent: EditorNode,
+         index: number
+      ) => boolean,
       startPos = 0
    ) {
-      this.content.nodesBetween(from, to, fn, startPos, this);
+      this.content.forEachNodeBetween(from, to, fn, startPos, this);
    }
 
    /**
     * Call the given callback for every descendant node. Doesn't descend into a
     * node when the callback returns `false`.
     */
-   descendants(fn: (node: EditorNode, pos: number, parent: EditorNode) => boolean) {
-      this.nodesBetween(0, this.content.size, fn);
+   descendants(
+      fn: (node: EditorNode, pos: number, parent: EditorNode) => boolean
+   ) {
+      this.forEachNodeBetween(0, this.content.size, fn);
    }
 
    /**
@@ -384,29 +392,32 @@ export class EditorNode {
       return { node: this.content.maybeChild(index), index, offset };
    }
 
-   // :: (number) → {node: ?Node, index: number, offset: number}
-   // Find the (direct) child node before the given offset, if any,
-   // and return it along with its index and offset relative to this
-   // node.
+   /**
+    * Find the (direct) child node before the given offset, if any, and return
+    * it along with its index and offset relative to this node.
+    */
    childBefore(pos: number): NodeMatch {
-      if (pos == 0) return { node: null, index: 0, offset: 0 };
-      let { index, offset } = this.content.findIndex(pos);
-      if (offset < pos)
+      if (pos == 0) {
+         return { node: null, index: 0, offset: 0 };
+      }
+      const { index, offset } = this.content.findIndex(pos);
+
+      if (offset < pos) {
          return { node: this.content.child(index), index, offset };
-      let node = this.content.child(index - 1);
+      }
+      const node = this.content.child(index - 1);
+
       return { node, index: index - 1, offset: offset - node.nodeSize };
    }
 
-   // :: (number) → ResolvedPos
-   // Resolve the given position in the document, returning an
-   // [object](#model.ResolvedPos) with information about its context.
-   resolve(pos: number) {
-      return ResolvedPos.resolveCached(this, pos);
-   }
+   /**
+    * Resolve the given position in the document, returning an
+    * [object](#model.ResolvedPos) with information about its context.
+    */
+   resolve = (pos: number): ResolvedPos => ResolvedPos.resolveCached(this, pos);
 
-   resolveNoCache(pos: number) {
-      return ResolvedPos.resolve(this, pos);
-   }
+   resolveNoCache = (pos: number): ResolvedPos =>
+      ResolvedPos.resolve(this, pos);
 
    /**
     * Test whether a mark of the given type occurs in this document between the
@@ -414,8 +425,9 @@ export class EditorNode {
     */
    rangeHasMark(from: number, to: number, type: MarkType): boolean {
       let found = false;
+
       if (to > from) {
-         this.nodesBetween(from, to, node => {
+         this.forEachNodeBetween(from, to, node => {
             if (type.isInSet(node.marks)) {
                found = true;
             }
@@ -610,7 +622,7 @@ export class EditorNode {
    /**
     * Deserialize a node from its JSON representation.
     */
-   static fromJSON(schema: Schema, json: NodeJSON): EditorNode {
+   static fromJSON(schema: Schema, json: NodeJSON): EditorNode | TextNode {
       if (!json) {
          throw new RangeError('Invalid input for Node.fromJSON');
       }

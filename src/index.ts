@@ -11,5 +11,5 @@ export { Slice } from './slice';
 export { Schema } from './schema';
 export { ContentMatch } from './content';
 
-export { DOMParser } from './from-dom';
+export { DOMParser } from './parse-dom';
 export { DOMSerializer } from './to-dom';

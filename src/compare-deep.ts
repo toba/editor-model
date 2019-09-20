@@ -1,5 +1,8 @@
 import { ValueType } from '@toba/tools';
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/comparedeep.js
+ */
 export function compareDeep(a: any, b: any): boolean {
    if (a === b) {
       return true;

@@ -2,6 +2,7 @@ import { Fragment } from './fragment';
 import { Slice } from './slice';
 import { ResolvedPos } from './resolved-pos';
 import { EditorNode } from './node';
+import { TextNode } from './text-node';
 
 /**
  * Error type raised by [`Node.replace`](#model.Node.replace) when given an
@@ -12,16 +13,6 @@ export class ReplaceError extends Error {
       super(message);
    }
 }
-
-// export function ReplaceError(message: string) {
-//    let err = Error.call(this, message);
-//    err.__proto__ = ReplaceError.prototype;
-//    return err;
-// }
-
-// ReplaceError.prototype = Object.create(Error.prototype);
-// ReplaceError.prototype.constructor = ReplaceError;
-// ReplaceError.prototype.name = 'ReplaceError';
 
 //   return inner && content.replaceChild(index, child.copy(inner));
 // }
@@ -92,14 +83,15 @@ function joinable(
    //return true;
 }
 
-function addNode(child: EditorNode | null, target) {
+function addNode(child: EditorNode | null, target: (EditorNode | TextNode)[]) {
    if (child === null) {
       return;
    }
    const last = target.length - 1;
 
    if (last >= 0 && child.isText && child.sameMarkup(target[last])) {
-      target[last] = child.withText(target[last].text + child.text);
+      const node = (child as unknown) as TextNode;
+      target[last] = node.withText(target[last].text + node.text);
    } else {
       target.push(child);
    }
@@ -109,7 +101,7 @@ function addRange(
    start: ResolvedPos | null,
    end: ResolvedPos | null,
    depth: number,
-   target
+   target: EditorNode[]
 ) {
    if (start === null && end === null) {
       return;
@@ -169,11 +161,12 @@ function replaceThreeWay(
          content
       );
    } else {
-      if (openStart)
+      if (openStart) {
          addNode(
             close(openStart, replaceTwoWay(from, start, depth + 1)),
             content
          );
+      }
       addRange(start, end, depth, content);
 
       if (openEnd) {

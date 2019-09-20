@@ -1,3 +1,4 @@
+import { is } from '@toba/tools';
 import { EditorNode, wrapMarks } from './node';
 import { NodeType } from './node-type';
 import { AttributeMap } from './attribute';
@@ -14,8 +15,9 @@ export class TextNode extends EditorNode {
    ) {
       super(type, attrs, null, marks);
 
-      if (!content) throw new RangeError('Empty text nodes are not allowed');
-
+      if (is.empty(content)) {
+         throw new RangeError('Empty text nodes are not allowed');
+      }
       this.text = content;
    }
 

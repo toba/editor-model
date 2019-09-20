@@ -30,11 +30,12 @@ export function defaultAttrs(attrs: { [key: string]: Attribute<any> }) {
 export function computeAttrs(
    attrs: AttributeMap,
    value?: { [key: string]: any }
-) {
+): { [key: string]: any } {
    let built = Object.create(null);
 
    for (let name in attrs) {
       let given = value && value[name];
+
       if (given === undefined) {
          let attr = attrs[name];
          if (attr.hasDefault) {

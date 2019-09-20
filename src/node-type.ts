@@ -1,5 +1,6 @@
 import { MarkType } from './mark-type';
 import { Schema } from './schema';
+import { OrderedMap } from './ordered-map';
 import { NodeSpec, EditorNode } from './node';
 import {
    AttributeMap,
@@ -15,6 +16,8 @@ import { Mark } from './mark';
  * Node types are objects allocated once per `Schema` and used to
  * [tag](#model.Node.type) `Node` instances. They contain information about the
  * node type, such as its name and what kind of node it represents.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L46
  */
 export class NodeType {
    name: string;
@@ -27,9 +30,7 @@ export class NodeType {
    defaultAttrs: AttributeMap;
    /** Starting match of the node type's content expression */
    contentMatch: ContentMatch | null;
-   /**
-    * Set of marks allowed in this node. `null` means all marks are allowed.
-    */
+   /** Set of marks allowed in this node. `null` means all marks are allowed. */
    markSet: MarkType[] | null;
    /** True if this node type has inline content */
    inlineContent: boolean | null;
@@ -42,9 +43,9 @@ export class NodeType {
       this.name = name;
       this.schema = schema;
       this.spec = spec;
-      this.groups = spec.group ? spec.group.split(' ') : [];
+      this.groups = spec.group === undefined ? [] : spec.group.split(' ');
       this.attrs = initAttrs(spec.attrs);
-      this.defaultAttrs = defaultAttrs(this.attrsNode);
+      this.defaultAttrs = defaultAttrs(this.attrs);
       this.contentMatch = null;
       this.markSet = null;
       this.inlineContent = null;
@@ -70,7 +71,7 @@ export class NodeType {
     * True for node types that allow no content.
     */
    get isLeaf(): boolean {
-      return this.contentMatch == ContentMatch.empty;
+      return this.contentMatch === ContentMatch.empty;
    }
 
    /**
@@ -83,7 +84,10 @@ export class NodeType {
 
    hasRequiredAttrs(ignore?: string[]): boolean {
       for (let n in this.attrs) {
-         if (this.attrs[n].isRequired && (!ignore || !(n in ignore))) {
+         if (
+            this.attrs[n].isRequired &&
+            (ignore === undefined || !ignore.includes(n))
+         ) {
             return true;
          }
       }
@@ -182,7 +186,12 @@ export class NodeType {
 
       return after === undefined
          ? null
-         : new EditorNode(this, attrs, content.append(after), Mark.setFrom(marks));
+         : new EditorNode(
+              this,
+              attrs,
+              content.append(after),
+              Mark.setFrom(marks)
+           );
    }
 
    /**
@@ -246,13 +255,13 @@ export class NodeType {
       return !copy ? marks : copy.length ? copy : Mark.none;
    }
 
-   static compile(nodes: EditorNode[], schema: Schema) {
-      const result = Object.create(null);
-
-      nodes.forEach(
-         (name, spec) => (result[name] = new NodeType(name, schema, spec))
+   static compile(
+      specs: OrderedMap<NodeSpec>,
+      schema: Schema
+   ): { [key: string]: NodeType } {
+      const result = specs.map(
+         (name, spec) => new NodeType(name, schema, spec)
       );
-
       const topType: string = schema.spec.topNode || 'doc';
 
       if (!result[topType]) {
@@ -266,7 +275,6 @@ export class NodeType {
       for (let _ in result.text.attrs) {
          throw new RangeError('The text node type should not have attributes');
       }
-
       return result;
    }
 }

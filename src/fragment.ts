@@ -1,5 +1,6 @@
 import { EditorNode, NodeJSON } from './node';
 import { Schema } from './schema';
+import { TextNode } from './text-node';
 
 export type FragmentJSON = NodeJSON[];
 
@@ -34,10 +35,15 @@ export class Fragment {
     * (relative to start of this fragment). Doesn't descend into a node when the
     * callback returns `false`.
     */
-   nodesBetween(
+   forEachNodeBetween(
       from: number,
       to: number,
-      fn: (node: EditorNode, start: number, parent?: EditorNode, index?: number) => boolean,
+      fn: (
+         node: EditorNode,
+         start: number,
+         parent?: EditorNode,
+         index?: number
+      ) => boolean | void,
       nodeStart = 0,
       parent?: EditorNode
    ) {
@@ -50,7 +56,7 @@ export class Fragment {
             child.content.size
          ) {
             let start = pos + 1;
-            child.nodesBetween(
+            child.forEachNodeBetween(
                Math.max(0, from - start),
                Math.min(child.content.size, to - start),
                fn,
@@ -65,8 +71,10 @@ export class Fragment {
     * Call the given callback for every descendant node. The callback may return
     * `false` to prevent traversal of a given node's children.
     */
-   descendants(fn: (node: EditorNode, pos: number, parent: EditorNode) => boolean) {
-      this.nodesBetween(0, this.size, fn);
+   forEachDescendant(
+      fn: (node: EditorNode, pos: number, parent: EditorNode) => boolean
+   ) {
+      this.forEachNodeBetween(0, this.size, fn);
    }
 
    textBetween(
@@ -78,7 +86,7 @@ export class Fragment {
       let text = '';
       let separated = true;
 
-      this.nodesBetween(
+      this.forEachNodeBetween(
          from,
          to,
          (node, pos) => {
@@ -103,15 +111,15 @@ export class Fragment {
     * the other.
     */
    append(other: Fragment): Fragment {
-      if (!other.size) {
+      if (other.size == 0) {
          return this;
       }
-      if (!this.size) {
+      if (this.size == 0) {
          return other;
       }
       const last: EditorNode | null = this.lastChild;
       const first: EditorNode | null = other.firstChild;
-      const content = this.content.slice();
+      const content: (EditorNode | TextNode)[] = this.content.slice();
       let i = 0;
 
       if (
@@ -120,7 +128,11 @@ export class Fragment {
          last.isText &&
          last.sameMarkup(first)
       ) {
-         content[content.length - 1] = last.withText(last.text + first.text);
+         const firstText = (first as unknown) as TextNode;
+         const lastText = (last as unknown) as TextNode;
+         content[content.length - 1] = lastText.withText(
+            lastText.text + firstText.text
+         );
          i = 1;
       }
       for (; i < other.content.length; i++) {
@@ -142,10 +154,11 @@ export class Fragment {
       let result = [];
       let size = 0;
 
-      if (to > from)
+      if (to > from) {
          for (let i = 0, pos = 0; pos < to; i++) {
-            let child = this.content[i],
-               end = pos + child.nodeSize;
+            let child = this.content[i];
+            const end = pos + child.nodeSize;
+
             if (end > from) {
                if (pos < from || end > to) {
                   if (child.isText)
@@ -164,6 +177,7 @@ export class Fragment {
             }
             pos = end;
          }
+      }
       return new Fragment(result, size);
    }
 
@@ -344,29 +358,29 @@ export class Fragment {
     * Build a fragment from an array of nodes. Ensures that adjacent text nodes
     * with the same marks are joined together.
     */
-   static fromArray(array: EditorNode[]): Fragment {
-      if (!array.length) {
+   static fromArray(nodes: EditorNode[]): Fragment {
+      if (nodes.length == 0) {
          return Fragment.empty;
       }
-      let joined: EditorNode[] = [];
+      let joined: EditorNode[] | null = null;
       let size = 0;
 
-      for (let i = 0; i < array.length; i++) {
-         let node = array[i];
+      for (let i = 0; i < nodes.length; i++) {
+         let node = nodes[i];
          size += node.nodeSize;
 
-         if (i && node.isText && array[i - 1].sameMarkup(node)) {
-            if (!joined) {
-               joined = array.slice(0, i);
+         if (i > 0 && node.isText && nodes[i - 1].sameMarkup(node)) {
+            if (joined === null) {
+               joined = nodes.slice(0, i);
             }
             joined[joined.length - 1] = node.withText(
                joined[joined.length - 1].text + node.text
             );
-         } else if (joined) {
+         } else if (joined !== null) {
             joined.push(node);
          }
       }
-      return new Fragment(joined || array, size);
+      return new Fragment(joined || nodes, size);
    }
 
    /**
@@ -392,7 +406,7 @@ export class Fragment {
          'Can not convert ' +
             nodes +
             ' to a Fragment' +
-            (nodes.nodesBetween
+            (nodes.forEachNodeBetween
                ? ' (looks like multiple versions of prosemirror-model were loaded)'
                : '')
       );
@@ -452,7 +466,6 @@ export function findDiffEnd(
       if (iA == 0 || iB == 0) {
          return iA == iB ? null : { a: posA, b: posB };
       }
-
       const childA = a.child(--iA);
       const childB = b.child(--iB);
       const size = childA.nodeSize;

@@ -1,5 +1,5 @@
 import { ValueType, is } from '@toba/tools';
-import OrderedMap from 'ordered-map';
+import { OrderedMap } from './ordered-map';
 import { EditorNode, NodeSpec, NodeJSON } from './node';
 import { TextNode } from './text-node';
 import { Mark, MarkSpec, MarkJSON } from './mark';
@@ -52,9 +52,9 @@ export class Schema {
     */
    spec: SchemaSpec;
    /** An object mapping the schema's node names to node type objects */
-   nodes: { [key: string]: NodeType };
-   /** A map from mark names to mark type objects */
-   marks: { [key: string]: MarkType };
+   nodes: OrderedMap<NodeType>;
+   /** Mark types keyed to their names */
+   marks: OrderedMap<MarkType>;
    /**
     * The type of the [default top node](#model.SchemaSpec.topNode) for this
     * schema.
@@ -69,7 +69,7 @@ export class Schema {
    cached: { [key: string]: any };
 
    /**
-    * Construct a schema from a schema [specification](#model.SchemaSpec).
+    * Construct a schema from a `SchemaSpec`.
     */
    constructor(spec: SchemaSpec) {
       this.spec = {};
@@ -79,8 +79,12 @@ export class Schema {
       for (prop in spec) {
          this.spec[prop] = spec[prop];
       }
-      this.spec.nodes = OrderedMap.from(spec.nodes);
-      this.spec.marks = OrderedMap.from(spec.marks);
+      if (spec.nodes !== undefined) {
+         this.spec.nodes = OrderedMap.from<NodeSpec>(spec.nodes);
+      }
+      if (spec.marks !== undefined) {
+         this.spec.marks = OrderedMap.from<MarkSpec>(spec.marks);
+      }
       this.nodes = NodeType.compile(this.spec.nodes, this);
       this.marks = MarkType.compile(this.spec.marks, this);
 
@@ -165,8 +169,8 @@ export class Schema {
     * Create a mark with the given type and attributes.
     */
    mark(type: string | MarkType, attrs: AttributeMap): Mark {
-      if (typeof type == 'string') {
-         type = this.marks[type];
+      if (is.text(type)) {
+         type = this.marks.get(type);
       }
       return type.create(attrs);
    }
@@ -174,7 +178,8 @@ export class Schema {
    /**
     * Deserialize a node from its JSON representation. This method is bound.
     */
-   nodeFromJSON = (json: NodeJSON): EditorNode => EditorNode.fromJSON(this, json);
+   nodeFromJSON = (json: NodeJSON): EditorNode =>
+      EditorNode.fromJSON(this, json);
 
    /**
     * Deserialize a mark from its JSON representation. This method is bound.
@@ -182,8 +187,9 @@ export class Schema {
    markFromJSON = (json: MarkJSON): Mark => Mark.fromJSON(this, json);
 
    nodeType(name: string): NodeType {
-      let found = this.nodes[name];
-      if (!found) {
+      const found = this.nodes.get(name);
+
+      if (found === undefined) {
          throw new RangeError('Unknown node type: ' + name);
       }
       return found;
@@ -193,31 +199,27 @@ export class Schema {
 /**
  * Mark types in schema matching names.
  */
-function gatherMarks(schema: Schema, marks: string[]): MarkType[] {
-   const found: MarkType[] = [];
+function gatherMarks(schema: Schema, names: string[]): MarkType[] {
+   const matches: MarkType[] = [];
 
-   for (let i = 0; i < marks.length; i++) {
-      const name = marks[i];
-      const mark = schema.marks[name];
-      let ok = mark;
+   names.forEach(name => {
+      const mark = schema.marks.get(name);
+      let found = mark !== undefined;
 
-      if (mark) {
-         found.push(mark);
+      if (found) {
+         matches.push(mark!);
       } else {
-         for (let key in schema.marks) {
-            const mark = schema.marks[key];
-            if (
-               name == '_' ||
-               (mark.spec.group &&
-                  mark.spec.group.split(' ').indexOf(name) > -1)
-            ) {
-               found.push((ok = mark));
+         schema.marks.forEach((_, mark) => {
+            if (name == '_' || mark.isInGroup(name)) {
+               found = true;
+               matches.push(mark);
             }
-         }
+         });
       }
-      if (!ok) {
-         throw new SyntaxError("Unknown mark type: '" + marks[i] + "'");
+      if (!found) {
+         throw new SyntaxError("Unknown mark type: '" + name + "'");
       }
-   }
-   return found;
+   });
+
+   return matches;
 }

@@ -3,6 +3,7 @@ import { EditorNode } from './node';
 import { NodeType } from './node-type';
 import { nfa, dfa } from './finite-automata';
 import { TokenStream, parseExpr } from './token-stream';
+import { Content } from '@toba/tools/esm/constants';
 
 interface NodeEdge {
    type: NodeType;
@@ -15,45 +16,51 @@ interface ActiveMatch {
    via: ContentMatch | null;
 }
 
+type TypeMatch = [NodeType, ContentMatch];
+
 /**
  * Instances of this class represent a match state of a node type's
  * [content expression](#model.NodeSpec.content), and can be used to find out
  * whether further content matches here, and whether a given position is a valid
  * end of the node.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/content.js
  */
 export class ContentMatch {
-   /**
-    * Whether this match state represents a valid end of the nod.
-    */
+   /** Whether this match state represents a valid end of the node */
    validEnd: boolean;
-   nextType: NodeType[];
-   nextMatch: ContentMatch[];
-   cacheType: NodeType[];
-   cacheMatch: ContentMatch[];
+   next: [NodeType, ContentMatch][];
+   wrapCache: [NodeType, NodeType[]][];
+   // nextType: NodeType[];
+   // nextMatch: ContentMatch[];
+   // cacheType: NodeType[];
+   // cacheMatch: ContentMatch[];
 
    /**
     * @param validEnd Whether match state represents a valid end of the node
     */
    constructor(validEnd: boolean) {
       this.validEnd = validEnd;
-      this.nextType = [];
-      this.nextMatch = [];
-      this.cacheType = [];
-      this.cacheMatch = [];
+      this.next = [];
+      this.wrapCache = [];
+      // this.nextType = [];
+      // this.nextMatch = [];
+      // this.cacheType = [];
+      // this.cacheMatch = [];
    }
 
    static parse(
       string: string,
       nodeTypes: { [key: string]: NodeType }
    ): ContentMatch {
-      let stream = new TokenStream(string, nodeTypes);
+      const stream = new TokenStream(string, nodeTypes);
 
       if (stream.next === null) {
          return ContentMatch.empty;
       }
       let expr = parseExpr(stream);
 
-      if (stream.next) {
+      if (stream.next !== undefined) {
          stream.err('Unexpected trailing text');
       }
       let match = dfa(nfa(expr));
@@ -67,8 +74,8 @@ export class ContentMatch {
     * Match a node type, returning a match after that node if successful.
     */
    matchType(type: NodeType): ContentMatch | null {
-      const index = this.nextType.findIndex(n => n === type);
-      return index >= 0 ? this.nextMatch[index] : null;
+      const found = this.next.find(([t, m]) => t === type);
+      return found === undefined ? null : found[1];
    }
 
    /**
@@ -88,8 +95,8 @@ export class ContentMatch {
    }
 
    get inlineContent(): boolean {
-      const first = this.nextType[0];
-      return first ? first.isInline : false;
+      const first = this.next[0];
+      return first !== undefined ? first[0].isInline : false;
    }
 
    /**
@@ -97,16 +104,19 @@ export class ContentMatch {
     * generated.
     */
    get defaultType(): NodeType | undefined {
-      return this.nextType.find(t => !(t.isText || t.hasRequiredAttrs));
+      const found = this.next.find(
+         ([t, m]) => !(t.isText || t.hasRequiredAttrs)
+      );
+      return found !== undefined ? found[0] : found;
    }
 
    compatible(other: ContentMatch | null): boolean {
       if (other === null) {
          return false;
       }
-      for (let i = 0; i < this.nextType.length; i++) {
-         for (let j = 0; j < other.nextType.length; j++) {
-            if (this.nextType[i] === other.nextType[j]) {
+      for (let i = 0; i < this.next.length; i++) {
+         for (let j = 0; j < other.next.length; j++) {
+            if (this.next[i][0] === other.next[j][0]) {
                return true;
             }
          }
@@ -129,10 +139,10 @@ export class ContentMatch {
       let seen: ContentMatch[] = [this];
 
       function search(
-         match: ContentMatch,
+         searchMatch: ContentMatch,
          types: NodeType[]
       ): Fragment | undefined {
-         let finished: ContentMatch | null = match.matchFragment(
+         let finished: ContentMatch | null = searchMatch.matchFragment(
             after,
             startIndex
          );
@@ -144,18 +154,19 @@ export class ContentMatch {
             return Fragment.from(nodes);
          }
 
-         for (let i = 0; i < match.nextType.length; i++) {
-            const type = match.nextType[i];
-            const next = match.nextMatch[i];
+         for (let i = 0; i < searchMatch.next.length; i++) {
+            const next = searchMatch.next[i];
+            const type = next[0];
+            const match = next[1];
 
             if (
                !(type.isText || type.hasRequiredAttrs()) &&
-               seen.indexOf(next) == -1
+               seen.indexOf(match) == -1
             ) {
-               seen.push(next);
+               seen.push(match);
 
-               let found = search(next, types.concat(type));
-               if (found) {
+               const found = search(match, types.concat(type));
+               if (found !== undefined) {
                   return found;
                }
             }
@@ -170,14 +181,16 @@ export class ContentMatch {
     * type to appear at this position. The result may be empty (when it fits
     * directly) and will be null when no such wrapping exists.
     */
-   findWrapping(target: NodeType): NodeType | undefined {
-      for (let i = 0; i < this.cacheType.length; i++) {
-         if (this.cacheType[i] === target) {
-            return this.cacheType[i + 1];
+   findWrapping(target: NodeType): NodeType[] | null {
+      for (let i = 0; i < this.wrapCache.length; i++) {
+         const [type, wrapTypes] = this.wrapCache[i];
+
+         if (type === target) {
+            return wrapTypes;
          }
       }
       let computed = this.computeWrapping(target);
-      this.cacheType.push(target, computed);
+      this.wrapCache.push([target, computed]);
 
       return computed;
    }
@@ -198,12 +211,13 @@ export class ContentMatch {
             return result.reverse();
          }
          for (let i = 0; i < match.next.length; i += 2) {
-            let type = match.next[i];
+            const [type, m] = match.next[i];
+
             if (
                !type.isLeaf &&
                !type.hasRequiredAttrs() &&
                !(type.name in seen) &&
-               (!current.type || match.next[i + 1].validEnd)
+               (!current.type || m.validEnd)
             ) {
                active.push({ match: type.contentMatch, type, via: current });
                seen[type.name] = true;
@@ -226,29 +240,35 @@ export class ContentMatch {
     */
    edge(n: number): NodeEdge {
       let i = n << 1;
+
       if (i > this.next.length) {
          throw new RangeError(`There's no ${n}th edge in this content match`);
       }
-      return { type: this.next[i], next: this.next[i + 1] };
+      const [type, next] = this.next[i];
+
+      return { type, next };
    }
 
    toString(): string {
-      let seen = [];
-      function scan(m) {
-         seen.push(m);
-         for (let i = 1; i < m.next.length; i += 2)
-            if (seen.indexOf(m.next[i]) == -1) scan(m.next[i]);
+      /** Matches that have been scanned */
+      const seen: ContentMatch[] = [];
+
+      function scan(match: ContentMatch) {
+         seen.push(match);
+         match.next
+            .map(([, m]) => m)
+            .filter(m => !seen.includes(m))
+            .forEach(scan);
       }
       scan(this);
+
       return seen
          .map((m, i) => {
             let out = i + (m.validEnd ? '*' : ' ') + ' ';
-            for (let i = 0; i < m.next.length; i += 2)
-               out +=
-                  (i ? ', ' : '') +
-                  m.next[i].name +
-                  '->' +
-                  seen.indexOf(m.next[i + 1]);
+            for (let i = 0; i < m.next.length; i++) {
+               const [type, match] = m.next[i];
+               out += (i ? ', ' : '') + type.name + '->' + seen.indexOf(match);
+            }
             return out;
          })
          .join('\n');
@@ -257,29 +277,28 @@ export class ContentMatch {
    static empty = new ContentMatch(true);
 }
 
-function checkForDeadEnds(match: ContentMatch, stream: TokenStream) {
-   for (let i = 0, work = [match]; i < work.length; i++) {
-      const state = work[i];
-      const nodes = [];
-      let dead = !state.validEnd;
+function checkForDeadEnds(rootMatch: ContentMatch, stream: TokenStream) {
+   for (let i = 0, work = [rootMatch]; i < work.length; i++) {
+      const state: ContentMatch = work[i];
+      const types: string[] = [];
+      let deadEnd: boolean = !state.validEnd;
 
-      for (let j = 0; j < state.next.length; j += 2) {
-         const node = state.next[j] as NodeType;
-         const next = state.next[j + 1] as ContentMatch;
+      for (let j = 0; j < state.next.length; j++) {
+         const [type, match] = state.next[j];
 
-         nodes.push(node.name);
+         types.push(type.name);
 
-         if (dead && !(node.isText || node.hasRequiredAttrs())) {
-            dead = false;
+         if (deadEnd && !(type.isText || type.hasRequiredAttrs())) {
+            deadEnd = false;
          }
-         if (work.indexOf(next) == -1) {
-            work.push(next);
+         if (work.indexOf(match) == -1) {
+            work.push(match);
          }
       }
-      if (dead)
+      if (deadEnd)
          stream.err(
             'Only non-generatable nodes (' +
-               nodes.join(', ') +
+               types.join(', ') +
                ') in a required position'
          );
    }

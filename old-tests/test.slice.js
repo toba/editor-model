@@ -1,6 +1,6 @@
 import '@toba/test';
-import { Slice } from './slice';
-import { EditorNode } from './node';
+import { Slice } from '../src/slice';
+import { EditorNode } from '../src/node';
 import { doc, p, li, ul, em, a, blockquote } from '@toba/editor-test';
 
 function expectSlice(

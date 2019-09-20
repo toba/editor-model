@@ -44,7 +44,7 @@ export class TokenStream {
       }
    }
 
-   get next(): string {
+   get next(): string | undefined {
       return this.tokens[this.pos];
    }
 
@@ -95,10 +95,13 @@ export function parseExpr(stream: TokenStream) {
 }
 
 function parseNum(stream: TokenStream): number {
-   if (/\D/.test(stream.next)) {
-      stream.err("Expected number, got '" + stream.next + "'");
+   const next = stream.next;
+
+   if (next === undefined || /\D/.test(next)) {
+      // TODO: with TS 3.7 stream.err can be an assert
+      return stream.err("Expected number, got '" + next + "'");
    }
-   const result = Number(stream.next);
+   const result = Number(next);
    stream.pos++;
 
    return result;
@@ -149,7 +152,7 @@ function parseExprAtom(stream: TokenStream): Expression {
          stream.err('Missing closing paren');
       }
       return expr;
-   } else if (!/\W/.test(stream.next)) {
+   } else if (stream.next !== undefined && !/\W/.test(stream.next)) {
       const exprs: Expression[] = resolveName(stream, stream.next).map(
          (type: NodeType) => {
             if (stream.inline === null) {
