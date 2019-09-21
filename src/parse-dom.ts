@@ -163,7 +163,7 @@ export interface ParseRule {
     * Called with a DOM Element for `tag` rules, and with a string (the style's
     * value) for `style` rules.
     */
-   getAttrs?: (match: Node | string) => Attributes | false;
+   getAttrs?: (match: HTMLElement | string) => Attributes | undefined | false;
 
    /**
     * For `tag` rules that produce non-leaf nodes or marks, by default the
@@ -190,7 +190,10 @@ export interface ParseRule {
    preserveWhitespace?: PreserveWhitespace;
 }
 
-function assignAttributes(rule: ParseRule, from: Node | string): ParseRule {
+function assignAttributes(
+   rule: ParseRule,
+   from: HTMLElement | string
+): ParseRule {
    if (rule.getAttrs !== undefined) {
       const result = rule.getAttrs(from);
 
@@ -259,7 +262,7 @@ export class DOMParser {
       return Slice.maxOpen(context.finish() as Fragment);
    }
 
-   matchTag(el: Element, context: ParseContext) {
+   matchTag(el: HTMLElement, context: ParseContext) {
       for (let i = 0; i < this.tags.length; i++) {
          const rule: ParseRule = this.tags[i];
          if (

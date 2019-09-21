@@ -1,9 +1,11 @@
 import { is } from '@toba/tools';
 
+export type AttributeValue = string | number | null;
+
 /**
  * Attribute values keyed to their name.
  */
-export type Attributes = { [key: string]: string | null };
+export type Attributes = { [key: string]: AttributeValue };
 
 /**
  * Map of attribute names and optional default values.
@@ -58,7 +60,7 @@ export function computeAttrs(
    const built: Attributes = {};
 
    for (let name in attrs) {
-      let given: string | null | undefined = values[name];
+      let given: AttributeValue | undefined = values[name];
 
       if (!is.value<string>(given)) {
          // no given value so try to use default value

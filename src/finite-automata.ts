@@ -102,28 +102,28 @@ export function nfa(expr: Expression): NFA {
          );
          return [edge(loop)];
       } else if (expr.type == TokenType.Optional) {
-         return [edge(from)].concat(compile(expr.expr, from));
+         return [edge(from)].concat(compile(expr.expr!, from));
       } else if (expr.type == TokenType.Range) {
          let cur = from;
-         for (let i = 0; i < expr.min; i++) {
+         for (let i = 0; i < expr.min!; i++) {
             let next = node();
             connect(
-               compile(expr.expr, cur),
+               compile(expr.expr!, cur),
                next
             );
             cur = next;
          }
          if (expr.max == -1) {
             connect(
-               compile(expr.expr, cur),
+               compile(expr.expr!, cur),
                cur
             );
          } else {
-            for (let i = expr.min; i < expr.max; i++) {
+            for (let i = expr.min; i! < expr.max!; i!++) {
                let next = node();
                edge(cur, next);
                connect(
-                  compile(expr.expr, cur),
+                  compile(expr.expr!, cur),
                   next
                );
                cur = next;
@@ -133,6 +133,7 @@ export function nfa(expr: Expression): NFA {
       } else if (expr.type == TokenType.Name) {
          return [edge(from, null, expr.value)];
       }
+      return [];
    }
 }
 
@@ -160,8 +161,8 @@ function nullFrom(nfa: NFA, node: number) {
 
       for (let i = 0; i < edges.length; i++) {
          let { term, to } = edges[i];
-         if (!term && result.indexOf(to) == -1) {
-            scan(to);
+         if (!term && result.indexOf(to!) == -1) {
+            scan(to!);
          }
       }
    }
@@ -189,7 +190,7 @@ export function dfa(nfa: NFA): ContentMatch {
             const known: number = out.indexOf(term);
             let set: number[] = known > -1 && out[known + 1];
 
-            nullFrom(nfa, to).forEach(node => {
+            nullFrom(nfa, to!).forEach(node => {
                if (!set) {
                   out.push(term, (set = []));
                }

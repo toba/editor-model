@@ -7,7 +7,6 @@ import { MarkType } from './mark-type';
 import { NodeType } from './node-type';
 import { TextNode } from './text-node';
 import { Attributes } from './attribute';
-import { OrderedMap } from './ordered-map';
 
 /**
  * An array describing a DOM element. The first value in the array should be a
@@ -23,7 +22,18 @@ import { OrderedMap } from './ordered-map';
  *
  * @see https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#optional-elements-in-tuple-types
  */
-type DOMArray = [string, Attributes?, ...(string | Node | 0)[]];
+type TreeSpec<T> = [
+   string,
+   (Attributes | T | 0)?,
+   (T | 0)?, // ugly until recursive types are supported (see comment below)
+   (T | 0)?,
+   (T | 0)?,
+   (T | 0)?
+];
+
+// trick to support recursive types until 3.7
+// https://stackoverflow.com/questions/47842266/recursive-types-in-typescript
+export interface ElementSpec extends TreeSpec<ElementSpec> {}
 
 /**
  * Represent `DOMOutputSpec` rendered to DOM.
@@ -45,7 +55,7 @@ interface Rendered {
  * interpreted as a text node, a DOM node, which is interpreted as itself, or a
  * `DOMArray`.
  */
-export type DOMOutputSpec = string | Node | DOMArray;
+export type DOMOutputSpec = string | Node | ElementSpec;
 
 /**
  * Convert an `EditorNode` to a description of its DOM implementation.
@@ -232,7 +242,7 @@ export class DOMSerializer {
          return { node: spec };
       }
       const el: HTMLElement = doc.createElement(spec[0]);
-      const attrs: Attributes | undefined = spec[1];
+      const attrs = spec[1];
 
       /** Inner content within a "0" hole */
       let contentDOM: Node | undefined = undefined;
@@ -241,8 +251,8 @@ export class DOMSerializer {
 
       if (
          attrs !== undefined &&
-         typeof attrs == ValueType.Object &&
-         attrs.nodeType === undefined &&
+         is.object(attrs) &&
+         //attrs.nodeType === undefined &&
          !Array.isArray(attrs)
       ) {
          start = 2;
@@ -250,7 +260,7 @@ export class DOMSerializer {
          for (let name in attrs) {
             const value = attrs[name];
             if (value !== null) {
-               el.setAttribute(name, value);
+               el.setAttribute(name, value.toString());
             }
          }
       }
@@ -270,7 +280,7 @@ export class DOMSerializer {
             const {
                node: inner,
                contentNode: maybeContent
-            } = DOMSerializer.renderSpec(doc, child as Node);
+            } = DOMSerializer.renderSpec(doc, child as ElementSpec);
 
             el.appendChild(inner);
 
