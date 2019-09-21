@@ -136,7 +136,7 @@ export class OrderedMap<T> {
    }
 
    /**
-    * Call the given function for each key/value pair in the map, in order.
+    * Method invoked for each key/value pair in the map, in order.
     */
    forEach(fn: (key: string, value: T) => void) {
       this.keys.forEach((key, i) => fn(key, this.values[i]));
@@ -145,12 +145,21 @@ export class OrderedMap<T> {
    /**
     * Convert to an object with the same keys but values transformed to type
     * with given function.
+    *
+    * @param allowEmpty If `false` then `null` or `undefined` results of the
+    * callack will be excluded. The default is `true`.
     */
-   map<M>(fn: (key: string, value: T) => M): { [key: string]: M } {
+   map<M>(
+      fn: (key: string, value: T) => M,
+      allowEmpty = true
+   ): { [key: string]: M } {
       const out: { [key: string]: M } = {};
 
       this.keys.forEach((key, i) => {
-         out[key] = fn(key, this.values[i]);
+         const value: M = fn(key, this.values[i]);
+         if (allowEmpty || is.value<M>(value)) {
+            out[key] = value;
+         }
       });
 
       return out;

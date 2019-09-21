@@ -1,12 +1,12 @@
 import { is } from '@toba/tools';
 import { compareDeep } from './compare-deep';
 import { MarkType } from './mark-type';
-import { AttributeMap } from './attribute';
+import { Attributes } from './attribute';
 import { Schema } from './schema';
 
 export interface MarkJSON {
    type: string;
-   attrs: AttributeMap;
+   attrs: Attributes;
 }
 
 /**
@@ -17,12 +17,12 @@ export interface MarkJSON {
  * and which attributes they have.
  */
 export class Mark {
-   /** Type of this mark */
+   /** Type of mark */
    type: MarkType;
-   /** Attributes associated with this mark */
-   attrs: AttributeMap;
+   /** Associated attributes */
+   attrs: Attributes;
 
-   constructor(type: MarkType, attrs: AttributeMap) {
+   constructor(type: MarkType, attrs: Attributes) {
       this.type = type;
       this.attrs = attrs;
    }
@@ -34,38 +34,45 @@ export class Mark {
     * [exclusive](#model.MarkSpec.excludes) with this mark are present, those
     * are replaced by this one.
     */
-   addToSet(set: Mark[]): Mark[] {
-      let copy;
+   addToSet(target: Mark[]): Mark[] {
+      /** New set of marks with current instance added */
+      let out: Mark[] | null = null;
+      /** Whether mark has already been added to the output */
       let placed = false;
 
-      for (let i = 0; i < set.length; i++) {
-         let other = set[i];
+      for (let i = 0; i < target.length; i++) {
+         const other: Mark = target[i];
 
-         if (this.eq(other)) {
-            return set;
+         if (this.equals(other)) {
+            return target;
          }
 
          if (this.type.excludes(other.type)) {
-            if (!copy) copy = set.slice(0, i);
+            if (out === null) {
+               out = target.slice(0, i);
+            }
          } else if (other.type.excludes(this.type)) {
-            return set;
+            return target;
          } else {
             if (!placed && other.type.rank > this.type.rank) {
-               if (!copy) copy = set.slice(0, i);
-               copy.push(this);
+               if (out === null) {
+                  out = target.slice(0, i);
+               }
+               out.push(this);
                placed = true;
             }
-            if (copy) copy.push(other);
+            if (out !== null) {
+               out.push(other);
+            }
          }
       }
-      if (!copy) {
-         copy = set.slice();
+      if (out === null) {
+         out = target.slice();
       }
       if (!placed) {
-         copy.push(this);
+         out.push(this);
       }
-
-      return copy;
+      return out;
    }
 
    /**
@@ -74,7 +81,7 @@ export class Mark {
     */
    removeFromSet(set: Mark[]): Mark[] {
       for (let i = 0; i < set.length; i++) {
-         if (this.eq(set[i])) {
+         if (this.equals(set[i])) {
             return set.slice(0, i).concat(set.slice(i + 1));
          }
       }
@@ -86,7 +93,7 @@ export class Mark {
     */
    isInSet(set: Mark[]): boolean {
       for (let i = 0; i < set.length; i++) {
-         if (this.eq(set[i])) {
+         if (this.equals(set[i])) {
             return true;
          }
       }
@@ -96,50 +103,56 @@ export class Mark {
    /**
     * Test whether this mark has the same type and attributes as another mark.
     */
-   eq(other: Mark): boolean {
+   equals(other: Mark): boolean {
       return (
          this === other ||
          (this.type == other.type && compareDeep(this.attrs, other.attrs))
       );
    }
 
+   /** Maintain old method name for ProseMirror compatibility */
+   eq = this.equals;
+
    /**
     * Convert this mark to a JSON-serializeable representation.
     */
    toJSON(): MarkJSON {
       const out: MarkJSON = { type: this.type.name, attrs: {} };
+
       for (let _ in this.attrs) {
+         // TODO: what is this doing?
          out.attrs = this.attrs;
          break;
       }
       return out;
    }
 
-   static fromJSON(schema: Schema, json: MarkJSON): Mark {
-      if (!json) {
+   static fromJSON(schema: Schema, json?: MarkJSON): Mark {
+      if (!is.value<MarkJSON>(json)) {
          throw new RangeError('Invalid input for Mark.fromJSON');
       }
-      const type = schema.marks.get(json.type);
+      const type = schema.marks[json.type];
 
-      if (type === undefined)
+      if (type === undefined) {
          throw new RangeError(
             `There is no mark type ${json.type} in this schema`
          );
+      }
       return type.create(json.attrs);
    }
 
    /**
     * Test whether two sets of marks are identical.
     */
-   static sameSet(a: Mark[], b: Mark[]): boolean {
-      if (a === b) {
+   static sameSet(m1: Mark[], m2: Mark[]): boolean {
+      if (m1 === m2) {
          return true;
       }
-      if (a.length != b.length) {
+      if (m1.length != m2.length) {
          return false;
       }
-      for (let i = 0; i < a.length; i++) {
-         if (!a[i].eq(b[i])) {
+      for (let i = 0; i < m1.length; i++) {
+         if (!m1[i].equals(m2[i])) {
             return false;
          }
       }
@@ -147,20 +160,20 @@ export class Mark {
    }
 
    /**
-    * Create a properly sorted mark set from null, a single mark, or an unsorted
+    * Create a rank-sorted mark list from null, a single mark, or an unsorted
     * array of marks.
     */
    static setFrom(marks?: Mark[] | Mark | null): Mark[] {
       if (!is.value<Mark>(marks)) {
-         return Mark.none;
+         return Mark.empty;
       }
 
       if (is.array<Mark>(marks)) {
          if (marks.length == 0) {
-            return Mark.none;
+            return Mark.empty;
          }
          const copy = marks.slice();
-         copy.sort((a, b) => a.type.rank - b.type.rank);
+         copy.sort((m1, m2) => m1.type.rank - m2.type.rank);
          return copy;
       }
       return [marks];
@@ -169,5 +182,5 @@ export class Mark {
    /**
     * The empty set of marks.
     */
-   static none: Mark[] = [];
+   static empty: Mark[] = [];
 }

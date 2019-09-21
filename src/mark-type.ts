@@ -9,7 +9,8 @@ import {
    AttributeSpec,
    initAttrs,
    defaultAttrs,
-   computeAttrs
+   computeAttrs,
+   Attributes
 } from './attribute';
 
 /**
@@ -115,10 +116,10 @@ export class MarkType {
     * only some of the mark's attributes. The others, if they have defaults,
     * will be added.
     */
-   create = (attrs?: AttributeMap | null): Mark =>
-      !is.value<AttributeMap>(attrs) && this.instance
+   create = (attrs?: Attributes): Mark =>
+      !is.value<Attributes>(attrs) && this.instance !== null
          ? this.instance
-         : new Mark(this, computeAttrs(this.attrs, attrs || undefined));
+         : new Mark(this, computeAttrs(this.attrs, attrs));
 
    /**
     * When there is a mark of this type in the given set, a new set without it

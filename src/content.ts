@@ -30,10 +30,6 @@ export class ContentMatch {
    validEnd: boolean;
    next: [NodeType, ContentMatch][];
    wrapCache: [NodeType, NodeType[]][];
-   // nextType: NodeType[];
-   // nextMatch: ContentMatch[];
-   // cacheType: NodeType[];
-   // cacheMatch: ContentMatch[];
 
    /**
     * @param validEnd Whether match state represents a valid end of the node
@@ -42,13 +38,12 @@ export class ContentMatch {
       this.validEnd = validEnd;
       this.next = [];
       this.wrapCache = [];
-      // this.nextType = [];
-      // this.nextMatch = [];
-      // this.cacheType = [];
-      // this.cacheMatch = [];
    }
 
-   static parse(string: string, nodeTypes: OrderedMap<NodeType>): ContentMatch {
+   static parse(
+      string: string,
+      nodeTypes: { [key: string]: NodeType }
+   ): ContentMatch {
       const stream = new TokenStream(string, nodeTypes);
 
       if (stream.next === null) {
@@ -101,7 +96,7 @@ export class ContentMatch {
     */
    get defaultType(): NodeType | undefined {
       const found = this.next.find(
-         ([t, m]) => !(t.isText || t.hasRequiredAttrs)
+         ([t, _]) => !(t.isText || t.hasRequiredAttrs)
       );
       return found !== undefined ? found[0] : found;
    }
@@ -132,6 +127,7 @@ export class ContentMatch {
       toEnd = false,
       startIndex = 0
    ): Fragment | undefined {
+      /** Matches that have already been processed */
       let seen: ContentMatch[] = [this];
 
       function search(
@@ -151,24 +147,21 @@ export class ContentMatch {
          }
 
          for (let i = 0; i < searchMatch.next.length; i++) {
-            const next = searchMatch.next[i];
-            const type = next[0];
-            const match = next[1];
+            const [type, match] = searchMatch.next[i];
 
             if (
                !(type.isText || type.hasRequiredAttrs()) &&
-               seen.indexOf(match) == -1
+               !seen.includes(match)
             ) {
                seen.push(match);
-
                const found = search(match, types.concat(type));
+
                if (found !== undefined) {
                   return found;
                }
             }
          }
       }
-
       return search(this, []);
    }
 
@@ -194,24 +187,24 @@ export class ContentMatch {
    }
 
    computeWrapping(target: NodeType): NodeType[] | null {
-      const seen: { [key: string]: boolean } = Object.create(null);
+      /** Names of `NodeType`s that have already been processed */
+      const seen: { [key: string]: boolean } = {};
       const active: ActiveMatch[] = [{ match: this, type: null, via: null }];
 
       while (active.length) {
-         const current = active.shift()!;
-         const match = current.match;
+         const current: ActiveMatch = active.shift()!;
+         const match: ContentMatch = current.match;
 
          if (match.matchType(target) !== null) {
             const result: NodeType[] = [];
 
-            for (let obj = current; obj.type; obj = obj.via) {
+            for (let obj = current; obj.type; obj = obj.via!) {
                result.push(obj.type);
             }
             return result.reverse();
          }
-         for (let i = 0; i < match.next.length; i += 2) {
-            const [type, m] = match.next[i];
 
+         match.next.forEach(([type, m]) => {
             if (
                !type.isLeaf &&
                !type.hasRequiredAttrs() &&
@@ -222,7 +215,7 @@ export class ContentMatch {
                active.push({ match: type.contentMatch, type, via: current });
                seen[type.name] = true;
             }
-         }
+         });
       }
       return null;
    }
@@ -236,7 +229,7 @@ export class ContentMatch {
    }
 
    /**
-    * Get the _n_th outgoing edge from this node in the finite automaton that
+    * Get the `n`th outgoing edge from this node in the finite automaton that
     * describes the content expression.
     */
    edge(n: number): NodeEdge {

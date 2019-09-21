@@ -1,9 +1,9 @@
 import { ContentMatch } from './content';
 import { Expression, TokenType } from './token-stream';
 
-// The code below helps compile a regular-expression-like language
-// into a deterministic finite automaton. For a good introduction to
-// these concepts, see https://swtch.com/~rsc/regexp/regexp1.html
+// The code below helps compile a regular-expression-like language into a
+// deterministic finite automaton. For a good introduction to these concepts,
+// see https://swtch.com/~rsc/regexp/regexp1.html
 
 interface Edge {
    term?: any;

@@ -1,7 +1,7 @@
 import { Fragment, FragmentJSON } from './fragment';
 import { Mark, MarkJSON } from './mark';
 import { NodeType } from './node-type';
-import { AttributeMap } from './attribute';
+import { AttributeMap, Attributes } from './attribute';
 import { Slice } from './slice';
 import { replace } from './replace';
 import { ResolvedPos } from './resolved-pos';
@@ -11,7 +11,7 @@ import { ContentMatch } from './content';
 import { Schema } from './schema';
 import { TextNode } from './text-node';
 
-const emptyAttrs = Object.create(null);
+const emptyAttrs: Attributes = {};
 
 interface NodeMatch {
    node?: EditorNode | null;
@@ -32,7 +32,7 @@ export type PerNodeCallback = (
 export interface NodeJSON {
    type: string;
    text?: string;
-   attrs?: AttributeMap;
+   attrs?: Attributes;
    content?: FragmentJSON | null;
    marks?: MarkJSON[];
 }
@@ -67,18 +67,18 @@ export class EditorNode {
     * allowed and required are [determined](#model.NodeSpec.attrs) by the node
     * type.
     */
-   readonly attrs: AttributeMap;
+   readonly attrs: Attributes;
 
    constructor(
       type: NodeType,
-      attrs: AttributeMap,
+      attrs: Attributes | null,
       content: Fragment | null,
       marks: Mark[] | null
    ) {
       this.type = type;
-      this.attrs = attrs;
+      this.attrs = attrs === null ? emptyAttrs : attrs;
       this.content = content || Fragment.empty;
-      this.marks = marks || Mark.none;
+      this.marks = marks || Mark.empty;
    }
 
    /**
@@ -180,9 +180,14 @@ export class EditorNode {
    /**
     * Test whether two nodes represent the same piece of document.
     */
-   eq = (other: EditorNode): boolean =>
+   equals = (other: EditorNode): boolean =>
       this === other ||
-      (this.sameMarkup(other) && this.content.eq(other.content));
+      (this.sameMarkup(other) && this.content.equals(other.content));
+
+   /**
+    * Maintain old method name for ProseMirror compatibility.
+    */
+   eq = this.equals;
 
    /**
     * Compare the markup (type, attributes, and marks) of this node to those of
@@ -195,10 +200,14 @@ export class EditorNode {
     * Check whether this node's markup correspond to the given type, attributes,
     * and marks.
     */
-   hasMarkup = (type: NodeType, attrs: AttributeMap, marks?: Mark[]): boolean =>
+   hasMarkup = (
+      type: NodeType,
+      attrs: Attributes | null,
+      marks?: Mark[]
+   ): boolean =>
       this.type === type &&
       compareDeep(this.attrs, attrs || type.defaultAttrs || emptyAttrs) &&
-      Mark.sameSet(this.marks, marks || Mark.none);
+      Mark.sameSet(this.marks, marks || Mark.empty);
 
    /**
     * Create a new node with the same markup as this node, containing the given

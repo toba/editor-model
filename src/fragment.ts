@@ -11,6 +11,8 @@ export type FragmentJSON = NodeJSON[];
  * Like nodes, fragments are persistent data structures, and you should not
  * mutate them or their content. Rather, you create new instances whenever
  * needed. The API tries to make this easy.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/fragment.js
  */
 export class Fragment {
    content: EditorNode[];
@@ -221,17 +223,20 @@ export class Fragment {
    /**
     * Compare this fragment to another one.
     */
-   eq(other: Fragment): boolean {
+   equals(other: Fragment): boolean {
       if (this.content.length != other.content.length) {
          return false;
       }
       for (let i = 0; i < this.content.length; i++) {
-         if (!this.content[i].eq(other.content[i])) {
+         if (!this.content[i].equals(other.content[i])) {
             return false;
          }
       }
       return true;
    }
+
+   /** Retain old name for ProseMirror compatibility */
+   eq = this.equals;
 
    /**
     * The first child of the fragment, or `null` if it is empty.
@@ -272,8 +277,8 @@ export class Fragment {
    maybeChild = (index: number): EditorNode | undefined => this.content[index];
 
    /**
-    * Call `fn` for every child node, passing the node, its offset into this
-    * parent node, and its index.
+    * Invoke callback for every child node, passing the node, its parent offset
+    * and index.
     */
    forEachChild(fn: (node: EditorNode, offset: number, index: number) => void) {
       for (let i = 0, p = 0; i < this.content.length; i++) {
@@ -282,6 +287,12 @@ export class Fragment {
          p += child.nodeSize;
       }
    }
+
+   /**
+    * Retain old name for ProseMirror compatibility
+    * @deprecated
+    */
+   forEach = this.forEachChild;
 
    /**
     * Find the first position at which this fragment and another fragment

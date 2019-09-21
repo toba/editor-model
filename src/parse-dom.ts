@@ -1,6 +1,6 @@
 import { Fragment } from './fragment';
 import { Schema } from './schema';
-import { AttributeMap } from './attribute';
+import { AttributeMap, Attributes } from './attribute';
 import { Slice } from './slice';
 import { ContentMatch } from './content';
 import { EditorNode } from './node';
@@ -151,7 +151,7 @@ export interface ParseRule {
     * Attributes for the node or mark created by this rule. When `getAttrs` is
     * provided, it takes precedence.
     */
-   attrs?: AttributeMap;
+   attrs?: Attributes;
 
    /**
     * A function used to compute the attributes for the node or mark created by
@@ -163,7 +163,7 @@ export interface ParseRule {
     * Called with a DOM Element for `tag` rules, and with a string (the style's
     * value) for `style` rules.
     */
-   getAttrs?: (match: Node | string) => AttributeMap | false;
+   getAttrs?: (match: Node | string) => Attributes | false;
 
    /**
     * For `tag` rules that produce non-leaf nodes or marks, by default the
@@ -188,6 +188,17 @@ export interface ParseRule {
     * to spaces, and `"full"` means that newlines should also be preserved.
     */
    preserveWhitespace?: PreserveWhitespace;
+}
+
+function assignAttributes(rule: ParseRule, from: Node | string): ParseRule {
+   if (rule.getAttrs !== undefined) {
+      const result = rule.getAttrs(from);
+
+      if (result !== false) {
+         rule.attrs = result;
+      }
+   }
+   return rule;
 }
 
 /**
@@ -228,9 +239,9 @@ export class DOMParser {
    /**
     * Parse a document from the content of a DOM node.
     */
-   parse(dom: Node, options: ParseOptions = {}): EditorNode | Fragment {
+   parse(node: Node, options: ParseOptions = {}): EditorNode | Fragment {
       const context = new ParseContext(this, options, false);
-      context.addAll(dom, null, options.from, options.to);
+      context.addAll(node, undefined, options.from, options.to);
       return context.finish();
    }
 
@@ -242,54 +253,54 @@ export class DOMParser {
     * applied to the start of nodes to the left of the input and the end of
     * nodes at the end.
     */
-   parseSlice(dom: Node, options: ParseOptions = {}): Slice {
+   parseSlice(node: Node, options: ParseOptions = {}): Slice {
       const context = new ParseContext(this, options, true);
-      context.addAll(dom, null, options.from, options.to);
-      return Slice.maxOpen(context.finish());
+      context.addAll(node, undefined, options.from, options.to);
+      return Slice.maxOpen(context.finish() as Fragment);
    }
 
-   matchTag(dom: Node, context: ParseContext) {
+   matchTag(el: Element, context: ParseContext) {
       for (let i = 0; i < this.tags.length; i++) {
-         let rule = this.tags[i];
+         const rule: ParseRule = this.tags[i];
          if (
-            matches(dom, rule.tag) &&
+            rule.tag !== undefined &&
+            matches(el, rule.tag) &&
             (rule.namespace === undefined ||
-               dom.namespaceURI == rule.namespace) &&
-            (!rule.context || context.matchesContext(rule.context))
+               el.namespaceURI == rule.namespace) &&
+            (rule.context === undefined || context.matches(rule.context))
          ) {
-            if (rule.getAttrs) {
-               const result = rule.getAttrs(dom);
-
-               if (result === false) {
-                  continue;
-               }
-               rule.attrs = result;
-            }
-            return rule;
+            return assignAttributes(rule, el);
          }
       }
    }
 
-   matchStyle(prop, value, context) {
+   matchStyle(
+      key: string,
+      value: string,
+      context: ParseContext
+   ): ParseRule | undefined {
       for (let i = 0; i < this.styles.length; i++) {
-         let rule = this.styles[i];
-         if (
-            rule.style.indexOf(prop) != 0 ||
-            (rule.context && !context.matchesContext(rule.context)) ||
-            // Test that the style string either precisely matches the prop,
-            // or has an '=' sign after the prop, followed by the given
-            // value.
-            (rule.style.length > prop.length &&
-               (rule.style.charCodeAt(prop.length) != 61 ||
-                  rule.style.slice(prop.length + 1) != value))
-         )
-            continue;
-         if (rule.getAttrs) {
-            let result = rule.getAttrs(value);
-            if (result === false) continue;
-            rule.attrs = result;
+         const rule: ParseRule = this.styles[i];
+
+         if (rule.style !== undefined) {
+            if (rule.style.startsWith(key)) {
+               return;
+            }
+            if (
+               rule.style.length > key.length &&
+               (rule.style.charCodeAt(key.length) != 61 ||
+                  rule.style.slice(key.length + 1) != value)
+            ) {
+               // style string either precisely matches the prop or has an '='
+               // sign after the prop, followed by the given value.
+               return;
+            }
          }
-         return rule;
+
+         if (rule.context !== undefined && !context.matches(rule.context)) {
+            return;
+         }
+         return assignAttributes(rule, value);
       }
    }
 
@@ -301,8 +312,9 @@ export class DOMParser {
          let i = 0;
 
          for (; i < result.length; i++) {
-            const next = result[i];
+            const next: ParseRule = result[i];
             const nextPriority = next.priority == null ? 50 : next.priority;
+
             if (nextPriority < priority) {
                break;
             }
@@ -310,27 +322,23 @@ export class DOMParser {
          result.splice(i, 0, rule);
       }
 
-      for (let name in schema.marks) {
-         const rules = schema.marks[name].spec.parseDOM;
-
+      function updateRule(fn: (rule: ParseRule) => void, rules?: ParseRule[]) {
          if (rules !== undefined) {
-            rules.forEach(rule => {
-               insert((rule = copy(rule)));
-               rule.mark = name;
+            rules.forEach(r => {
+               insert((r = copy<ParseRule>(r)));
+               fn(r);
             });
          }
+      }
+
+      for (let name in schema.marks) {
+         updateRule(r => (r.mark = name), schema.marks[name].spec.parseDOM);
       }
 
       for (let name in schema.nodes) {
-         const rules = schema.nodes[name].spec.parseDOM;
-
-         if (rules !== undefined) {
-            rules.forEach(rule => {
-               insert((rule = copy(rule)));
-               rule.node = name;
-            });
-         }
+         updateRule(r => (r.node = name), schema.nodes[name].spec.parseDOM);
       }
+
       return result;
    }
 
@@ -353,17 +361,22 @@ export class DOMParser {
 /**
  * Apply a CSS selector.
  */
-function matches(dom: Node, selector: string): boolean {
+function matches(el: Element, selector: string): boolean {
    return (
-      dom.matches ||
-      dom.msMatchesSelector ||
-      dom.webkitMatchesSelector ||
-      dom.mozMatchesSelector
-   ).call(dom, selector);
+      el.matches ||
+      el.webkitMatchesSelector ||
+      (el as any).msMatchesSelector ||
+      (el as any).mozMatchesSelector
+   ).call(el, selector);
 }
 
-function copy(obj) {
-   let copy = {};
-   for (let prop in obj) copy[prop] = obj[prop];
+/**
+ * Shallow object copy.
+ */
+function copy<T extends object>(obj: T): T {
+   const copy = {} as T;
+   for (let prop in obj) {
+      copy[prop] = obj[prop];
+   }
    return copy;
 }

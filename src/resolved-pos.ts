@@ -2,6 +2,9 @@ import { Mark } from './mark';
 import { EditorNode } from './node';
 import { NodeRange } from './node-range';
 
+/** Node, index and offset */
+type PathItem = [EditorNode, number, number];
+
 const resolveCache: ResolvedPos[] = [];
 let resolveCachePos = 0;
 let resolveCacheSize = 12;
@@ -14,11 +17,13 @@ let resolveCacheSize = 12;
  * Throughout this interface, methods that take an optional `depth` parameter
  * will interpret undefined as `this.depth` and negative numbers as
  * `this.depth + value`.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/resolvedpos.js
  */
 export class ResolvedPos {
    /** Position that was resolved */
    pos: number;
-   path: EditorNode[];
+   path: PathItem[];
    /**
     * The number of levels the parent node is from the root. If this position
     * points directly into the root node, it is 0. If it points into a top-level
@@ -28,21 +33,18 @@ export class ResolvedPos {
    /** Offset this position has into its parent node */
    parentOffset: number;
 
-   constructor(pos: number, path: EditorNode[], parentOffset: number) {
+   constructor(pos: number, path: PathItem[], parentOffset: number) {
       this.pos = pos;
       this.path = path;
-      this.depth = path.length / 3 - 1;
+      this.depth = path.length;
       this.parentOffset = parentOffset;
    }
 
-   resolveDepth(val: number | null | undefined): number {
-      if (val === null || val === undefined) {
+   resolveDepth(d?: number): number {
+      if (d === undefined) {
          return this.depth;
       }
-      if (val < 0) {
-         return this.depth + val;
-      }
-      return val;
+      return d < 0 ? this.depth + d : d;
    }
 
    /**
@@ -65,20 +67,19 @@ export class ResolvedPos {
     * The ancestor node at the given level. `p.node(p.depth)` is the same as
     * `p.parent`.
     */
-   node = (depth?: number): EditorNode => this.path[this.resolveDepth(depth) * 3];
+   node = (depth: number = 0): EditorNode => this.path[depth][0];
 
    /**
-    * :: (?number) → number
     * The index into the ancestor at the given level. If this points at the 3rd
     * node in the 2nd paragraph on the top level, for example, `p.index(0)` is 2
     * and `p.index(1)` is 3.
     */
-   index = (depth?: number): number =>
-      this.path[this.resolveDepth(depth) * 3 + 1];
+   index = (depth?: number): number => this.path[this.resolveDepth(depth)][1];
 
-   // :: (?number) → number
-   // The index pointing after this position into the ancestor at the
-   // given level.
+   /**
+    * The index pointing after this position into the ancestor at the given
+    * level.
+    */
    indexAfter(depth?: number): number {
       depth = this.resolveDepth(depth);
       return (
@@ -91,7 +92,7 @@ export class ResolvedPos {
     */
    start(depth?: number): number {
       depth = this.resolveDepth(depth);
-      return depth == 0 ? 0 : this.path[depth * 3 - 1] + 1;
+      return depth == 0 ? 0 : this.path[depth][1] + 1;
    }
 
    /**
@@ -111,7 +112,7 @@ export class ResolvedPos {
       if (!depth) {
          throw new RangeError('There is no position before the top-level node');
       }
-      return depth == this.depth + 1 ? this.pos : this.path[depth * 3 - 1];
+      return depth == this.depth + 1 ? this.pos : this.path[depth][1];
    }
 
    /**
@@ -125,7 +126,7 @@ export class ResolvedPos {
       }
       return depth == this.depth + 1
          ? this.pos
-         : this.path[depth * 3 - 1] + this.path[depth * 3].nodeSize;
+         : this.path[depth - 1][2] + this.path[depth][0].nodeSize;
    }
 
    /**
@@ -134,7 +135,7 @@ export class ResolvedPos {
     * positions that point between nodes.
     */
    get textOffset(): number {
-      return this.pos - this.path[this.path.length - 1];
+      return this.pos - this.path[this.path.length][2];
    }
 
    /**
@@ -149,7 +150,7 @@ export class ResolvedPos {
       if (index == parent.childCount) {
          return null;
       }
-      const dOff = this.pos - this.path[this.path.length - 1];
+      const dOff = this.pos - this.path[this.path.length - 1][2];
       const child = parent.child(index);
 
       return dOff ? parent.child(index).cut(dOff) : child;
@@ -162,7 +163,7 @@ export class ResolvedPos {
     */
    get nodeBefore(): EditorNode | null {
       let index = this.index(this.depth);
-      let dOff = this.pos - this.path[this.path.length - 1];
+      let dOff = this.pos - this.path[this.path.length - 1][2];
 
       if (dOff) {
          return this.parent.child(index).cut(0, dOff);
@@ -182,7 +183,7 @@ export class ResolvedPos {
 
       // In an empty parent, return the empty array
       if (parent.content.size == 0) {
-         return Mark.none;
+         return Mark.empty;
       }
 
       // When inside a text node, just return the text node's marks
@@ -316,17 +317,17 @@ export class ResolvedPos {
       if (!(pos >= 0 && pos <= doc.content.size)) {
          throw new RangeError('Position ' + pos + ' out of range');
       }
-      const path: EditorNode[] = [];
+      const path: PathItem[] = [];
       let start = 0;
       let parentOffset = pos;
 
       for (let node = doc; ; ) {
          let { index, offset } = node.content.findIndex(parentOffset);
-         let rem: number = parentOffset - offset;
+         let remaining: number = parentOffset - offset;
 
-         path.push(node, index, start + offset);
+         path.push([node, index, start + offset]);
 
-         if (!rem) {
+         if (!remaining) {
             break;
          }
          node = node.child(index);
@@ -334,7 +335,7 @@ export class ResolvedPos {
          if (node.isText) {
             break;
          }
-         parentOffset = rem - 1;
+         parentOffset = remaining - 1;
          start += offset + 1;
       }
       return new ResolvedPos(pos, path, parentOffset);

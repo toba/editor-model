@@ -1,4 +1,4 @@
-import { is } from '@toba/tools';
+import { is, ValueType } from '@toba/tools';
 import { EditorNode } from './node';
 import { Mark } from './mark';
 import { Fragment as EditorFragment } from './fragment';
@@ -6,6 +6,8 @@ import { Schema } from './schema';
 import { MarkType } from './mark-type';
 import { NodeType } from './node-type';
 import { TextNode } from './text-node';
+import { Attributes } from './attribute';
+import { OrderedMap } from './ordered-map';
 
 /**
  * An array describing a DOM element. The first value in the array should be a
@@ -18,8 +20,25 @@ import { TextNode } from './text-node';
  * The number zero (pronounced “hole”) is used to indicate the place where a
  * node's child nodes should be inserted. If it occurs in an output spec, it
  * should be the only child element in its parent node.
+ *
+ * @see https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#optional-elements-in-tuple-types
  */
-type DOMArray = [string, { [key: string]: any }];
+type DOMArray = [string, Attributes?, ...(string | Node | 0)[]];
+
+/**
+ * Represent `DOMOutputSpec` rendered to DOM.
+ */
+interface Rendered {
+   /**
+    * Rendered Document node.
+    */
+   node: Node;
+   /**
+    * If `DOMOutputSpec` has a hole (zero) in it then this will reference its
+    * content.
+    */
+   contentNode?: Node;
+}
 
 /**
  * A description of a DOM structure. Can be either a string, which is
@@ -27,30 +46,54 @@ type DOMArray = [string, { [key: string]: any }];
  * `DOMArray`.
  */
 export type DOMOutputSpec = string | Node | DOMArray;
+
+/**
+ * Convert an `EditorNode` to a description of its DOM implementation.
+ */
 export type NodeSerializer = (node: EditorNode) => DOMOutputSpec;
+
+/**
+ * Convert a `Mark` to a description of its DOM implementation
+ * @param inline Whether the mark's content is block or inline content (for
+ * typical use, it will always be inline)
+ */
 export type MarkSerializer = (mark: Mark, inline: boolean) => DOMOutputSpec;
 
-interface SerializeNodeOptions {
-   onContent?: (node: EditorNode, contentDOM: Node, options: any) => void;
+interface SerializeOptions {
+   /**
+    * Optional method to call when `RenderedSpec.contentNode` exists.
+    */
+   onContent?: (
+      node: EditorNode,
+      contentNode: Node,
+      options: SerializeOptions
+   ) => void;
+   /**
+    * When not in the browser, `document` should be passed so the serializer
+    * can create nodes.
+    */
+   document?: Document;
 }
 
 /**
- * A DOM serializer knows how to convert ProseMirror nodes and marks of various
- * types to DOM nodes.
+ * A DOM serializer converts editor nodes and marks of various types to DOM
+ * nodes.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/to_dom.js#L21
  */
 export class DOMSerializer {
    /** Node serialization functions keyed to node type name */
    nodes: { [key: string]: NodeSerializer };
-   /** Mark serialization functions keyed to mark type name */
+   /**
+    * Mark serialization functions keyed to mark type name. If the serializer
+    * for a key is `null` then those mark types should not be serizlied.
+    */
    marks: { [key: string]: MarkSerializer | null };
 
    /**
-    * Create a serializer. `nodes` should map node names to functions that take
-    * a node and return a description of the corresponding DOM. `marks` does the
-    * same for mark names, but also gets an argument that tells it whether the
-    * mark's content is block or inline content (for typical use, it'll always
-    * be inline). A mark serializer may be `null` to indicate that marks of that
-    * type should not be serialized.
+    * @param nodes Node serializers keyed to node names
+    * @param marks Mark serializers keyed to mark names (value may be `null` to
+    * indicate that marks of that type should not be serialized)
     */
    constructor(
       nodes: { [key: string]: NodeSerializer } = {},
@@ -61,167 +104,185 @@ export class DOMSerializer {
    }
 
    /**
-    * Serialize the content of this fragment to a DOM fragment. When not in the
-    * browser, the `document` option, containing a DOM document, should be
-    * passed so that the serializer can create nodes.
+    * Serialize content of an editor fragment to the DOM.
     */
    serializeFragment(
       fragment: EditorFragment,
-      options = {},
-      target?: DocumentFragment
-   ): DocumentFragment {
+      options: SerializeOptions = {},
+      target?: Node
+   ): Node {
       if (target === undefined) {
          target = doc(options).createDocumentFragment();
       }
-      let top: DocumentFragment = target;
-      let active: Mark[] | null = null;
+      let top: Node = target;
+      /** Active marks and their DOM rendering */
+      let active: [Mark, Node][] | null = null;
 
-      fragment.forEachChild(node => {
-         if (active !== null || node.marks.length) {
+      fragment.forEachChild(child => {
+         if (active !== null || child.marks.length > 0) {
             if (active === null) {
                active = [];
             }
             let keep = 0;
+            /** Count of already rendered marks */
             let rendered = 0;
 
-            while (keep < active.length && rendered < node.marks.length) {
-               const next: Mark = node.marks[rendered];
+            while (keep < active.length && rendered < child.marks.length) {
+               const next: Mark = child.marks[rendered];
 
                if (this.marks[next.type.name] === null) {
                   rendered++;
                   continue;
                }
                if (
-                  !next.eq(active[keep]) ||
+                  !next.equals(active[keep][0]) ||
                   next.type.spec.spanning === false
                ) {
                   break;
                }
-               keep += 2;
+               keep++;
                rendered++;
             }
 
             while (keep < active.length) {
-               top = active.pop();
-               active.pop();
+               const [_, n] = active.pop()!;
+               top = n;
             }
 
-            while (rendered < node.marks.length) {
-               const add: Mark = node.marks[rendered++];
-               const markDOM = this.serializeMark(add, node.isInline, options);
+            while (rendered < child.marks.length) {
+               /** Mark to be rendered */
+               const add: Mark = child.marks[rendered++];
+               /** Rendered mark */
+               const markDOM = this.serializeMark(add, child.isInline, options);
 
-               if (markDOM) {
-                  active.push(add, top);
-                  top.appendChild(markDOM.dom);
-                  top = markDOM.contentDOM || markDOM.dom;
+               if (markDOM !== null) {
+                  active.push([add, top]);
+                  top.appendChild(markDOM.node);
+                  top = markDOM.contentNode || markDOM.node;
                }
             }
          }
-         top.appendChild(this.serializeNode(node, options));
+         top.appendChild(this.serializeNode(child, options));
       });
 
       return target;
    }
 
    /**
-    * Serialize this node to a DOM node. This can be useful when you need to
+    * Serialize editor node to a DOM node. This can be useful when you need to
     * serialize a part of a document, as opposed to the whole document. To
     * serialize a whole document, use
     * [`serializeFragment`](#model.DOMSerializer.serializeFragment) on its
     * [content](#model.Node.content).
     */
-   serializeNode(node: EditorNode, options: SerializeNodeOptions = {}): Node {
-      const { dom, contentDOM } = DOMSerializer.renderSpec(
-         doc(options),
-         this.nodes[node.type.name](node)
-      );
-      if (contentDOM !== undefined) {
+   serializeNode(node: EditorNode, options: SerializeOptions = {}): Node {
+      const serializer: NodeSerializer = this.nodes[node.type.name];
+      const spec: DOMOutputSpec = serializer(node);
+      const rendered = DOMSerializer.renderSpec(doc(options), spec);
+
+      if (rendered.contentNode !== undefined) {
          if (node.isLeaf) {
             throw new RangeError(
                'Content hole not allowed in a leaf node spec'
             );
          }
          if (is.callable(options.onContent)) {
-            options.onContent(node, contentDOM, options);
+            options.onContent(node, rendered.contentNode, options);
          } else {
-            this.serializeFragment(node.content, options, contentDOM);
+            this.serializeFragment(node.content, options, rendered.contentNode);
          }
       }
-      return dom;
+      return rendered.node;
    }
 
-   serializeNodeAndMarks(node: EditorNode, options = {}): Node {
+   serializeNodeAndMarks(
+      node: EditorNode,
+      options: SerializeOptions = {}
+   ): Node {
       let dom: Node = this.serializeNode(node, options);
 
       for (let i = node.marks.length - 1; i >= 0; i--) {
          const wrap = this.serializeMark(node.marks[i], node.isInline, options);
-         if (wrap) {
-            (wrap.contentDOM || wrap.dom).appendChild(dom);
-            dom = wrap.dom;
+
+         if (wrap !== null) {
+            (wrap.contentNode || wrap.node).appendChild(dom);
+            dom = wrap.node;
          }
       }
       return dom;
    }
 
-   serializeMark(mark: Mark, inline: boolean, options = {}) {
+   serializeMark(mark: Mark, inline: boolean, options: SerializeOptions = {}) {
       const toDOM: MarkSerializer | null = this.marks[mark.type.name];
 
-      return (
-         toDOM && DOMSerializer.renderSpec(doc(options), toDOM(mark, inline))
-      );
+      return toDOM === null
+         ? null
+         : DOMSerializer.renderSpec(doc(options), toDOM(mark, inline));
    }
 
-   // :: (dom.Document, DOMOutputSpec) → {dom: dom.Node, contentDOM: ?dom.Node}
-   // Render an [output spec](#model.DOMOutputSpec) to a DOM node. If
-   // the spec has a hole (zero) in it, `contentDOM` will point at the
-   // node with the hole.
-   static renderSpec(
-      doc: Document,
-      structure: DOMOutputSpec
-   ): { dom: Node; contentDOM?: Node } {
-      if (typeof structure == 'string') {
-         return { dom: doc.createTextNode(structure) };
+   /**
+    * Render `DOMOutputSpec` to the DOM.
+    */
+   static renderSpec(doc: Document, spec: DOMOutputSpec): Rendered {
+      if (is.text(spec)) {
+         return { node: doc.createTextNode(spec) };
       }
-      if (structure.nodeType !== null) {
-         return { dom: structure };
+
+      if (spec instanceof Node) {
+         return { node: spec };
       }
-      const dom = doc.createElement(structure[0]);
-      const attrs = structure[1];
-      let contentDOM = null;
+      const el: HTMLElement = doc.createElement(spec[0]);
+      const attrs: Attributes | undefined = spec[1];
+
+      /** Inner content within a "0" hole */
+      let contentDOM: Node | undefined = undefined;
+      /** Whether to start iterating child definitions in the spec */
       let start = 1;
 
       if (
-         attrs &&
-         typeof attrs == 'object' &&
-         attrs.nodeType == null &&
+         attrs !== undefined &&
+         typeof attrs == ValueType.Object &&
+         attrs.nodeType === undefined &&
          !Array.isArray(attrs)
       ) {
          start = 2;
+
          for (let name in attrs) {
-            if (attrs[name] != null) dom.setAttribute(name, attrs[name]);
-         }
-      }
-      for (let i = start; i < structure.length; i++) {
-         let child = structure[i];
-         if (child === 0) {
-            if (i < structure.length - 1 || i > start)
-               throw new RangeError(
-                  'Content hole must be the only child of its parent node'
-               );
-            return { dom, contentDOM: dom };
-         } else {
-            let {
-               dom: inner,
-               contentDOM: innerContent
-            } = DOMSerializer.renderSpec(doc, child);
-            dom.appendChild(inner);
-            if (innerContent) {
-               if (contentDOM) throw new RangeError('Multiple content holes');
-               contentDOM = innerContent;
+            const value = attrs[name];
+            if (value !== null) {
+               el.setAttribute(name, value);
             }
          }
       }
-      return { dom, contentDOM };
+
+      for (let i = start; i < spec.length; i++) {
+         const child = spec[i]!;
+
+         if (child === 0) {
+            // a content placeholder, a "hole"
+            if (i < spec.length - 1 || i > start) {
+               throw new RangeError(
+                  'Content hole must be the only child of its parent node'
+               );
+            }
+            return { node: el, contentNode: el };
+         } else {
+            const {
+               node: inner,
+               contentNode: maybeContent
+            } = DOMSerializer.renderSpec(doc, child as Node);
+
+            el.appendChild(inner);
+
+            if (maybeContent !== undefined) {
+               if (contentDOM !== undefined) {
+                  throw new RangeError('Multiple content holes');
+               }
+               contentDOM = maybeContent;
+            }
+         }
+      }
+      return { node: el, contentNode: contentDOM };
    }
 
    /**
@@ -246,7 +307,7 @@ export class DOMSerializer {
       const result = gatherToDOM(schema.nodes);
 
       if (!result.text) {
-         result.text = node => ((node as any) as TextNode).text;
+         result.text = node => (node as TextNode).text;
       }
       return result;
    }
@@ -265,17 +326,17 @@ function gatherToDOM<T extends MarkType | NodeType>(types: {
    type S = T extends MarkType ? MarkSerializer : NodeSerializer;
    const result: { [key: string]: S } = {};
 
-   for (let name in types) {
-      const toDOM = types[name].spec.toDOM;
-
-      if (toDOM !== undefined) {
-         result[name] = toDOM as any;
+   for (let key in types) {
+      const type: T = types[key];
+      if (type.spec.toDOM !== undefined) {
+         result[key] = type.spec.toDOM as S;
       }
    }
    return result;
 }
 
 /**
- * Return DOM document from options or global window.
+ * DOM document from options or the global window.
  */
-const doc = (options: any): Document => options.document || window.document;
+const doc = (options: SerializeOptions): Document =>
+   options.document || window.document;

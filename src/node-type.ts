@@ -10,7 +10,8 @@ import {
    initAttrs,
    defaultAttrs,
    computeAttrs,
-   ValueMap
+   Attributes,
+   AttributeSpec
 } from './attribute';
 import { ContentMatch } from './content';
 import { Fragment } from './fragment';
@@ -57,7 +58,7 @@ export interface NodeSpec {
    /**
     * The attributes that nodes of this type get.
     */
-   attrs?: AttributeMap;
+   attrs?: { [key: string]: AttributeSpec<any> };
 
    /**
     * Controls whether nodes of this type can be selected as a
@@ -142,7 +143,7 @@ export class NodeType {
    spec: NodeSpec;
    attrs: AttributeMap;
    groups: string[];
-   defaultAttrs: AttributeMap | null;
+   defaultAttrs: Attributes | null;
    /** Starting match of the node type's content expression */
    contentMatch: ContentMatch | null;
    /** Set of marks allowed in this node. `null` means all marks are allowed. */
@@ -197,14 +198,14 @@ export class NodeType {
       return this.isLeaf || this.spec.atom === true;
    }
 
+   /**
+    * Whether group name has been assigned to the type.
+    */
    isInGroup = (name: string): boolean => this.groups.includes(name);
 
-   hasRequiredAttrs(ignore?: string[]): boolean {
+   hasRequiredAttrs(ignore: string[] = []): boolean {
       for (let n in this.attrs) {
-         if (
-            this.attrs[n].isRequired &&
-            (ignore === undefined || !ignore.includes(n))
-         ) {
+         if (this.attrs[n].isRequired && !ignore.includes(n)) {
             return true;
          }
       }
@@ -216,8 +217,8 @@ export class NodeType {
       (this.contentMatch !== null &&
          this.contentMatch.compatible(other.contentMatch));
 
-   computeAttrs = (attrs?: ValueMap | null): AttributeMap =>
-      !is.value<ValueMap>(attrs) && this.defaultAttrs !== null
+   computeAttrs = (attrs?: Attributes): Attributes =>
+      !is.value<Attributes>(attrs) && this.defaultAttrs !== null
          ? this.defaultAttrs
          : computeAttrs(this.attrs, attrs);
 
@@ -229,9 +230,9 @@ export class NodeType {
     * the empty set of marks.
     */
    create(
-      attrs?: AttributeMap | null,
+      attrs?: Attributes,
       content?: Fragment | EditorNode | EditorNode[],
-      marks?: Mark[] | null
+      marks?: Mark[]
    ): EditorNode {
       if (this.isText) {
          throw new Error("NodeType.create can't construct text nodes");
@@ -250,7 +251,7 @@ export class NodeType {
     * doesn't match.
     */
    createChecked(
-      attrs?: AttributeMap,
+      attrs?: Attributes,
       content?: Fragment | EditorNode | EditorNode[],
       marks?: Mark[]
    ): EditorNode {
@@ -275,7 +276,7 @@ export class NodeType {
     * if you pass `null` or `Fragment.empty` as content.
     */
    createAndFill(
-      attrs?: AttributeMap,
+      attrs?: Attributes,
       content?: Fragment | EditorNode | EditorNode[],
       marks?: Mark[]
    ): EditorNode | null {
@@ -369,7 +370,7 @@ export class NodeType {
             copy.push(marks[i]);
          }
       }
-      return !copy ? marks : copy.length ? copy : Mark.none;
+      return !copy ? marks : copy.length ? copy : Mark.empty;
    }
 
    static compile(

@@ -8,6 +8,9 @@ export interface SliceJSON {
    openEnd?: number;
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L96
+ */
 function removeRange(content: Fragment, from: number, to: number): Fragment {
    const { index, offset } = content.findIndex(from);
    const child = content.maybeChild(index);
@@ -19,8 +22,13 @@ function removeRange(content: Fragment, from: number, to: number): Fragment {
       }
       return content.cut(0, from).append(content.cut(to));
    }
+
    if (index != indexTo) {
       throw new RangeError('Removing non-flat range');
+   }
+
+   if (child === undefined) {
+      throw new RangeError('No child node found in range');
    }
 
    return content.replaceChild(
@@ -29,6 +37,9 @@ function removeRange(content: Fragment, from: number, to: number): Fragment {
    );
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L107
+ */
 function insertInto(
    content: Fragment,
    dist: number,
@@ -47,9 +58,17 @@ function insertInto(
          .append(insert)
          .append(content.cut(dist));
    }
-   let inner = insertInto(child.content, dist - offset - 1, insert);
 
-   return null;
+   if (child === undefined) {
+      // TODO: this isn't handled in the ProseMirror analogue
+      return null;
+   }
+
+   const inner = insertInto(child.content, dist - offset - 1, insert);
+
+   return inner === null
+      ? null
+      : content.replaceChild(index, child.copy(inner));
 }
 
 /**
@@ -103,7 +122,7 @@ export class Slice {
     * Tests whether this slice is equal to another slice.
     */
    eq = (other: Slice): boolean =>
-      this.content.eq(other.content) &&
+      this.content.equals(other.content) &&
       this.openStart == other.openStart &&
       this.openEnd == other.openEnd;
 
@@ -151,7 +170,7 @@ export class Slice {
 
    /**
     * Create a slice from a fragment by taking the maximum possible open value
-    * on both side of the fragment.
+    * on both sides of the fragment.
     */
    static maxOpen(fragment: Fragment, openIsolating = true): Slice {
       let openStart = 0;

@@ -13,7 +13,7 @@ import {
 import { TextNode } from './text-node';
 import { NodeType } from './node-type';
 import { MarkType } from './mark-type';
-import { AttributeMap } from './attribute';
+import { AttributeMap, Attributes } from './attribute';
 import { ResolvedPos } from './resolved-pos';
 
 export type PreserveWhitespace = boolean | 'full';
@@ -21,14 +21,11 @@ export type PreserveWhitespace = boolean | 'full';
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/07ee26e64d6f0c345d8912d894edf9ff113a5446/src/from_dom.js#L276
  */
-function wsOptionsFor(ws?: PreserveWhitespace) {
-   return (
-      (ws ? Whitespace.Preserve : 0) | (ws === 'full' ? Whitespace.Full : 0)
-   );
-}
+const wsOptionsFor = (ws?: PreserveWhitespace) =>
+   (ws ? Whitespace.Preserve : 0) | (ws === 'full' ? Whitespace.Full : 0);
 
 /**
- * Tokenize a style attribute into property/value pairs.
+ * Tokenize a style attribute into key/value pairs.
  * @see https://github.com/ProseMirror/prosemirror-model/blob/07ee26e64d6f0c345d8912d894edf9ff113a5446/src/from_dom.js#L726
  */
 function parseStyles(style: string): string[] {
@@ -74,7 +71,7 @@ function normalizeList(node: Node) {
 }
 
 /**
- * @see https://github.com/ProseMirror/prosemirror-model/blob/07ee26e64d6f0c345d8912d894edf9ff113a5446/src/from_dom.js#L326
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/from_dom.js
  */
 export class ParseContext {
    private parser: DOMParser;
@@ -107,7 +104,7 @@ export class ParseContext {
          topContext = new NodeContext(
             topNode.type,
             topNode.attrs,
-            Mark.none,
+            Mark.empty,
             true,
             options.topMatch || topNode.type.contentMatch,
             topOptions
@@ -115,8 +112,8 @@ export class ParseContext {
       } else if (open) {
          topContext = new NodeContext(
             null,
-            null,
-            Mark.none,
+            undefined,
+            Mark.empty,
             true,
             null,
             topOptions
@@ -125,8 +122,8 @@ export class ParseContext {
          const topType = parser.schema.topNodeType;
          topContext = new NodeContext(
             topType === undefined ? null : topType,
-            null,
-            Mark.none,
+            undefined,
+            Mark.empty,
             true,
             null,
             topOptions
@@ -280,7 +277,7 @@ export class ParseContext {
     * `ignore` set.
     */
    readStyles(styles: string[]): Mark[] | null {
-      let marks = Mark.none;
+      let marks = Mark.empty;
 
       for (let i = 0; i < styles.length; i += 2) {
          let rule = this.parser.matchStyle(styles[i], styles[i + 1], this);
@@ -291,12 +288,14 @@ export class ParseContext {
          if (rule.ignore) {
             return null;
          }
-         const type = this.parser.schema.marks.get(rule.mark);
+         const type: MarkType | undefined =
+            rule.mark === undefined
+               ? undefined
+               : this.parser.schema.marks[rule.mark];
 
          if (type !== undefined) {
-            marks.push(type.create(rule.attrs));
-            // TODO: figure this out
-            //mark.addToSet(marks);
+            const mark = type.create(rule.attrs);
+            marks = mark.addToSet(marks);
          }
       }
       return marks;
@@ -314,7 +313,7 @@ export class ParseContext {
       let mark: Mark | undefined = undefined;
 
       if (rule.node !== undefined) {
-         nodeType = this.parser.schema.nodes.get(rule.node);
+         nodeType = this.parser.schema.nodes[rule.node];
 
          if (nodeType !== undefined) {
             if (!nodeType.isLeaf) {
@@ -323,8 +322,8 @@ export class ParseContext {
                this.leafFallback(el);
             }
          }
-      } else {
-         markType = this.parser.schema.marks.get(rule.mark);
+      } else if (rule.mark !== undefined) {
+         markType = this.parser.schema.marks[rule.mark];
 
          if (markType !== undefined) {
             mark = markType.create(rule.attrs);
@@ -333,27 +332,29 @@ export class ParseContext {
       }
       const startIn: NodeContext = this.top;
 
-      if (nodeType && nodeType.isLeaf) {
+      if (nodeType !== undefined && nodeType.isLeaf) {
          this.findInside(el);
       } else if (rule.getContent !== undefined) {
          this.findInside(el);
          const fragment = rule.getContent(el, this.parser.schema);
          fragment.forEachChild(this.insertNode);
       } else {
-         const contentDOM = rule.contentElement;
+         /** CSS selector or method to select content element */
+         const selector = rule.contentElement;
          let content: Element | null = null;
 
-         if (is.text(contentDOM)) {
-            content = el.querySelector(contentDOM);
-         } else if (is.callable(contentDOM)) {
-            content = contentDOM(el) as Element;
+         if (is.text(selector)) {
+            content = el.querySelector(selector);
+         } else if (is.callable(selector)) {
+            content = selector(el) as Element;
          }
-         if (contentDOM === undefined) {
+         if (selector === undefined) {
             content = el;
          }
          if (content !== null) {
             this.findAround(el, content, true);
-            this.addAll(content, sync);
+            // TODO: no longer pass sync since it's of the wrong type
+            this.addAll(content);
          }
       }
       if (sync) {
@@ -365,7 +366,6 @@ export class ParseContext {
       }
    }
 
-   // : (dom.Node, ?NodeBuilder, ?number, ?number)
    /**
     * Add all child nodes between `startIndex` and `endIndex` (or the whole
     * node, if not given). If `sync` is passed, use it to synchronize after
@@ -406,31 +406,42 @@ export class ParseContext {
     */
    findPlace(node: EditorNode): boolean {
       let route: NodeType[] | null = null;
-      let sync;
+      let syncTo: NodeContext | null = null;
 
       for (let depth = this.open; depth >= 0; depth--) {
-         const cx: NodeContext = this.nodes[depth];
-         const found = cx.findWrapping(node);
+         const context: NodeContext = this.nodes[depth];
+         const found = context.findWrapping(node);
 
-         if (found !== null && (!route || route.length > found.length)) {
+         if (
+            found !== null &&
+            (route === null || route.length > found.length)
+         ) {
             route = found;
-            sync = cx;
-            if (!found.length) break;
+            syncTo = context;
+
+            if (found.length == 0) {
+               break;
+            }
          }
-         if (cx.solid) break;
+         if (context.solid) {
+            break;
+         }
       }
       if (route === null) {
          return false;
       }
-      this.sync(sync);
+      if (syncTo !== null) {
+         this.sync(syncTo);
+      }
 
-      route.forEach(r => this.enterInner(r, null, false));
+      route.forEach(r => this.enterInner(r, undefined, false));
 
       return true;
    }
 
    /**
-    * Try to insert the given node, adjusting the context when needed.
+    * Try to insert the given node, adjusting the context when needed. Return
+    * `false` if the node could not be inserted.
     */
    insertNode(node: EditorNode): boolean {
       if (node.isInline && this.needsBlock && this.top.type === null) {
@@ -448,10 +459,17 @@ export class ParseContext {
             top.match = top.match.matchType(node.type);
          }
          let marks = top.activeMarks;
-         for (let i = 0; i < node.marks.length; i++)
-            if (!top.type || top.type.allowsMarkType(node.marks[i].type))
+
+         for (let i = 0; i < node.marks.length; i++) {
+            if (
+               top.type === null ||
+               top.type.allowsMarkType(node.marks[i].type)
+            ) {
                marks = node.marks[i].addToSet(marks);
+            }
+         }
          top.content.push(node.mark(marks));
+
          return true;
       }
       return false;
@@ -474,11 +492,7 @@ export class ParseContext {
     * Try to start a node of the given type, adjusting the context when
     * necessary.
     */
-   enter(
-      type: NodeType,
-      attrs?: AttributeMap,
-      preserveWS?: PreserveWhitespace
-   ) {
+   enter(type: NodeType, attrs?: Attributes, preserveWS?: PreserveWhitespace) {
       const ok = this.findPlace(type.create(attrs));
 
       if (ok) {
@@ -493,7 +507,7 @@ export class ParseContext {
     */
    enterInner(
       type: NodeType,
-      attrs?: AttributeMap | null,
+      attrs?: Attributes,
       solid = false,
       preserveWS?: PreserveWhitespace
    ) {
@@ -511,9 +525,6 @@ export class ParseContext {
       if (top.options & Whitespace.OpenLeft && top.content.length == 0) {
          options |= Whitespace.OpenLeft;
       }
-      if (attrs === undefined) {
-         attrs = null;
-      }
 
       this.nodes.push(
          new NodeContext(type, attrs, top.activeMarks, solid, null, options)
@@ -522,7 +533,7 @@ export class ParseContext {
    }
 
    /**
-    * Make sure all nodes above this.open are finished and added to their
+    * Make sure all nodes above `this.open` are finished and added to their
     * parents.
     */
    closeExtra(openEnd: boolean = false) {
@@ -530,7 +541,9 @@ export class ParseContext {
 
       if (i > this.open) {
          for (; i > this.open; i--) {
-            this.nodes[i - 1].content.push(this.nodes[i].finish(openEnd));
+            // TODO: shouldn't have to force EditorNode -- what is original doing?
+            const node = this.nodes[i].finish(openEnd) as EditorNode;
+            this.nodes[i - 1].content.push(node);
          }
          this.nodes.length = this.open + 1;
       }
@@ -642,9 +655,9 @@ export class ParseContext {
     * Determines whether the given [context string](#ParseRule.context) matches
     * this context.
     */
-   matchesContext(context: string): boolean {
+   matches(context: string): boolean {
       if (context.indexOf('|') > -1) {
-         return context.split(/\s*\|\s*/).some(this.matchesContext, this);
+         return context.split(/\s*\|\s*/).some(this.matches, this);
       }
 
       const parts = context.split('/');
@@ -690,6 +703,9 @@ export class ParseContext {
       return match(parts.length - 1, this.open);
    }
 
+   /** Method name retained for ProseMirror compatibility */
+   matchesContext = this.matches;
+
    textblockFromContext(): NodeType | null {
       let context: ResolvedPos | undefined = this.options.context;
 
@@ -700,16 +716,17 @@ export class ParseContext {
          for (let d = context.depth; d >= 0; d--) {
             const node: EditorNode = context.node(d);
             const match = node.contentMatchAt(context.indexAfter(d));
-            const type: NodeType | undefined = match.defaultType;
 
-            if (valid(type)) {
-               return type;
+            if (valid(match.defaultType)) {
+               return match.defaultType;
             }
          }
       }
 
-      for (let name in this.parser.schema.nodes) {
-         const type: NodeType | undefined = this.parser.schema.nodes.get(name);
+      const types = this.parser.schema.nodes;
+
+      for (let name in types) {
+         const type = types[name];
 
          if (valid(type)) {
             return type;

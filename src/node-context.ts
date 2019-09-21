@@ -2,13 +2,13 @@ import { Fragment } from './fragment';
 import { Mark } from './mark';
 import { NodeType } from './node-type';
 import { EditorNode } from './node';
-import { AttributeMap } from './attribute';
+import { Attributes } from './attribute';
 import { ContentMatch } from './content';
 import { TextNode } from './text-node';
 import { Whitespace } from './constants';
 
 /**
- * @see https://github.com/ProseMirror/prosemirror-model/blob/07ee26e64d6f0c345d8912d894edf9ff113a5446/src/from_dom.js#L280
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/from_dom.js#L280
  */
 export class NodeContext {
    type: NodeType | null;
@@ -18,12 +18,12 @@ export class NodeContext {
    match: ContentMatch | null;
    solid: boolean;
 
-   private attrs: AttributeMap | null;
+   private attrs: Attributes | undefined;
    private marks: Mark[];
 
    constructor(
       type: NodeType | null,
-      attrs: AttributeMap | null,
+      attrs: Attributes | undefined,
       marks: Mark[],
       solid: boolean,
       match?: ContentMatch | null,
@@ -40,7 +40,7 @@ export class NodeContext {
       this.options = options;
       this.content = [];
       this.marks = marks;
-      this.activeMarks = Mark.none;
+      this.activeMarks = Mark.empty;
    }
 
    findWrapping(node: EditorNode): NodeType[] | null {
@@ -96,7 +96,7 @@ export class NodeContext {
          content = content.append(this.match.fillBefore(Fragment.empty, true));
       }
 
-      return this.type
+      return this.type !== null
          ? this.type.create(this.attrs, content, this.marks)
          : content;
    }

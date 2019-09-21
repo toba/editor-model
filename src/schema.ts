@@ -6,8 +6,9 @@ import { Mark, MarkJSON } from './mark';
 import { ContentMatch } from './content';
 import { NodeType, NodeSpec } from './node-type';
 import { MarkType, MarkSpec } from './mark-type';
-import { AttributeMap } from './attribute';
+import { AttributeMap, Attributes } from './attribute';
 import { Fragment } from './fragment';
+import { Expression } from 'estree';
 
 /**
  * An object describing a schema, as passed to the [`Schema`](#model.Schema)
@@ -23,14 +24,14 @@ export interface SchemaSpec {
     * take precedence by default, and which nodes come first in a given
     * [group](#model.NodeSpec.group).
     */
-   nodes?: NodeSpec | OrderedMap<NodeSpec>;
+   nodes?: { [key: string]: NodeSpec } | OrderedMap<NodeSpec>;
 
    /**
     * The mark types that exist in this schema. The order in which they are
     * provided determines the order in which [mark sets](#model.Mark.addToSet)
     * are sorted and in which [parse rules](#model.MarkSpec.parseDOM) are tried.
     */
-   marks?: MarkSpec | OrderedMap<MarkSpec>;
+   marks?: { [key: string]: MarkSpec } | OrderedMap<MarkSpec>;
 
    /**
     * The name of the default top-level node for the schema. Defaults to
@@ -54,9 +55,9 @@ export class Schema {
     */
    spec: SchemaSpec;
    /** An object mapping the schema's node names to node type objects */
-   nodes: OrderedMap<NodeType>;
+   nodes: { [key: string]: NodeType };
    /** Mark types keyed to their names */
-   marks: OrderedMap<MarkType>;
+   marks: { [key: string]: MarkType };
    /**
     * The type of the [default top node](#SchemaSpec.topNode) for this
     * schema.
@@ -74,38 +75,43 @@ export class Schema {
     * Construct a schema from a `SchemaSpec`.
     */
    constructor(spec: SchemaSpec) {
-      this.spec = {};
+      this.spec = {
+         topNode: spec.topNode
+      };
 
-      let key: keyof SchemaSpec;
-
-      for (key in spec) {
-         this.spec[key] = spec[key];
-      }
       if (spec.nodes !== undefined) {
          this.spec.nodes = OrderedMap.from<NodeSpec>(spec.nodes);
+         this.nodes = NodeType.compile(this.spec.nodes, this);
+      } else {
+         this.nodes = {};
       }
+
       if (spec.marks !== undefined) {
          this.spec.marks = OrderedMap.from<MarkSpec>(spec.marks);
+         this.marks = MarkType.compile(this.spec.marks, this);
+      } else {
+         this.marks = {};
       }
-      this.nodes = NodeType.compile(this.spec.nodes, this);
-      this.marks = MarkType.compile(this.spec.marks, this);
 
-      let contentExprCache = Object.create(null);
+      /** Cache of matches keyed to expression */
+      const contentExprCache: { [key: string]: ContentMatch } = {};
 
-      this.nodes.forEach((key, type) => {
-         if (this.marks.has(key)) {
+      for (let key in this.nodes) {
+         if (this.marks.hasOwnProperty(key)) {
             throw new RangeError(key + ' can not be both a node and a mark');
          }
+         const type: NodeType = this.nodes[key];
          const contentExpr: string = type.spec.content || '';
          const markExpr: string | undefined = type.spec.marks;
 
-         type.contentMatch =
-            contentExprCache[contentExpr] ||
-            (contentExprCache[contentExpr] = ContentMatch.parse(
-               contentExpr,
-               this.nodes
-            ));
-         type.inlineContent = type.contentMatch.inlineContent;
+         let match = contentExprCache[contentExpr];
+
+         if (match === undefined) {
+            match = ContentMatch.parse(contentExpr, this.nodes);
+            contentExprCache[contentExpr] = match;
+         }
+         type.contentMatch = match;
+         type.inlineContent = match.inlineContent;
          type.markSet =
             markExpr == '_'
                ? null
@@ -114,9 +120,10 @@ export class Schema {
                : markExpr == '' || !type.inlineContent
                ? []
                : null;
-      });
+      }
 
-      this.marks.forEach((_, type) => {
+      for (let key in this.marks) {
+         const type: MarkType = this.marks[key];
          const excl = type.spec.excludes;
 
          type.excluded =
@@ -125,11 +132,12 @@ export class Schema {
                : excl == ''
                ? []
                : gatherMarks(this, excl.split(' '));
-      });
+      }
 
-      this.topNodeType = this.nodes.get(this.spec.topNode || 'doc');
-      this.cached = Object.create(null);
-      this.cached.wrappings = Object.create(null);
+      this.topNodeType = this.nodes[this.spec.topNode || 'doc'];
+      this.cached = {
+         wrappings: {}
+      };
    }
 
    /**
@@ -139,8 +147,8 @@ export class Schema {
     */
    node(
       type: string | NodeType,
-      attrs?: AttributeMap,
-      content?: Fragment | EditorNode | EditorNode[] | null,
+      attrs?: Attributes,
+      content?: Fragment | EditorNode | EditorNode[],
       marks?: Mark[]
    ): EditorNode {
       if (is.text(type)) {
@@ -159,16 +167,24 @@ export class Schema {
     * Create a text node in the schema. Empty text nodes are not allowed.
     */
    text(text: string, marks?: Mark[] | null): TextNode {
-      const type: NodeType = this.nodes.text;
+      const type: NodeType | undefined = this.nodes['text'];
+      if (type === undefined) {
+         throw new Error(`MarkType ${type} not found`);
+      }
       return new TextNode(type, type.defaultAttrs, text, Mark.setFrom(marks));
    }
 
    /**
     * Create a mark with the given type and attributes.
     */
-   mark(type: string | MarkType, attrs: AttributeMap): Mark {
+   mark(type: string | MarkType, attrs: Attributes): Mark {
       if (is.text(type)) {
-         type = this.marks.get(type);
+         const maybeType: MarkType | undefined = this.marks[type];
+         if (maybeType === undefined) {
+            // TODO: why not handled in ProseMirror?
+            throw new Error(`MarkType ${type} not found`);
+         }
+         type = maybeType;
       }
       return type.create(attrs);
    }
@@ -185,7 +201,7 @@ export class Schema {
    markFromJSON = (json: MarkJSON): Mark => Mark.fromJSON(this, json);
 
    nodeType(name: string): NodeType {
-      const found = this.nodes.get(name);
+      const found = this.nodes[name];
 
       if (found === undefined) {
          throw new RangeError('Unknown node type: ' + name);
@@ -201,18 +217,19 @@ function gatherMarks(schema: Schema, names: string[]): MarkType[] {
    const matches: MarkType[] = [];
 
    names.forEach(name => {
-      const mark = schema.marks.get(name);
+      const mark = schema.marks[name];
       let found = mark !== undefined;
 
       if (found) {
-         matches.push(mark!);
+         matches.push(mark);
       } else {
-         schema.marks.forEach((_, mark) => {
+         for (let key in schema.marks) {
+            const mark = schema.marks[key];
             if (name == '_' || mark.isInGroup(name)) {
                found = true;
                matches.push(mark);
             }
-         });
+         }
       }
       if (!found) {
          throw new SyntaxError("Unknown mark type: '" + name + "'");

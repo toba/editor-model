@@ -1,7 +1,7 @@
 import { is } from '@toba/tools';
 import { EditorNode, wrapMarks, NodeJSON } from './node';
 import { NodeType } from './node-type';
-import { AttributeMap } from './attribute';
+import { Attributes } from './attribute';
 import { Mark } from './mark';
 
 export class TextNode extends EditorNode {
@@ -9,7 +9,7 @@ export class TextNode extends EditorNode {
 
    constructor(
       type: NodeType,
-      attrs: AttributeMap,
+      attrs: Attributes | null,
       content: string,
       marks: Mark[] | null
    ) {
@@ -52,7 +52,7 @@ export class TextNode extends EditorNode {
          ? this
          : this.withText(this.text.slice(from, to));
 
-   eq = (other: TextNode): boolean =>
+   equals = (other: TextNode): boolean =>
       this.sameMarkup(other) && this.text == other.text;
 
    toJSON(): NodeJSON {

@@ -1,9 +1,12 @@
-import { ValueType } from '@toba/tools';
+import { ValueType, is } from '@toba/tools';
 
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/comparedeep.js
  */
-export function compareDeep(a: any, b: any): boolean {
+export function compareDeep<T extends object | Array<any>>(
+   a: T,
+   b: T
+): boolean {
    if (a === b) {
       return true;
    }
@@ -13,12 +16,12 @@ export function compareDeep(a: any, b: any): boolean {
    ) {
       return false;
    }
-   const array: boolean = Array.isArray(a);
 
-   if (Array.isArray(b) != array) {
-      return false;
-   }
-   if (array) {
+   if (is.array<any>(a)) {
+      if (!is.array<any>(b)) {
+         return false;
+      }
+      // both arrays
       if (a.length != b.length) {
          return false;
       }
@@ -28,8 +31,9 @@ export function compareDeep(a: any, b: any): boolean {
          }
       }
    } else {
+      // objects
       for (let p in a) {
-         if (!(p in b) || !compareDeep(a[p], b[p])) {
+         if (!(p in b) || !compareDeep<any>(a[p], b[p])) {
             return false;
          }
       }

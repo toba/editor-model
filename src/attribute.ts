@@ -1,10 +1,19 @@
 import { is } from '@toba/tools';
 
-export type ValueMap = { [key: string]: any };
-export type AttributeMap = { [key: string]: Attribute<any> };
+/**
+ * Attribute values keyed to their name.
+ */
+export type Attributes = { [key: string]: string | null };
+
+/**
+ * Map of attribute names and optional default values.
+ */
+export type AttributeMap = { [key: string]: AttributeDefault<string> };
 
 /**
  * Used to [define](#model.NodeSpec.attrs) attributes on nodes or marks.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L447
  */
 export interface AttributeSpec<T> {
    /**
@@ -29,31 +38,34 @@ export function defaultAttrs(
 
    for (let name in attrs) {
       const attr = attrs[name];
-      if (!attr.hasDefault) {
+      if (!attr.exists) {
          return null;
       }
-      defaults[name] = attr.default;
+      defaults[name] = attr.value;
    }
    return defaults;
 }
 
 /**
+ * Compute attribute key/values from an `AttributeMap`.
+ *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L22
  */
 export function computeAttrs(
    attrs: AttributeMap,
-   value?: ValueMap | null
-): { [key: string]: any } {
-   const built: { [key: string]: any } = {};
+   values: Attributes = {}
+): Attributes {
+   const built: Attributes = {};
 
    for (let name in attrs) {
-      let given = is.value<ValueMap>(value) ? value[name] : undefined;
+      let given: string | null | undefined = values[name];
 
-      if (given === undefined) {
+      if (!is.value<string>(given)) {
+         // no given value so try to use default value
          let attr = attrs[name];
 
-         if (attr.hasDefault) {
-            given = attr.default;
+         if (attr.exists) {
+            given = attr.value!;
          } else {
             throw new RangeError('No value supplied for attribute ' + name);
          }
@@ -64,6 +76,8 @@ export function computeAttrs(
 }
 
 /**
+ * Create `Attribute` objects from `AttributeSpec`s.
+ *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L36
  */
 export function initAttrs(attrs?: {
@@ -73,25 +87,31 @@ export function initAttrs(attrs?: {
 
    if (attrs !== undefined) {
       for (let name in attrs) {
-         result[name] = new Attribute(attrs[name]);
+         result[name] = new AttributeDefault(attrs[name]);
       }
    }
    return result;
 }
 
 /**
+ * Default attribute value.
+ *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L218
  */
-export class Attribute<T> {
-   hasDefault: boolean;
-   default: T | undefined;
+export class AttributeDefault<T> {
+   exists: boolean;
+   value: T | undefined;
 
    constructor(options: AttributeSpec<T>) {
-      this.default = options.default;
-      this.hasDefault = this.default !== undefined;
+      this.value = options.default;
+      this.exists = this.value !== undefined;
    }
 
+   /**
+    * Attributes that have no default must be provided whenever a node or mark
+    * of a type that has them is created.
+    */
    get isRequired() {
-      return !this.hasDefault;
+      return !this.exists;
    }
 }
