@@ -4,39 +4,39 @@ import { NodeType } from './node-type';
 import { EditorNode } from './node';
 import { AttributeMap } from './attribute';
 import { ContentMatch } from './content';
+import { TextNode } from './text-node';
+import { Whitespace } from './constants';
 
 /**
- * Using a bitfield for node context options.
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/07ee26e64d6f0c345d8912d894edf9ff113a5446/src/from_dom.js#L280
  */
-export const enum Whitespace {
-   Preserve = 1,
-   Full = 2,
-   OpenLeft = 4
-}
-
 export class NodeContext {
-   type: NodeType;
-   private attrs: AttributeMap;
-   private marks: Mark[];
+   type: NodeType | null;
    activeMarks: Mark[];
-   private content: EditorNode[];
-   private match: ContentMatch | null;
-   private options: number | undefined;
-   private solid: boolean;
+   content: EditorNode[];
+   options: number;
+   match: ContentMatch | null;
+   solid: boolean;
+
+   private attrs: AttributeMap | null;
+   private marks: Mark[];
 
    constructor(
-      type: NodeType,
-      attrs: AttributeMap,
+      type: NodeType | null,
+      attrs: AttributeMap | null,
       marks: Mark[],
       solid: boolean,
-      match?: ContentMatch,
-      options?: number
+      match?: ContentMatch | null,
+      options: number = 0
    ) {
       this.type = type;
       this.attrs = attrs;
       this.solid = solid;
       this.match =
-         match || (options & Whitespace.OpenLeft ? null : type.contentMatch);
+         match ||
+         (options & Whitespace.OpenLeft || type === null
+            ? null
+            : type.contentMatch);
       this.options = options;
       this.content = [];
       this.marks = marks;
@@ -62,28 +62,37 @@ export class NodeContext {
             }
          }
       }
-      return this.match.findWrapping(node.type);
+      return this.match === null ? null : this.match.findWrapping(node.type);
    }
 
-   finish(openEnd) {
-      if (!(this.options & Whitespace.Preserve)) {
-         // Strip trailing whitespace
-         let last = this.content[this.content.length - 1];
-         let m;
+   finish(openEnd: boolean): EditorNode | Fragment {
+      if (!(this.options !== undefined && this.options & Whitespace.Preserve)) {
+         // strip trailing whitespace
+         const last: EditorNode | undefined = this.content[
+            this.content.length - 1
+         ];
 
-         if (last && last.isText && (m = /\s+$/.exec(last.text))) {
-            if (last.text.length == m[0].length) {
-               this.content.pop();
-            } else {
-               this.content[this.content.length - 1] = last.withText(
-                  last.text.slice(0, last.text.length - m[0].length)
-               );
+         if (last !== undefined && last.isText) {
+            const textNode = last as TextNode;
+            const matches = /\s+$/.exec(textNode.text);
+
+            if (matches !== null) {
+               const textLength = textNode.text.length;
+               const matchLength = matches[0].length;
+
+               if (textLength == matchLength) {
+                  this.content.pop();
+               } else {
+                  this.content[this.content.length - 1] = textNode.withText(
+                     textNode.text.slice(0, textLength - matchLength)
+                  );
+               }
             }
          }
       }
-      const content: Fragment = Fragment.from(this.content);
+      let content: Fragment = Fragment.from(this.content);
 
-      if (!openEnd && this.match) {
+      if (!openEnd && this.match !== null) {
          content = content.append(this.match.fillBefore(Fragment.empty, true));
       }
 

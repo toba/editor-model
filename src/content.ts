@@ -3,7 +3,8 @@ import { EditorNode } from './node';
 import { NodeType } from './node-type';
 import { nfa, dfa } from './finite-automata';
 import { TokenStream, parseExpr } from './token-stream';
-import { Content } from '@toba/tools/esm/constants';
+import { OrderedMap } from './ordered-map';
+import { AttributeMap } from './attribute';
 
 interface NodeEdge {
    type: NodeType;
@@ -13,10 +14,8 @@ interface NodeEdge {
 interface ActiveMatch {
    match: ContentMatch;
    type: NodeType | null;
-   via: ContentMatch | null;
+   via: ActiveMatch | null;
 }
-
-type TypeMatch = [NodeType, ContentMatch];
 
 /**
  * Instances of this class represent a match state of a node type's
@@ -49,10 +48,7 @@ export class ContentMatch {
       // this.cacheMatch = [];
    }
 
-   static parse(
-      string: string,
-      nodeTypes: { [key: string]: NodeType }
-   ): ContentMatch {
+   static parse(string: string, nodeTypes: OrderedMap<NodeType>): ContentMatch {
       const stream = new TokenStream(string, nodeTypes);
 
       if (stream.next === null) {
@@ -189,14 +185,16 @@ export class ContentMatch {
             return wrapTypes;
          }
       }
-      let computed = this.computeWrapping(target);
-      this.wrapCache.push([target, computed]);
+      const computed = this.computeWrapping(target);
 
+      if (computed !== null) {
+         this.wrapCache.push([target, computed]);
+      }
       return computed;
    }
 
-   computeWrapping(target: NodeType): NodeType[] {
-      const seen = Object.create(null);
+   computeWrapping(target: NodeType): NodeType[] | null {
+      const seen: { [key: string]: boolean } = Object.create(null);
       const active: ActiveMatch[] = [{ match: this, type: null, via: null }];
 
       while (active.length) {
@@ -204,7 +202,8 @@ export class ContentMatch {
          const match = current.match;
 
          if (match.matchType(target) !== null) {
-            let result = [];
+            const result: NodeType[] = [];
+
             for (let obj = current; obj.type; obj = obj.via) {
                result.push(obj.type);
             }
@@ -217,13 +216,15 @@ export class ContentMatch {
                !type.isLeaf &&
                !type.hasRequiredAttrs() &&
                !(type.name in seen) &&
-               (!current.type || m.validEnd)
+               type.contentMatch !== null &&
+               (current.type === null || m.validEnd)
             ) {
                active.push({ match: type.contentMatch, type, via: current });
                seen[type.name] = true;
             }
          }
       }
+      return null;
    }
 
    /**

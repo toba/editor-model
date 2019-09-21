@@ -1,9 +1,9 @@
 import { Fragment } from './fragment';
 import { Schema } from './schema';
-import { NodeJSON } from './node';
+import { NodeJSON, EditorNode } from './node';
 
 export interface SliceJSON {
-   content: NodeJSON[];
+   content: NodeJSON[] | null;
    openStart?: number;
    openEnd?: number;
 }
@@ -33,7 +33,7 @@ function insertInto(
    content: Fragment,
    dist: number,
    insert: Fragment,
-   parent?: Node
+   parent?: EditorNode
 ): Fragment | null {
    let { index, offset } = content.findIndex(dist);
    let child = content.maybeChild(index);
@@ -156,21 +156,19 @@ export class Slice {
    static maxOpen(fragment: Fragment, openIsolating = true): Slice {
       let openStart = 0;
       let openEnd = 0;
-      let n: Node | null;
+      let n: EditorNode | null;
 
-      for (
-         n = fragment.firstChild;
-         n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
-         n = n.firstChild
-      ) {
+      /** Whether valid to continue traversing the node */
+      const valid = (n: EditorNode | null): boolean =>
+         n !== null && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
+
+      for (n = fragment.firstChild; valid(n); n = n!.firstChild) {
          openStart++;
       }
-      for (
-         let n = fragment.lastChild;
-         n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
-         n = n.lastChild
-      )
+
+      for (n = fragment.lastChild; valid(n); n = n!.lastChild) {
          openEnd++;
+      }
       return new Slice(fragment, openStart, openEnd);
    }
 

@@ -7,6 +7,8 @@ import { TextNode } from './text-node';
 /**
  * Error type raised by [`Node.replace`](#model.Node.replace) when given an
  * invalid replacement.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L7
  */
 export class ReplaceError extends Error {
    constructor(message: string) {
@@ -17,6 +19,9 @@ export class ReplaceError extends Error {
 //   return inner && content.replaceChild(index, child.copy(inner));
 // }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L121
+ */
 export function replace(from: ResolvedPos, to: ResolvedPos, slice: Slice) {
    if (slice.openStart > from.depth) {
       throw new ReplaceError('Inserted content deeper than insertion position');
@@ -27,6 +32,9 @@ export function replace(from: ResolvedPos, to: ResolvedPos, slice: Slice) {
    return replaceOuter(from, to, slice, 0);
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L129
+ */
 function replaceOuter(
    from: ResolvedPos,
    to: ResolvedPos,
@@ -64,6 +72,9 @@ function replaceOuter(
    }
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L145
+ */
 function checkJoin(main: EditorNode, sub: EditorNode): void {
    if (!sub.type.compatibleContent(main.type)) {
       throw new ReplaceError(
@@ -72,6 +83,9 @@ function checkJoin(main: EditorNode, sub: EditorNode): void {
    }
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L150
+ */
 function joinable(
    before: ResolvedPos,
    after: ResolvedPos,
@@ -83,6 +97,9 @@ function joinable(
    //return true;
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L156
+ */
 function addNode(child: EditorNode | null, target: (EditorNode | TextNode)[]) {
    if (child === null) {
       return;
@@ -90,13 +107,16 @@ function addNode(child: EditorNode | null, target: (EditorNode | TextNode)[]) {
    const last = target.length - 1;
 
    if (last >= 0 && child.isText && child.sameMarkup(target[last])) {
-      const node = (child as unknown) as TextNode;
-      target[last] = node.withText(target[last].text + node.text);
+      const node = child as TextNode;
+      target[last] = node.withText((target[last] as TextNode).text + node.text);
    } else {
       target.push(child);
    }
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L164
+ */
 function addRange(
    start: ResolvedPos | null,
    end: ResolvedPos | null,
@@ -127,6 +147,9 @@ function addRange(
    }
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L181
+ */
 function close(node: EditorNode, content: Fragment): EditorNode {
    if (!node.type.validContent(content)) {
       throw new ReplaceError('Invalid content for node ' + node.type.name);
@@ -134,6 +157,9 @@ function close(node: EditorNode, content: Fragment): EditorNode {
    return node.copy(content);
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L187
+ */
 function replaceThreeWay(
    from: ResolvedPos,
    start: ResolvedPos,
@@ -178,6 +204,9 @@ function replaceThreeWay(
    return new Fragment(content);
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L207
+ */
 function replaceTwoWay(from: ResolvedPos, to: ResolvedPos, depth: number) {
    const content: EditorNode[] = [];
 
@@ -192,6 +221,9 @@ function replaceTwoWay(from: ResolvedPos, to: ResolvedPos, depth: number) {
    return new Fragment(content);
 }
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L218
+ */
 function prepareSliceForReplace(
    slice: Slice,
    along: ResolvedPos

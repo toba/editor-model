@@ -1,5 +1,5 @@
 import { is } from '@toba/tools';
-import { EditorNode, wrapMarks } from './node';
+import { EditorNode, wrapMarks, NodeJSON } from './node';
 import { NodeType } from './node-type';
 import { AttributeMap } from './attribute';
 import { Mark } from './mark';
@@ -37,17 +37,17 @@ export class TextNode extends EditorNode {
       return this.text.length;
    }
 
-   mark = (marks: Mark[]): TextNode =>
+   mark = (marks: Mark[]): this =>
       marks === this.marks
          ? this
-         : new TextNode(this.type, this.attrs, this.text, marks);
+         : (new TextNode(this.type, this.attrs, this.text, marks) as this);
 
-   withText = (text: string): TextNode =>
+   withText = (text: string): this =>
       text == this.text
          ? this
-         : new TextNode(this.type, this.attrs, text, this.marks);
+         : (new TextNode(this.type, this.attrs, text, this.marks) as this);
 
-   cut = (from = 0, to = this.text.length): TextNode =>
+   cut = (from = 0, to = this.text.length): this =>
       from == 0 && to == this.text.length
          ? this
          : this.withText(this.text.slice(from, to));
@@ -55,7 +55,7 @@ export class TextNode extends EditorNode {
    eq = (other: TextNode): boolean =>
       this.sameMarkup(other) && this.text == other.text;
 
-   toJSON(): string {
+   toJSON(): NodeJSON {
       let base = super.toJSON();
       base.text = this.text;
       return base;

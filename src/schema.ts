@@ -1,17 +1,19 @@
-import { ValueType, is } from '@toba/tools';
+import { is } from '@toba/tools';
 import { OrderedMap } from './ordered-map';
-import { EditorNode, NodeSpec, NodeJSON } from './node';
+import { EditorNode, NodeJSON } from './node';
 import { TextNode } from './text-node';
-import { Mark, MarkSpec, MarkJSON } from './mark';
+import { Mark, MarkJSON } from './mark';
 import { ContentMatch } from './content';
-import { NodeType } from './node-type';
-import { MarkType } from './mark-type';
+import { NodeType, NodeSpec } from './node-type';
+import { MarkType, MarkSpec } from './mark-type';
 import { AttributeMap } from './attribute';
 import { Fragment } from './fragment';
 
 /**
  * An object describing a schema, as passed to the [`Schema`](#model.Schema)
  * constructor.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L297
  */
 export interface SchemaSpec {
    /**
@@ -38,17 +40,17 @@ export interface SchemaSpec {
 }
 
 /**
- * A document schema. Holds [node](#model.NodeType) and
- * [mark type](#model.MarkType) objects for the nodes and marks that may occur
- * in conforming documents, and provides functionality for creating and
- * deserializing such documents.
+ * A document schema. Holds `NodeType` and `MarkType` objects for the nodes and
+ * marks that may occur in conforming documents, and provides functionality for
+ * creating and deserializing such documents.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L462
  */
 export class Schema {
    /**
-    * The [spec](#model.SchemaSpec) on which the schema is based, with the added
-    * guarantee that its `nodes` and `marks` properties are
-    * [`OrderedMap`](https://github.com/marijnh/orderedmap) instances (not raw
-    * objects).
+    * The `SchemaSpec` on which the schema is based, with the added guarantee
+    * that its `nodes` and `marks` properties are `OrderedMap` instances (not
+    * raw objects).
     */
    spec: SchemaSpec;
    /** An object mapping the schema's node names to node type objects */
@@ -56,10 +58,10 @@ export class Schema {
    /** Mark types keyed to their names */
    marks: OrderedMap<MarkType>;
    /**
-    * The type of the [default top node](#model.SchemaSpec.topNode) for this
+    * The type of the [default top node](#SchemaSpec.topNode) for this
     * schema.
     */
-   topNodeType: NodeType;
+   topNodeType: NodeType | undefined;
 
    /**
     * An object for storing whatever values modules may want to compute and
@@ -74,10 +76,10 @@ export class Schema {
    constructor(spec: SchemaSpec) {
       this.spec = {};
 
-      let prop: keyof SchemaSpec;
+      let key: keyof SchemaSpec;
 
-      for (prop in spec) {
-         this.spec[prop] = spec[prop];
+      for (key in spec) {
+         this.spec[key] = spec[key];
       }
       if (spec.nodes !== undefined) {
          this.spec.nodes = OrderedMap.from<NodeSpec>(spec.nodes);
@@ -90,11 +92,10 @@ export class Schema {
 
       let contentExprCache = Object.create(null);
 
-      for (let prop in this.nodes) {
-         if (prop in this.marks) {
-            throw new RangeError(prop + ' can not be both a node and a mark');
+      this.nodes.forEach((key, type) => {
+         if (this.marks.has(key)) {
+            throw new RangeError(key + ' can not be both a node and a mark');
          }
-         const type: NodeType = this.nodes[prop];
          const contentExpr: string = type.spec.content || '';
          const markExpr: string | undefined = type.spec.marks;
 
@@ -113,10 +114,9 @@ export class Schema {
                : markExpr == '' || !type.inlineContent
                ? []
                : null;
-      }
+      });
 
-      for (let prop in this.marks) {
-         const type = this.marks[prop];
+      this.marks.forEach((_, type) => {
          const excl = type.spec.excludes;
 
          type.excluded =
@@ -125,11 +125,9 @@ export class Schema {
                : excl == ''
                ? []
                : gatherMarks(this, excl.split(' '));
-      }
+      });
 
-      this.nodeFromJSON = this.nodeFromJSON.bind(this);
-      this.markFromJSON = this.markFromJSON.bind(this);
-      this.topNodeType = this.nodes[this.spec.topNode || 'doc'];
+      this.topNodeType = this.nodes.get(this.spec.topNode || 'doc');
       this.cached = Object.create(null);
       this.cached.wrappings = Object.create(null);
    }

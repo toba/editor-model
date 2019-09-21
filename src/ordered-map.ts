@@ -45,8 +45,12 @@ export class OrderedMap<T> {
     * Retrieve the value stored under `key`, or return undefined when no such
     * key exists.
     */
-   get(key: string): T | undefined {
+   get(key?: string): T | undefined {
+      if (key === undefined) {
+         return undefined;
+      }
       const index = this.find(key);
+
       return index == -1 ? undefined : this.values[index];
    }
 

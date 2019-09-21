@@ -1,4 +1,5 @@
 import { NodeType } from './node-type';
+import { OrderedMap } from './ordered-map';
 
 export const enum TokenType {
    Choice = 'choice',
@@ -21,13 +22,13 @@ export interface Expression {
 
 export class TokenStream {
    string: string;
-   nodeTypes: { [key: string]: NodeType };
+   nodeTypes: OrderedMap<NodeType>;
    tokens: string[];
    /** Position of current token */
    pos: number;
    inline: boolean | null;
 
-   constructor(string: string, nodeTypes: { [key: string]: NodeType }) {
+   constructor(string: string, nodeTypes: OrderedMap<NodeType>) {
       this.string = string;
       this.nodeTypes = nodeTypes;
       this.inline = null;
@@ -125,16 +126,16 @@ function parseExprRange(stream: TokenStream, expr?: Expression): Expression {
 
 function resolveName(stream: TokenStream, name: string): NodeType[] {
    const types = stream.nodeTypes;
-   const type: NodeType = types[name];
+   let type: NodeType | undefined = types.get(name);
 
-   if (type) {
+   if (type !== undefined) {
       return [type];
    }
    const result: NodeType[] = [];
 
    for (let typeName in types) {
-      let type = types[typeName];
-      if (type.groups.indexOf(name) > -1) {
+      type = types.get(typeName);
+      if (type !== undefined && type.groups.indexOf(name) > -1) {
          result.push(type);
       }
    }

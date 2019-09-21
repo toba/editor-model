@@ -1,4 +1,5 @@
-import { EditorNode, NodeJSON } from './node';
+import { is } from '@toba/tools';
+import { EditorNode, NodeJSON, PerNodeCallback } from './node';
 import { Schema } from './schema';
 import { TextNode } from './text-node';
 
@@ -38,12 +39,7 @@ export class Fragment {
    forEachNodeBetween(
       from: number,
       to: number,
-      fn: (
-         node: EditorNode,
-         start: number,
-         parent?: EditorNode,
-         index?: number
-      ) => boolean | void,
+      fn: PerNodeCallback,
       nodeStart = 0,
       parent?: EditorNode
    ) {
@@ -56,6 +52,7 @@ export class Fragment {
             child.content.size
          ) {
             let start = pos + 1;
+
             child.forEachNodeBetween(
                Math.max(0, from - start),
                Math.min(child.content.size, to - start),
@@ -71,9 +68,7 @@ export class Fragment {
     * Call the given callback for every descendant node. The callback may return
     * `false` to prevent traversal of a given node's children.
     */
-   forEachDescendant(
-      fn: (node: EditorNode, pos: number, parent: EditorNode) => boolean
-   ) {
+   forEachDescendant(fn: PerNodeCallback) {
       this.forEachNodeBetween(0, this.size, fn);
    }
 
@@ -91,9 +86,12 @@ export class Fragment {
          to,
          (node, pos) => {
             if (node.isText) {
-               text += node.text.slice(Math.max(from, pos) - pos, to - pos);
+               text += (node as TextNode).text.slice(
+                  Math.max(from, pos) - pos,
+                  to - pos
+               );
                separated = !blockSeparator;
-            } else if (node.isLeaf && leafText) {
+            } else if (node.isLeaf && leafText !== undefined) {
                text += leafText;
                separated = !blockSeparator;
             } else if (!separated && node.isBlock) {
@@ -110,8 +108,8 @@ export class Fragment {
     * Create a new fragment containing the combined content of this fragment and
     * the other.
     */
-   append(other: Fragment): Fragment {
-      if (other.size == 0) {
+   append(other?: Fragment): Fragment {
+      if (other === undefined || other.size == 0) {
          return this;
       }
       if (this.size == 0) {
@@ -145,7 +143,7 @@ export class Fragment {
     * Cut out the sub-fragment between the two given positions.
     */
    cut(from: number, to?: number): Fragment {
-      if (to == null) {
+      if (!is.value<number>(to)) {
          to = this.size;
       }
       if (from == 0 && to == this.size) {
@@ -164,7 +162,7 @@ export class Fragment {
                   if (child.isText)
                      child = child.cut(
                         Math.max(0, from - pos),
-                        Math.min(child.text.length, to - pos)
+                        Math.min((child as TextNode).text.length, to - pos)
                      );
                   else
                      child = child.cut(
@@ -277,7 +275,7 @@ export class Fragment {
     * Call `fn` for every child node, passing the node, its offset into this
     * parent node, and its index.
     */
-   forEach(fn: (node: EditorNode, offset: number, index: number) => void) {
+   forEachChild(fn: (node: EditorNode, offset: number, index: number) => void) {
       for (let i = 0, p = 0; i < this.content.length; i++) {
          const child = this.content[i];
          fn(child, p, i);
@@ -373,8 +371,9 @@ export class Fragment {
             if (joined === null) {
                joined = nodes.slice(0, i);
             }
-            joined[joined.length - 1] = node.withText(
-               joined[joined.length - 1].text + node.text
+            joined[joined.length - 1] = (node as TextNode).withText(
+               (joined[joined.length - 1] as TextNode).text +
+                  (node as TextNode).text
             );
          } else if (joined !== null) {
             joined.push(node);
@@ -420,6 +419,7 @@ export class Fragment {
 }
 
 const found = { index: 0, offset: 0 };
+
 function retIndex(index: number, offset: number) {
    found.index = index;
    found.offset = offset;
@@ -432,25 +432,37 @@ export function findDiffStart(
    pos: number
 ): number | null {
    for (let i = 0; ; i++) {
-      if (i == a.childCount || i == b.childCount)
+      if (i == a.childCount || i == b.childCount) {
          return a.childCount == b.childCount ? null : pos;
+      }
+      const childA = a.child(i);
+      const childB = b.child(i);
 
-      let childA = a.child(i),
-         childB = b.child(i);
-      if (childA == childB) {
+      if (childA === childB) {
          pos += childA.nodeSize;
          continue;
       }
 
-      if (!childA.sameMarkup(childB)) return pos;
-
-      if (childA.isText && childA.text != childB.text) {
-         for (let j = 0; childA.text[j] == childB.text[j]; j++) pos++;
+      if (!childA.sameMarkup(childB)) {
          return pos;
+      }
+
+      if (childA.isText) {
+         const textNodeA = childA as TextNode;
+         const textNodeB = childB as TextNode;
+
+         if (textNodeA.text != textNodeB.text) {
+            for (let j = 0; textNodeA.text[j] == textNodeB.text[j]; j++) {
+               pos++;
+            }
+            return pos;
+         }
       }
       if (childA.content.size || childB.content.size) {
          let inner = findDiffStart(childA.content, childB.content, pos + 1);
-         if (inner != null) return inner;
+         if (inner !== null) {
+            return inner;
+         }
       }
       pos += childA.nodeSize;
    }
@@ -480,21 +492,29 @@ export function findDiffEnd(
          return { a: posA, b: posB };
       }
 
-      if (childA.isText && childA.text != childB.text) {
-         let same = 0;
-         const minSize = Math.min(childA.text.length, childB.text.length);
+      if (childA.isText) {
+         const textNodeA = childA as TextNode;
+         const textNodeB = childB as TextNode;
 
-         while (
-            same < minSize &&
-            childA.text[childA.text.length - same - 1] ==
-               childB.text[childB.text.length - same - 1]
-         ) {
-            same++;
-            posA--;
-            posB--;
+         if (textNodeA.text != textNodeB.text) {
+            let same = 0;
+            const lengthA = textNodeA.text.length;
+            const lengthB = textNodeB.text.length;
+            const minSize = Math.min(lengthA, lengthB);
+
+            while (
+               same < minSize &&
+               textNodeA.text[lengthA - same - 1] ==
+                  textNodeB.text[lengthB - same - 1]
+            ) {
+               same++;
+               posA--;
+               posB--;
+            }
+            return { a: posA, b: posB };
          }
-         return { a: posA, b: posB };
       }
+
       if (childA.content.size || childB.content.size) {
          let inner = findDiffEnd(
             childA.content,
@@ -502,7 +522,9 @@ export function findDiffEnd(
             posA - 1,
             posB - 1
          );
-         if (inner) return inner;
+         if (inner) {
+            return inner;
+         }
       }
       posA -= size;
       posB -= size;

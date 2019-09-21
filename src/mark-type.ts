@@ -1,3 +1,4 @@
+import { is } from '@toba/tools';
 import { Schema } from './schema';
 import { Mark } from './mark';
 import { MarkSerializer } from './to-dom';
@@ -11,6 +12,9 @@ import {
    computeAttrs
 } from './attribute';
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L404
+ */
 export interface MarkSpec {
    /**
     * The attributes that marks of this type get.
@@ -82,7 +86,7 @@ export class MarkType {
    spec: MarkSpec;
    rank: number;
    attrs: AttributeMap;
-   instance: Mark;
+   instance: Mark | null;
    excluded: MarkType[] | null;
 
    constructor(name: string, rank: number, schema: Schema, spec: MarkSpec) {
@@ -92,7 +96,9 @@ export class MarkType {
       this.attrs = initAttrs(spec.attrs);
       this.rank = rank;
       this.excluded = null;
-      let defaults = defaultAttrs(this.attrs);
+
+      const defaults = defaultAttrs(this.attrs);
+
       this.instance = defaults && new Mark(this, defaults);
    }
 
@@ -109,8 +115,8 @@ export class MarkType {
     * only some of the mark's attributes. The others, if they have defaults,
     * will be added.
     */
-   create = (attrs: AttributeMap | null): Mark =>
-      attrs === null && this.instance
+   create = (attrs?: AttributeMap | null): Mark =>
+      !is.value<AttributeMap>(attrs) && this.instance
          ? this.instance
          : new Mark(this, computeAttrs(this.attrs, attrs || undefined));
 

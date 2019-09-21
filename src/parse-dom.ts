@@ -3,15 +3,13 @@ import { Schema } from './schema';
 import { AttributeMap } from './attribute';
 import { Slice } from './slice';
 import { ContentMatch } from './content';
-import { HtmlNodeType } from './constants';
 import { EditorNode } from './node';
 import { ResolvedPos } from './resolved-pos';
-import { ParseContext } from './parse-context';
-
-type tagMap = { [key: string]: boolean };
+import { ParseContext, PreserveWhitespace } from './parse-context';
 
 export interface NodesToFind {
    node: Node;
+   pos?: number;
    offset: number;
 }
 
@@ -50,7 +48,12 @@ export interface ParseOptions {
     * [top node type](#model.Schema.topNodeType). You can pass this option to
     * use the type and attributes from a different node as the top container.
     */
-   topNode?: Node;
+   topNode?: EditorNode;
+
+   /**
+    * TODO: this wasn't documented
+    */
+   topOpen?: any;
 
    /**
     * Provide the starting content match that content parsed into the top node
@@ -61,8 +64,11 @@ export interface ParseOptions {
    /**
     * A set of additional nodes to count as [context](#model.ParseRule.context)
     * when parsing, above the given [top node](#model.ParseOptions.topNode).
+    * TODO: this comment doesn't make sense
     */
    context?: ResolvedPos;
+
+   ruleFromNode?: (n: Node) => ParseRule;
 }
 
 /**
@@ -131,15 +137,15 @@ export interface ParseRule {
    mark?: string;
 
    /**
-    * When true, ignore content that matches this rule.
+    * When `true`, ignore content that matches this rule.
     */
    ignore?: boolean;
 
    /**
-    * When true, ignore the node that matches this rule, but do parse its
+    * When defined, ignore the node that matches this rule, but do parse its
     * content.
     */
-   skip?: boolean;
+   skip?: Node;
 
    /**
     * Attributes for the node or mark created by this rule. When `getAttrs` is
@@ -181,7 +187,7 @@ export interface ParseRule {
     * `true` means that whitespace should be preserved but newlines normalized
     * to spaces, and `"full"` means that newlines should also be preserved.
     */
-   preserveWhitespace?: boolean | 'full';
+   preserveWhitespace?: PreserveWhitespace;
 }
 
 /**
@@ -222,7 +228,7 @@ export class DOMParser {
    /**
     * Parse a document from the content of a DOM node.
     */
-   parse(dom: Node, options: ParseOptions = {}): EditorNode {
+   parse(dom: Node, options: ParseOptions = {}): EditorNode | Fragment {
       const context = new ParseContext(this, options, false);
       context.addAll(dom, null, options.from, options.to);
       return context.finish();
@@ -341,88 +347,6 @@ export class DOMParser {
          schema.cached.domParser = parser;
       }
       return parser;
-   }
-}
-
-/**
- * The block-level tags in HTML5.
- */
-const blockTags: tagMap = {
-   address: true,
-   article: true,
-   aside: true,
-   blockquote: true,
-   canvas: true,
-   dd: true,
-   div: true,
-   dl: true,
-   fieldset: true,
-   figcaption: true,
-   figure: true,
-   footer: true,
-   form: true,
-   h1: true,
-   h2: true,
-   h3: true,
-   h4: true,
-   h5: true,
-   h6: true,
-   header: true,
-   hgroup: true,
-   hr: true,
-   li: true,
-   noscript: true,
-   ol: true,
-   output: true,
-   p: true,
-   pre: true,
-   section: true,
-   table: true,
-   tfoot: true,
-   ul: true
-};
-
-/**
- * The tags that we normally ignore.
- */
-const ignoreTags: tagMap = {
-   head: true,
-   noscript: true,
-   object: true,
-   script: true,
-   style: true,
-   title: true
-};
-
-/**
- * List tags.
- */
-const listTags: tagMap = { ol: true, ul: true };
-
-/**
- * Kludge to work around directly nested list nodes produced by some tools and
- * allowed by browsers to mean that the nested list is actually part of the list
- * item above it.
- */
-function normalizeList(dom: Node) {
-   for (
-      let child = dom.firstChild, prevItem = null;
-      child;
-      child = child.nextSibling
-   ) {
-      const name: string | null =
-         child.nodeType == HtmlNodeType.Element
-            ? child.nodeName.toLowerCase()
-            : null;
-
-      if (name !== null && listTags.hasOwnProperty(name) && prevItem !== null) {
-         prevItem.appendChild(child);
-         child = prevItem;
-      } else if (name == 'li') {
-         prevItem = child;
-      } else if (name !== null) {
-         prevItem = null;
-      }
    }
 }
 

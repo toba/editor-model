@@ -68,16 +68,15 @@ export class DOMSerializer {
    serializeFragment(
       fragment: EditorFragment,
       options = {},
-      target
+      target?: DocumentFragment
    ): DocumentFragment {
-      if (!target) {
+      if (target === undefined) {
          target = doc(options).createDocumentFragment();
       }
-
-      let top = target;
+      let top: DocumentFragment = target;
       let active: Mark[] | null = null;
 
-      fragment.forEach(node => {
+      fragment.forEachChild(node => {
          if (active !== null || node.marks.length) {
             if (active === null) {
                active = [];
