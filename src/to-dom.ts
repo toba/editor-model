@@ -106,8 +106,8 @@ export class DOMSerializer {
     * indicate that marks of that type should not be serialized)
     */
    constructor(
-      nodes: { [key: string]: NodeSerializer } = {},
-      marks: { [key: string]: MarkSerializer | null } = {}
+      nodes: { [key: string]: NodeSerializer } = Object.create(null),
+      marks: { [key: string]: MarkSerializer | null } = Object.create(null)
    ) {
       this.nodes = nodes;
       this.marks = marks;
@@ -118,7 +118,7 @@ export class DOMSerializer {
     */
    serializeFragment(
       fragment: EditorFragment,
-      options: SerializeOptions = {},
+      options: SerializeOptions = Object.create(null),
       target?: Node
    ): Node {
       if (target === undefined) {
@@ -185,7 +185,10 @@ export class DOMSerializer {
     * [`serializeFragment`](#model.DOMSerializer.serializeFragment) on its
     * [content](#model.Node.content).
     */
-   serializeNode(node: EditorNode, options: SerializeOptions = {}): Node {
+   serializeNode(
+      node: EditorNode,
+      options: SerializeOptions = Object.create(null)
+   ): Node {
       const serializer: NodeSerializer = this.nodes[node.type.name];
       const spec: DOMOutputSpec = serializer(node);
       const rendered = DOMSerializer.renderSpec(doc(options), spec);
@@ -207,7 +210,7 @@ export class DOMSerializer {
 
    serializeNodeAndMarks(
       node: EditorNode,
-      options: SerializeOptions = {}
+      options: SerializeOptions = Object.create(null)
    ): Node {
       let dom: Node = this.serializeNode(node, options);
 
@@ -222,7 +225,11 @@ export class DOMSerializer {
       return dom;
    }
 
-   serializeMark(mark: Mark, inline: boolean, options: SerializeOptions = {}) {
+   serializeMark(
+      mark: Mark,
+      inline: boolean,
+      options: SerializeOptions = Object.create(null)
+   ) {
       const toDOM: MarkSerializer | null = this.marks[mark.type.name];
 
       return toDOM === null
@@ -334,7 +341,7 @@ function gatherToDOM<T extends MarkType | NodeType>(types: {
    [key: string]: T;
 }) {
    type S = T extends MarkType ? MarkSerializer : NodeSerializer;
-   const result: { [key: string]: S } = {};
+   const result: { [key: string]: S } = Object.create(null);
 
    for (let key in types) {
       const type: T = types[key];

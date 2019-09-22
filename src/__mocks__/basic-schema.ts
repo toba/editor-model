@@ -5,14 +5,14 @@ import { NodeSpec } from '../node-type';
 import { MarkSpec } from '../mark-type';
 
 const el: { [key: string]: ElementSpec } = {
-   pDOM: ['p', 0],
-   blockquoteDOM: ['blockquote', 0],
-   hrDOM: ['hr'],
-   preDOM: ['pre', ['code', 0]],
-   brDOM: ['br'],
-   emDOM: ['em', 0],
-   strongDOM: ['strong', 0],
-   codeDOM: ['code', 0]
+   p: ['p', 0],
+   blockquote: ['blockquote', 0],
+   hr: ['hr'],
+   pre: ['pre', ['code', 0]],
+   br: ['br'],
+   em: ['em', 0],
+   strong: ['strong', 0],
+   code: ['code', 0]
 };
 
 export const nodes: { [key: string]: NodeSpec } = {
@@ -28,7 +28,7 @@ export const nodes: { [key: string]: NodeSpec } = {
       content: 'inline*',
       group: 'block',
       parseDOM: [{ tag: 'p' }],
-      toDOM: () => el.pDOM
+      toDOM: () => el.p
    },
 
    /** A blockquote (`<blockquote>`) wrapping one or more blocks. */
@@ -37,14 +37,14 @@ export const nodes: { [key: string]: NodeSpec } = {
       group: 'block',
       defining: true,
       parseDOM: [{ tag: 'blockquote' }],
-      toDOM: () => el.blockquoteDOM
+      toDOM: () => el.blockquote
    },
 
    /** A horizontal rule (`<hr>`). */
    horizontal_rule: {
       group: 'block',
       parseDOM: [{ tag: 'hr' }],
-      toDOM: () => el.hrDOM
+      toDOM: () => el.hr
    },
 
    /**
@@ -78,7 +78,7 @@ export const nodes: { [key: string]: NodeSpec } = {
       code: true,
       defining: true,
       parseDOM: [{ tag: 'pre', preserveWhitespace: 'full' }],
-      toDOM: () => el.preDOM
+      toDOM: () => el.pre
    },
 
    /** The text node */
@@ -163,7 +163,7 @@ export const marks: { [key: string]: MarkSpec } = {
     */
    em: {
       parseDOM: [{ tag: 'i' }, { tag: 'em' }, { style: 'font-style=italic' }],
-      toDOM: () => el.emDOM
+      toDOM: () => el.em
    },
 
    /**
@@ -192,14 +192,14 @@ export const marks: { [key: string]: MarkSpec } = {
          }
       ],
       toDOM() {
-         return el.strongDOM;
+         return el.strong;
       }
    },
 
    /** Code font mark. Represented as a `<code>` element. */
    code: {
       parseDOM: [{ tag: 'code' }],
-      toDOM: () => el.codeDOM
+      toDOM: () => el.code
    }
 };
 

@@ -117,7 +117,10 @@ export class Mark {
     * Convert this mark to a JSON-serializeable representation.
     */
    toJSON(): MarkJSON {
-      const out: MarkJSON = { type: this.type.name, attrs: {} };
+      const out: MarkJSON = {
+         type: this.type.name,
+         attrs: Object.create(null)
+      };
 
       for (let _ in this.attrs) {
          // TODO: what is this doing?

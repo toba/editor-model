@@ -1,7 +1,7 @@
 import { Fragment, FragmentJSON } from './fragment';
 import { Mark, MarkJSON } from './mark';
 import { NodeType } from './node-type';
-import { AttributeMap, Attributes } from './attribute';
+import { Attributes } from './attribute';
 import { Slice } from './slice';
 import { replace } from './replace';
 import { ResolvedPos } from './resolved-pos';
@@ -11,7 +11,7 @@ import { ContentMatch } from './content';
 import { Schema } from './schema';
 import { TextNode } from './text-node';
 
-const emptyAttrs: Attributes = {};
+const emptyAttrs: Attributes = Object.create(null);
 
 interface NodeMatch {
    node?: EditorNode | null;
@@ -525,7 +525,7 @@ export class EditorNode {
       if (!json) {
          throw new RangeError('Invalid input for Node.fromJSON');
       }
-      let marks: Mark[] | null = null;
+      let marks: Mark[] | undefined = undefined;
 
       if (json.marks) {
          if (!Array.isArray(json.marks)) {

@@ -153,7 +153,7 @@ export class OrderedMap<T> {
       fn: (key: string, value: T) => M,
       allowEmpty = true
    ): { [key: string]: M } {
-      const out: { [key: string]: M } = {};
+      const out: { [key: string]: M } = Object.create(null);
 
       this.keys.forEach((key, i) => {
          const value: M = fn(key, this.values[i]);

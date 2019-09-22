@@ -1,29 +1,76 @@
+import { is } from '@toba/tools';
 import { EditorNode } from '../node';
 import { Schema } from '../schema';
+import { MarkType } from '../mark-type';
+import { Attributes } from '../attribute';
+import { Mark } from '../mark';
+import { NodeType } from '../node-type';
 
-const noTag: EditorNode = ((EditorNode.prototype as any).tag = Object.create(
-   null
-));
+export interface MockSpec {
+   type: string;
+   attrs?: Attributes;
+   isMark?: boolean;
+}
 
-function flatten(schema: Schema, children: any[], f: any) {
-   const result = [];
+export type NodeMaker = (...args: any[]) => EditorNode;
+export type MarkMaker = (
+   ...args: any[]
+) => { flat: EditorNode[]; tags: MockTag };
+
+export interface Mocker {
+   schema: Schema;
+   node: { [key: string]: NodeMaker };
+   mark: { [key: string]: MarkMaker };
+}
+
+type MockTag = { [key: string]: number };
+
+const noTags = Object.create(null);
+
+class MockNode extends EditorNode {
+   tag?: MockTag = noTags;
+   flat?: EditorNode[];
+}
+
+/**
+ * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/build.js#L5
+ */
+function flatten(
+   schema: Schema,
+   children: (EditorNode | string)[],
+   fn: (n: EditorNode) => EditorNode = (n: EditorNode) => n
+) {
+   const result: EditorNode[] = [];
    let pos = 0;
-   let tag: any = noTag;
+   let tags: MockTag = noTags;
 
    for (let i = 0; i < children.length; i++) {
-      let child = children[i];
+      let child: EditorNode | string = children[i];
 
-      if (child.tag && child.tag != (EditorNode.prototype as any).tag) {
-         if (tag == noTag) {
-            tag = Object.create(null);
-         }
-         for (let id in child.tag) {
-            tag[id] =
-               child.tag[id] + (child.flat || child.isText ? 0 : 1) + pos;
-         }
-      }
+      if (!is.text(child)) {
+         const node = child as MockNode;
 
-      if (typeof child == 'string') {
+         if (node.tag !== undefined && node.tag !== MockNode.prototype.tag) {
+            if (tags === noTags) {
+               tags = Object.create(null);
+            }
+            for (let id in node.tag) {
+               tags[id] =
+                  node.tag[id] + (node.flat || child.isText ? 0 : 1) + pos;
+            }
+         }
+         if (node.flat !== undefined) {
+            // send flat nodes through transform function then add to result
+            node.flat.map(fn).forEach(n => {
+               pos += n.nodeSize;
+               result.push(n);
+            });
+         } else {
+            const n = fn(node);
+            pos += n.nodeSize;
+            result.push(n);
+         }
+      } else {
          const re = /<(\w+)>/g;
          let m;
          let at = 0;
@@ -33,69 +80,67 @@ function flatten(schema: Schema, children: any[], f: any) {
             out += child.slice(at, m.index);
             pos += m.index - at;
             at = m.index + m[0].length;
-            if (tag == noTag) {
-               tag = Object.create(null);
+            if (tags == noTags) {
+               tags = Object.create(null);
             }
-            tag[m[1]] = pos;
+            tags[m[1]] = pos;
          }
          out += child.slice(at);
          pos += child.length - at;
          if (out) {
-            result.push(f(schema.text(out)));
+            result.push(fn(schema.text(out)));
          }
-      } else if (child.flat) {
-         for (let j = 0; j < child.flat.length; j++) {
-            let node = f(child.flat[j]);
-            pos += node.nodeSize;
-            result.push(node);
-         }
-      } else {
-         let node = f(child);
-         pos += node.nodeSize;
-         result.push(node);
       }
    }
-   return { nodes: result, tag };
+   return { nodes: result, tags };
 }
 
-const id = <T>(x: T): T => x;
+const noop = <T>(x: T): T => x;
 
-function takeAttrs(attrs: any, args: any[]) {
-   let a0 = args[0];
-   if (
-      !args.length ||
-      (a0 && (typeof a0 == 'string' || a0 instanceof Node || a0.flat))
-   ) {
-      return attrs;
-   }
-   args.shift();
+// function takeAttrs(
+//    attrs: Attributes | undefined,
+//    ...args: (EditorNode | string)[]
+// ) {
+//    let a0 = args[0];
+//    if (
+//       !args.length ||
+//       (a0 && (typeof a0 == 'string' || a0 instanceof EditorNode || a0.flat))
+//    ) {
+//       return attrs;
+//    }
+//    args.shift();
 
-   if (!attrs) {
-      return a0;
-   }
-   if (!a0) {
-      return attrs;
-   }
-   let result: any = {};
-   for (let prop in attrs) {
-      result[prop] = attrs[prop];
-   }
-   for (let prop in a0) {
-      result[prop] = a0[prop];
-   }
-   return result;
-}
+//    if (!attrs) {
+//       return a0;
+//    }
+//    if (!a0) {
+//       return attrs;
+//    }
+//    let result: any = {};
+
+//    for (let prop in attrs) {
+//       result[prop] = attrs[prop];
+//    }
+//    for (let prop in a0) {
+//       result[prop] = a0[prop];
+//    }
+//    return result;
+// }
 
 // : (string, ?Object) → (...content: [union<string, Node>]) → Node
-// Create a builder function for nodes with content.
-function block(type: any, attrs: any): any {
-   let result = function(...args: any[]) {
-      let myAttrs = takeAttrs(attrs, args);
-      let { nodes, tag } = flatten(type.schema, args, id);
-      let node = type.create(myAttrs, nodes);
+/**
+ * Create a builder function for nodes with content.
+ *
+ * @see
+ */
+function nodeMaker(type: NodeType, attrs?: Attributes): NodeMaker {
+   const result = function(...args: (string | EditorNode)[]) {
+      //const myAttrs = takeAttrs(attrs, args);
+      const { nodes, tags } = flatten(type.schema, args);
+      const node = type.create(attrs, nodes) as MockNode;
 
-      if (tag != noTag) {
-         node.tag = tag;
+      if (tags !== noTags) {
+         node.tag = tags;
       }
       return node;
    };
@@ -107,40 +152,45 @@ function block(type: any, attrs: any): any {
    return result;
 }
 
-// Create a builder function for marks.
-function mark(type: any, attrs: any) {
-   return function(...args: any[]) {
-      let mark = type.create(takeAttrs(attrs, args));
-      let { nodes, tag } = flatten(type.schema, args, (n: any) =>
+/**
+ * Create a builder function for marks.
+ */
+const markMaker = (type: MarkType, attrs?: Attributes): MarkMaker =>
+   function(...args: (string | EditorNode)[]) {
+      const mark: Mark = type.create(attrs); //takeAttrs(attrs, args));
+      const { nodes, tags } = flatten(type.schema, args, (n: EditorNode) =>
          mark.type.isInSet(n.marks) ? n : n.mark(mark.addToSet(n.marks))
       );
-      return { flat: nodes, tag };
+      return { flat: nodes, tags };
    };
-}
 
-export function builders(
+export function makeMockers(
    schema: Schema,
-   names?: { [key: string]: any }
-): { [key: string]: EditorNode } {
-   let result: { [key: string]: any } = { schema };
+   specs?: { [tag: string]: MockSpec }
+): Mocker {
+   const result: Mocker = { schema, node: {}, mark: {} };
 
    for (let name in schema.nodes) {
-      result[name] = block(schema.nodes[name], {});
+      result.node[name] = nodeMaker(schema.nodes[name], {});
    }
    for (let name in schema.marks) {
-      result[name] = mark(schema.marks[name], {});
+      result.mark[name] = markMaker(schema.marks[name], {});
    }
 
-   if (names) {
-      for (let name in names) {
-         const value = names[name];
-         const typeName = value.nodeType || value.markType || name;
-         let type;
+   if (specs !== undefined) {
+      for (let tag in specs) {
+         const spec: MockSpec = specs[tag];
 
-         if ((type = schema.nodes[typeName])) {
-            result[name] = block(type, value);
-         } else if ((type = schema.marks[typeName])) {
-            result[name] = mark(type, value);
+         if (spec.isMark === true) {
+            const type = schema.marks[spec.type];
+            if (type !== undefined) {
+               result.mark[tag] = markMaker(type, spec.attrs);
+            }
+         } else {
+            const type = schema.nodes[spec.type];
+            if (type !== undefined) {
+               result.node[tag] = nodeMaker(type, spec.attrs);
+            }
          }
       }
    }

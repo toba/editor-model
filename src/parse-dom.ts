@@ -242,7 +242,10 @@ export class DOMParser {
    /**
     * Parse a document from the content of a DOM node.
     */
-   parse(node: Node, options: ParseOptions = {}): EditorNode | Fragment {
+   parse(
+      node: Node,
+      options: ParseOptions = Object.create(null)
+   ): EditorNode | Fragment {
       const context = new ParseContext(this, options, false);
       context.addAll(node, undefined, options.from, options.to);
       return context.finish();
@@ -256,7 +259,7 @@ export class DOMParser {
     * applied to the start of nodes to the left of the input and the end of
     * nodes at the end.
     */
-   parseSlice(node: Node, options: ParseOptions = {}): Slice {
+   parseSlice(node: Node, options: ParseOptions = Object.create(null)): Slice {
       const context = new ParseContext(this, options, true);
       context.addAll(node, undefined, options.from, options.to);
       return Slice.maxOpen(context.finish() as Fragment);
@@ -377,7 +380,7 @@ function matches(el: Element, selector: string): boolean {
  * Shallow object copy.
  */
 function copy<T extends object>(obj: T): T {
-   const copy = {} as T;
+   const copy = Object.create(null) as T;
    for (let prop in obj) {
       copy[prop] = obj[prop];
    }

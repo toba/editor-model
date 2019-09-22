@@ -188,7 +188,7 @@ export class ContentMatch {
 
    computeWrapping(target: NodeType): NodeType[] | null {
       /** Names of `NodeType`s that have already been processed */
-      const seen: { [key: string]: boolean } = {};
+      const seen: { [key: string]: boolean } = Object.create(null);
       const active: ActiveMatch[] = [{ match: this, type: null, via: null }];
 
       while (active.length) {

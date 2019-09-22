@@ -36,7 +36,7 @@ export interface AttributeSpec<T> {
 export function defaultAttrs(
    attrs: AttributeMap
 ): { [key: string]: any } | null {
-   const defaults: { [key: string]: any } = {};
+   const defaults: { [key: string]: any } = Object.create(null);
 
    for (let name in attrs) {
       const attr = attrs[name];
@@ -55,9 +55,9 @@ export function defaultAttrs(
  */
 export function computeAttrs(
    attrs: AttributeMap,
-   values: Attributes = {}
+   values: Attributes = Object.create(null)
 ): Attributes {
-   const built: Attributes = {};
+   const built: Attributes = Object.create(null);
 
    for (let name in attrs) {
       let given: AttributeValue | undefined = values[name];
@@ -85,7 +85,7 @@ export function computeAttrs(
 export function initAttrs(attrs?: {
    [key: string]: AttributeSpec<any>;
 }): AttributeMap {
-   const result: AttributeMap = {};
+   const result: AttributeMap = Object.create(null);
 
    if (attrs !== undefined) {
       for (let name in attrs) {
