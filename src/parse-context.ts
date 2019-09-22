@@ -148,7 +148,7 @@ export class ParseContext {
       if (node.nodeType == HtmlNodeType.Text) {
          this.addTextNode(node);
       } else if (node.nodeType == HtmlNodeType.Element) {
-         const el = node as Element;
+         const el = node as HTMLElement;
          const style = el.getAttribute('style');
          const marks =
             style !== null ? this.readStyles(parseStyles(style)) : null;
@@ -215,23 +215,23 @@ export class ParseContext {
     * Try to find a handler for the given tag and use that to parse. If none is
     * found, the element's content nodes are added directly.
     */
-   addElement(dom: Element) {
-      let name = dom.nodeName.toLowerCase();
+   addElement(el: HTMLElement) {
+      let name = el.nodeName.toLowerCase();
 
       if (listTags.hasOwnProperty(name)) {
-         normalizeList(dom);
+         normalizeList(el);
       }
 
       const rule: ParseRule | undefined =
          this.options.ruleFromNode !== undefined
-            ? this.options.ruleFromNode(dom)
-            : this.parser.matchTag(dom, this);
+            ? this.options.ruleFromNode(el)
+            : this.parser.matchTag(el, this);
 
       if (rule !== undefined ? rule.ignore : ignoreTags.hasOwnProperty(name)) {
-         this.findInside(dom);
+         this.findInside(el);
       } else if (rule === undefined || rule.skip !== undefined) {
          if (rule !== undefined && rule.skip !== undefined) {
-            dom = rule.skip as Element;
+            el = rule.skip as HTMLElement;
          }
          const oldNeedsBlock: boolean = this.needsBlock;
          const top: NodeContext = this.top;
@@ -242,18 +242,18 @@ export class ParseContext {
             if (!top.type) {
                this.needsBlock = true;
             }
-         } else if (!dom.firstChild) {
-            this.leafFallback(dom);
+         } else if (!el.firstChild) {
+            this.leafFallback(el);
             return;
          }
-         this.addAll(dom);
+         this.addAll(el);
 
          if (sync) {
             this.sync(top);
          }
          this.needsBlock = oldNeedsBlock;
       } else {
-         this.addElementByRule(dom, rule);
+         this.addElementByRule(el, rule);
       }
    }
 

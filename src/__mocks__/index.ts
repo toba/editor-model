@@ -1,7 +1,7 @@
 import { basicSchema as basic } from './basic-schema';
 //import { addListNodes } from 'prosemirror-schema-list';
 import { Schema } from '../schema';
-import { makeMockers } from './build';
+import { makeMockers } from './mocker';
 
 const testSchema = new Schema({
    nodes: basic.spec.nodes,
