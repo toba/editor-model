@@ -1,4 +1,5 @@
 import { NodeType } from './node-type';
+import { SimpleMap } from './types';
 
 export const enum TokenType {
    Choice = 'choice',
@@ -21,13 +22,13 @@ export interface Expression {
 
 export class TokenStream {
    string: string;
-   nodeTypes: { [key: string]: NodeType };
+   nodeTypes: SimpleMap<NodeType>;
    tokens: string[];
    /** Position of current token */
    pos: number;
    inline: boolean | null;
 
-   constructor(string: string, nodeTypes: { [key: string]: NodeType }) {
+   constructor(string: string, nodeTypes: SimpleMap<NodeType>) {
       this.string = string;
       this.nodeTypes = nodeTypes;
       this.inline = null;
@@ -85,6 +86,9 @@ function parseExprSeq(stream: TokenStream): Expression {
    return exprs.length == 1 ? exprs[0] : { type: TokenType.Sequence, exprs };
 }
 
+/**
+ * Create expression from stream. `stream.next` should be `undefined` when done.
+ */
 export function parseExpr(stream: TokenStream) {
    const exprs: Expression[] = [];
    do {
@@ -110,7 +114,7 @@ function parseNum(stream: TokenStream): number {
 function parseExprRange(stream: TokenStream, expr?: Expression): Expression {
    const min = parseNum(stream);
    let max = min;
-   
+
    if (stream.eat(',')) {
       if (stream.next != '}') {
          max = parseNum(stream);

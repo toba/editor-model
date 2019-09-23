@@ -1,4 +1,6 @@
-type tagMap = { [key: string]: boolean };
+import { SimpleMap } from './types';
+
+type tagMap = SimpleMap<boolean>;
 
 /**
  * @see https://www.w3schools.com/jsref/prop_node_nodetype.asp

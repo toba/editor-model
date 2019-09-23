@@ -14,7 +14,7 @@ import { TextNode } from './text-node';
 import { NodeType } from './node-type';
 import { MarkType } from './mark-type';
 import { AttributeMap, Attributes } from './attribute';
-import { ResolvedPos } from './resolved-pos';
+import { Position } from './position';
 
 export type PreserveWhitespace = boolean | 'full';
 
@@ -97,7 +97,7 @@ export class ParseContext {
       let topContext: NodeContext;
       /** Options bitmask */
       let topOptions =
-         wsOptionsFor(options.preserveWhitespace) |
+         wsOptionsFor(options.preserveSpace) |
          (open ? Whitespace.OpenLeft : 0);
 
       if (topNode) {
@@ -707,7 +707,7 @@ export class ParseContext {
    matchesContext = this.matches;
 
    textblockFromContext(): NodeType | null {
-      let context: ResolvedPos | undefined = this.options.context;
+      let context: Position | undefined = this.options.context;
 
       const valid = (t: NodeType | undefined): t is NodeType =>
          t !== undefined && t.isTextblock && t.defaultAttrs !== null;

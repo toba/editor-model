@@ -5,9 +5,9 @@ import { NodeRange } from './node-range';
 /** Node, index and offset */
 type PathItem = [EditorNode, number, number];
 
-const resolveCache: ResolvedPos[] = [];
-let resolveCachePos = 0;
-let resolveCacheSize = 12;
+const cache: Position[] = [];
+let cacheIndex = 0;
+let cacheSize = 12;
 
 /**
  * You can [_resolve_](#model.Node.resolve) a position to get more information
@@ -20,7 +20,7 @@ let resolveCacheSize = 12;
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/resolvedpos.js
  */
-export class ResolvedPos {
+export class Position {
    /** Position that was resolved */
    pos: number;
    path: PathItem[];
@@ -223,9 +223,10 @@ export class ResolvedPos {
     * if this position is at the end of its parent node or its parent node isn't
     * a textblock (in which case no marks should be preserved).
     */
-   marksAcross(end: ResolvedPos): Mark[] | null {
+   marksAcross(end: Position): Mark[] | null {
       const after = this.parent.maybeChild(this.index());
-      if (!after || !after.isInline) {
+
+      if (after === undefined || !after.isInline) {
          return null;
       }
       let marks: Mark[] = after.marks;
@@ -260,12 +261,13 @@ export class ResolvedPos {
     * position diverge around block content. If both point into the same
     * textblock, for example, a range around that textblock will be returned. If
     * they point into different blocks, the range around those blocks in their
-    * shared ancestor is returned. You can pass in an optional predicate that
-    * will be called with a parent node to see if a range into that parent is
-    * acceptable.
+    * shared ancestor is returned.
+    *
+    * @param pred optional predicate that will be called with a parent node to
+    * see if a range into that parent is acceptable
     */
    blockRange(
-      other: ResolvedPos = this,
+      other: Position = this,
       pred?: (node: EditorNode) => boolean
    ): NodeRange | null {
       if (other.pos < this.pos) {
@@ -286,22 +288,20 @@ export class ResolvedPos {
    }
 
    /**
-    * Query whether the given position shares the same parent node.
+    * Whether given position has the same parent node.
     */
-   sameParent = (other: ResolvedPos): boolean =>
+   sameParent = (other: Position): boolean =>
       this.pos - this.parentOffset == other.pos - other.parentOffset;
 
    /**
     * Return the greater of this and the given position.
     */
-   max = (other: ResolvedPos): ResolvedPos =>
-      other.pos > this.pos ? other : this;
+   max = (other: Position): Position => (other.pos > this.pos ? other : this);
 
    /**
     * Return the smaller of this and the given position.
     */
-   min = (other: ResolvedPos): ResolvedPos =>
-      other.pos < this.pos ? other : this;
+   min = (other: Position): Position => (other.pos < this.pos ? other : this);
 
    toString(): string {
       let str = '';
@@ -313,7 +313,7 @@ export class ResolvedPos {
       return str + ':' + this.parentOffset;
    }
 
-   static resolve(doc: EditorNode, pos: number): ResolvedPos {
+   static resolve(doc: EditorNode, pos: number): Position {
       if (!(pos >= 0 && pos <= doc.content.size)) {
          throw new RangeError('Position ' + pos + ' out of range');
       }
@@ -322,7 +322,7 @@ export class ResolvedPos {
       let parentOffset = pos;
 
       for (let node = doc; ; ) {
-         let { index, offset } = node.content.findIndex(parentOffset);
+         const { index, offset } = node.content.findIndex(parentOffset);
          let remaining: number = parentOffset - offset;
 
          path.push([node, index, start + offset]);
@@ -338,20 +338,20 @@ export class ResolvedPos {
          parentOffset = remaining - 1;
          start += offset + 1;
       }
-      return new ResolvedPos(pos, path, parentOffset);
+      return new Position(pos, path, parentOffset);
    }
 
-   static resolveCached(doc: EditorNode, pos: number): ResolvedPos {
-      for (let i = 0; i < resolveCache.length; i++) {
-         let cached: ResolvedPos = resolveCache[i];
+   static resolveCached(doc: EditorNode, pos: number): Position {
+      for (let i = 0; i < cache.length; i++) {
+         const cached: Position = cache[i];
          if (cached.pos == pos && cached.doc === doc) {
             return cached;
          }
       }
-      const result = ResolvedPos.resolve(doc, pos);
+      const result = Position.resolve(doc, pos);
 
-      resolveCache[resolveCachePos] = result;
-      resolveCachePos = (resolveCachePos + 1) % resolveCacheSize;
+      cache[cacheIndex] = result;
+      cacheIndex = (cacheIndex + 1) % cacheSize;
 
       return result;
    }

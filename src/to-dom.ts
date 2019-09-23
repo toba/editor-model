@@ -7,6 +7,7 @@ import { MarkType } from './mark-type';
 import { NodeType } from './node-type';
 import { TextNode } from './text-node';
 import { Attributes } from './attribute';
+import { SimpleMap } from './types';
 
 /**
  * An array describing a DOM element. The first value in the array should be a
@@ -93,12 +94,12 @@ interface SerializeOptions {
  */
 export class DOMSerializer {
    /** Node serialization functions keyed to node type name */
-   nodes: { [key: string]: NodeSerializer };
+   nodes: SimpleMap<NodeSerializer>;
    /**
     * Mark serialization functions keyed to mark type name. If the serializer
     * for a key is `null` then those mark types should not be serizlied.
     */
-   marks: { [key: string]: MarkSerializer | null };
+   marks: SimpleMap<MarkSerializer | null>;
 
    /**
     * @param nodes Node serializers keyed to node names
@@ -106,8 +107,8 @@ export class DOMSerializer {
     * indicate that marks of that type should not be serialized)
     */
    constructor(
-      nodes: { [key: string]: NodeSerializer } = Object.create(null),
-      marks: { [key: string]: MarkSerializer | null } = Object.create(null)
+      nodes: SimpleMap<NodeSerializer> = Object.create(null),
+      marks: SimpleMap<MarkSerializer | null> = Object.create(null)
    ) {
       this.nodes = nodes;
       this.marks = marks;
@@ -320,7 +321,7 @@ export class DOMSerializer {
     * Gather the serializers in a schema's node specs into an object. This can
     * be useful as a base to build a custom serializer from.
     */
-   static nodesFromSchema(schema: Schema): { [key: string]: NodeSerializer } {
+   static nodesFromSchema(schema: Schema): SimpleMap<NodeSerializer> {
       const result = gatherToDOM(schema.nodes);
 
       if (!result.text) {
@@ -332,16 +333,13 @@ export class DOMSerializer {
    /**
     * Gather the serializers in a schema's mark specs into an object.
     */
-   static marksFromSchema = (
-      schema: Schema
-   ): { [key: string]: MarkSerializer } => gatherToDOM(schema.marks);
+   static marksFromSchema = (schema: Schema): SimpleMap<MarkSerializer> =>
+      gatherToDOM(schema.marks);
 }
 
-function gatherToDOM<T extends MarkType | NodeType>(types: {
-   [key: string]: T;
-}) {
+function gatherToDOM<T extends MarkType | NodeType>(types: SimpleMap<T>) {
    type S = T extends MarkType ? MarkSerializer : NodeSerializer;
-   const result: { [key: string]: S } = Object.create(null);
+   const result: SimpleMap<S> = Object.create(null);
 
    for (let key in types) {
       const type: T = types[key];

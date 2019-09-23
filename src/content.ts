@@ -2,9 +2,8 @@ import { Fragment } from './fragment';
 import { EditorNode } from './node';
 import { NodeType } from './node-type';
 import { nfa, dfa } from './finite-automata';
-import { TokenStream, parseExpr } from './token-stream';
-import { OrderedMap } from './ordered-map';
-import { AttributeMap } from './attribute';
+import { TokenStream, parseExpr, Expression } from './token-stream';
+import { SimpleMap } from './types';
 
 interface NodeEdge {
    type: NodeType;
@@ -40,21 +39,18 @@ export class ContentMatch {
       this.wrapCache = [];
    }
 
-   static parse(
-      string: string,
-      nodeTypes: { [key: string]: NodeType }
-   ): ContentMatch {
+   static parse(string: string, nodeTypes: SimpleMap<NodeType>): ContentMatch {
       const stream = new TokenStream(string, nodeTypes);
 
-      if (stream.next === null) {
+      if (stream.next === undefined) {
          return ContentMatch.empty;
       }
-      let expr = parseExpr(stream);
+      const expr: Expression = parseExpr(stream);
 
       if (stream.next !== undefined) {
          stream.err('Unexpected trailing text');
       }
-      let match = dfa(nfa(expr));
+      const match: ContentMatch = dfa(nfa(expr));
 
       checkForDeadEnds(match, stream);
 
@@ -188,7 +184,7 @@ export class ContentMatch {
 
    computeWrapping(target: NodeType): NodeType[] | null {
       /** Names of `NodeType`s that have already been processed */
-      const seen: { [key: string]: boolean } = Object.create(null);
+      const seen = Object.create(null) as SimpleMap<boolean>;
       const active: ActiveMatch[] = [{ match: this, type: null, via: null }];
 
       while (active.length) {

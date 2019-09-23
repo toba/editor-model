@@ -1,16 +1,17 @@
 import { is } from '@toba/tools';
+import { SimpleMap } from './types';
 
 export type AttributeValue = string | number | null;
 
 /**
  * Attribute values keyed to their name.
  */
-export type Attributes = { [key: string]: AttributeValue };
+export type Attributes = SimpleMap<AttributeValue>;
 
 /**
  * Map of attribute names and optional default values.
  */
-export type AttributeMap = { [key: string]: AttributeDefault<string> };
+export type AttributeMap = SimpleMap<AttributeDefault<string>>;
 
 /**
  * Used to [define](#model.NodeSpec.attrs) attributes on nodes or marks.
@@ -33,10 +34,8 @@ export interface AttributeSpec<T> {
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L12
  */
-export function defaultAttrs(
-   attrs: AttributeMap
-): { [key: string]: any } | null {
-   const defaults: { [key: string]: any } = Object.create(null);
+export function defaultAttrs(attrs: AttributeMap): SimpleMap<any> | null {
+   const defaults = Object.create(null) as SimpleMap<any>;
 
    for (let name in attrs) {
       const attr = attrs[name];
@@ -82,9 +81,7 @@ export function computeAttrs(
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L36
  */
-export function initAttrs(attrs?: {
-   [key: string]: AttributeSpec<any>;
-}): AttributeMap {
+export function initAttrs(attrs?: SimpleMap<AttributeSpec<any>>): AttributeMap {
    const result: AttributeMap = Object.create(null);
 
    if (attrs !== undefined) {

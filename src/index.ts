@@ -1,7 +1,7 @@
 export { EditorNode as Node } from './node';
 export { NodeType } from './node-type';
 export { NodeRange } from './node-range';
-export { ResolvedPos } from './resolved-pos';
+export { Position as ResolvedPos } from './position';
 export { Fragment } from './fragment';
 export { ReplaceError } from './replace';
 export { Mark } from './mark';

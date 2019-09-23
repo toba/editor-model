@@ -3,8 +3,9 @@ import { Schema } from '../schema';
 import { ElementSpec } from '../to-dom';
 import { NodeSpec } from '../node-type';
 import { MarkSpec } from '../mark-type';
+import { SimpleMap } from '../types';
 
-const el: { [key: string]: ElementSpec } = {
+const el: SimpleMap<ElementSpec> = {
    p: ['p', 0],
    blockquote: ['blockquote', 0],
    hr: ['hr'],
@@ -15,7 +16,7 @@ const el: { [key: string]: ElementSpec } = {
    code: ['code', 0]
 };
 
-export const nodes: { [key: string]: NodeSpec } = {
+export const nodes: SimpleMap<NodeSpec> = {
    /** Top level document node. */
    doc: {
       content: 'block+'
@@ -128,7 +129,7 @@ export const nodes: { [key: string]: NodeSpec } = {
    }
 };
 
-export const marks: { [key: string]: MarkSpec } = {
+export const marks: SimpleMap<MarkSpec> = {
    /**
     * A link. Has `href` and `title` attributes. `title` defaults to the empty
     * string. Rendered and parsed as an `<a>` element.

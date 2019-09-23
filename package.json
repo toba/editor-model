@@ -38,7 +38,7 @@
       "@toba/tools": "^6.7.7"
    },
    "devDependencies": {
-      "@toba/develop": "^6.7.1",
+      "@toba/develop": "^6.7.3",
       "@toba/editor-test": "^2.0.4",
       "@toba/test": "^4.1.14"
    }

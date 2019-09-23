@@ -1,14 +1,16 @@
 import { is } from '@toba/tools';
+import { SimpleMap } from './types';
 
 /**
  * Kinds of data that can be parsed by `OrderedMap`.
  */
-type CompatibleData<T> = OrderedMap<T> | { [key: string]: T };
+type CompatibleData<T> = OrderedMap<T> | SimpleMap<T>;
 
 /**
  * Persistent data structure representing an ordered mapping from strings to
  * values, with some convenient update methods.
  *
+ * Created by Marijn Haverbeke
  * @see https://github.com/marijnh/orderedmap/blob/master/index.js
  */
 export class OrderedMap<T> {
@@ -149,11 +151,8 @@ export class OrderedMap<T> {
     * @param allowEmpty If `false` then `null` or `undefined` results of the
     * callack will be excluded. The default is `true`.
     */
-   map<M>(
-      fn: (key: string, value: T) => M,
-      allowEmpty = true
-   ): { [key: string]: M } {
-      const out: { [key: string]: M } = Object.create(null);
+   map<M>(fn: (key: string, value: T) => M, allowEmpty = true): SimpleMap<M> {
+      const out = Object.create(null) as SimpleMap<M>;
 
       this.keys.forEach((key, i) => {
          const value: M = fn(key, this.values[i]);

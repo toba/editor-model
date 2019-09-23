@@ -1,10 +1,10 @@
 import { Fragment } from './fragment';
 import { Schema } from './schema';
-import { AttributeMap, Attributes } from './attribute';
+import { Attributes } from './attribute';
 import { Slice } from './slice';
 import { ContentMatch } from './content';
 import { EditorNode } from './node';
-import { ResolvedPos } from './resolved-pos';
+import { Position } from './position';
 import { ParseContext, PreserveWhitespace } from './parse-context';
 
 export interface NodesToFind {
@@ -14,8 +14,7 @@ export interface NodesToFind {
 }
 
 /**
- * These are the options recognized by the [`parse`](#model.DOMParser.parse) and
- * [`parseSlice`](#model.DOMParser.parseSlice) methods.
+ * Options recognized by the `parse` and `parseSlice` methods.
  */
 export interface ParseOptions {
    /**
@@ -23,7 +22,7 @@ export interface ParseOptions {
     * preserve whitespace, but normalize newlines to spaces, and `"full"` to
     * preserve whitespace entirely.
     */
-   preserveWhitespace?: boolean | 'full';
+   preserveSpace?: boolean | 'full';
 
    /**
     * When given, the parser will, beside parsing the content, record the
@@ -44,9 +43,9 @@ export interface ParseOptions {
    to?: number;
 
    /**
-    * By default, the content is parsed into the schema's default
-    * [top node type](#model.Schema.topNodeType). You can pass this option to
-    * use the type and attributes from a different node as the top container.
+    * By default, content is parsed into the schema's default `topNodeType`. You
+    * can pass this option to use the type and attributes from a different node
+    * as the top container.
     */
    topNode?: EditorNode;
 
@@ -66,7 +65,7 @@ export interface ParseOptions {
     * when parsing, above the given [top node](#model.ParseOptions.topNode).
     * TODO: this comment doesn't make sense
     */
-   context?: ResolvedPos;
+   context?: Position;
 
    ruleFromNode?: (n: Node) => ParseRule;
 }

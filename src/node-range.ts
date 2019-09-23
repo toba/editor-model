@@ -1,4 +1,4 @@
-import { ResolvedPos } from './resolved-pos';
+import { Position } from './position';
 import { EditorNode } from './node';
 
 /**
@@ -12,12 +12,12 @@ export class NodeRange {
     * that were used to compute the range, not re-resolved positions directly at
     * its boundaries.
     */
-   from: ResolvedPos;
+   from: Position;
    /**
     * A position along the end of the content. See caveat for
     * [`from`](#model.NodeRange.$from)
     */
-   to: ResolvedPos;
+   to: Position;
    /** The depth of the node that this range points into */
    depth: number;
 
@@ -26,7 +26,7 @@ export class NodeRange {
     * until at least the given `depth`, since a node range denotes an adjacent
     * set of nodes in a single parent node.
     */
-   constructor(from: ResolvedPos, to: ResolvedPos, depth: number) {
+   constructor(from: Position, to: Position, depth: number) {
       this.from = from;
       this.to = to;
       this.depth = depth;

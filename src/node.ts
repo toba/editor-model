@@ -1,10 +1,11 @@
+import { is } from '@toba/tools';
 import { Fragment, FragmentJSON } from './fragment';
 import { Mark, MarkJSON } from './mark';
 import { NodeType } from './node-type';
 import { Attributes } from './attribute';
 import { Slice } from './slice';
 import { replace } from './replace';
-import { ResolvedPos } from './resolved-pos';
+import { Position } from './position';
 import { compareDeep } from './compare-deep';
 import { MarkType } from './mark-type';
 import { ContentMatch } from './content';
@@ -105,13 +106,14 @@ export class EditorNode {
    child = (index: number): EditorNode => this.content.child(index);
 
    /**
-    * Get the child node at the given index, if it exists.
+    * Get the child node at the given index or `undefined` if none exists at
+    * that index.
     */
    maybeChild = (index: number): EditorNode | undefined =>
       this.content.maybeChild(index);
 
    /**
-    * Call `f` for every child node, passing the node, its offset into this
+    * Call `fn` for every child node, passing the node, its offset into this
     * parent node, and its index.
     */
    forEach(fn: (node: EditorNode, offset: number, index: number) => void) {
@@ -241,15 +243,17 @@ export class EditorNode {
     * it as a `Slice` object.
     */
    slice(from: number, to = this.content.size, includeParents = false): Slice {
-      if (from == to) return Slice.empty;
+      if (from == to) {
+         return Slice.empty;
+      }
+      const fromPos: Position = this.resolve(from);
+      const toPos: Position = this.resolve(to);
+      const depth: number = includeParents ? 0 : fromPos.sharedDepth(to);
+      const start: number = fromPos.start(depth);
+      const node: EditorNode = fromPos.node(depth);
+      const content = node.content.cut(fromPos.pos - start, toPos.pos - start);
 
-      let $from = this.resolve(from),
-         $to = this.resolve(to);
-      let depth = includeParents ? 0 : $from.sharedDepth(to);
-      let start = $from.start(depth),
-         node = $from.node(depth);
-      let content = node.content.cut($from.pos - start, $to.pos - start);
-      return new Slice(content, $from.depth - depth, $to.depth - depth);
+      return new Slice(content, fromPos.depth - depth, toPos.depth - depth);
    }
 
    /**
@@ -313,10 +317,9 @@ export class EditorNode {
     * Resolve the given position in the document, returning an
     * [object](#model.ResolvedPos) with information about its context.
     */
-   resolve = (pos: number): ResolvedPos => ResolvedPos.resolveCached(this, pos);
+   resolve = (pos: number): Position => Position.resolveCached(this, pos);
 
-   resolveNoCache = (pos: number): ResolvedPos =>
-      ResolvedPos.resolve(this, pos);
+   resolveNoCache = (pos: number): Position => Position.resolve(this, pos);
 
    /**
     * Test whether a mark of the given type occurs in this document between the
@@ -394,11 +397,12 @@ export class EditorNode {
     * Return a string representation of this node for debugging purposes.
     */
    toString(): string {
-      if (this.type.spec.toDebugString) {
+      if (this.type.spec.toDebugString !== undefined) {
          return this.type.spec.toDebugString(this);
       }
       let name = this.type.name;
-      if (this.content.size) {
+
+      if (this.content.size > 0) {
          name += '(' + this.content.toStringInner() + ')';
       }
       return wrapMarks(this.marks, name);
@@ -439,9 +443,9 @@ export class EditorNode {
          start,
          end
       );
-      const two = one && one.matchFragment(this.content, to);
+      const two = one === null ? null : one.matchFragment(this.content, to);
 
-      if (!two || !two.validEnd) {
+      if (two === null || !two.validEnd) {
          return false;
       }
       for (let i = start; i < end; i++) {
@@ -462,13 +466,13 @@ export class EditorNode {
       type: NodeType,
       marks?: Mark[]
    ): boolean {
-      if (marks && !this.type.allowsMarks(marks)) {
+      if (marks !== undefined && !this.type.allowsMarks(marks)) {
          return false;
       }
       const start = this.contentMatchAt(from).matchType(type);
-      const end = start && start.matchFragment(this.content, to);
+      const end = start === null ? null : start.matchFragment(this.content, to);
 
-      return end ? end.validEnd : false;
+      return end !== null ? end.validEnd : false;
    }
 
    /**
@@ -478,7 +482,7 @@ export class EditorNode {
     * incompatible nodes).
     */
    canAppend = (other: EditorNode): boolean =>
-      other.content.size
+      other.content.size > 0
          ? this.canReplace(this.childCount, this.childCount, other.content)
          : this.type.compatibleContent(other.type);
 
@@ -505,14 +509,15 @@ export class EditorNode {
     */
    toJSON(): NodeJSON {
       const out: NodeJSON = { type: this.type.name };
+
       for (let _ in this.attrs) {
          out.attrs = this.attrs;
          break;
       }
-      if (this.content.size) {
+      if (this.content.size > 0) {
          out.content = this.content.toJSON();
       }
-      if (this.marks.length) {
+      if (this.marks.length > 0) {
          out.marks = this.marks.map(n => n.toJSON());
       }
       return out;
@@ -527,14 +532,14 @@ export class EditorNode {
       }
       let marks: Mark[] | undefined = undefined;
 
-      if (json.marks) {
-         if (!Array.isArray(json.marks)) {
+      if (json.marks !== undefined) {
+         if (!is.array<MarkJSON>(json.marks)) {
             throw new RangeError('Invalid mark data for Node.fromJSON');
          }
          marks = json.marks.map(schema.markFromJSON);
       }
       if (json.type == 'text') {
-         if (typeof json.text != 'string') {
+         if (!is.text(json.text)) {
             throw new RangeError('Invalid text node in JSON');
          }
          return schema.text(json.text, marks);

@@ -6,32 +6,31 @@ import { Mark, MarkJSON } from './mark';
 import { ContentMatch } from './content';
 import { NodeType, NodeSpec } from './node-type';
 import { MarkType, MarkSpec } from './mark-type';
-import { AttributeMap, Attributes } from './attribute';
+import { Attributes } from './attribute';
 import { Fragment } from './fragment';
-import { Expression } from 'estree';
+import { SimpleMap } from './types';
 
 /**
- * An object describing a schema, as passed to the [`Schema`](#model.Schema)
- * constructor.
+ * An object describing a schema.
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L297
  */
 export interface SchemaSpec {
    /**
-    * The node types in this schema. Maps names to [`NodeSpec`](#model.NodeSpec)
-    * objects that describe the node type associated with that name. Their order
-    * is significant — it determines which [parse rules](#model.NodeSpec.parseDOM)
+    * The node types in this schema. Maps names to `NodeSpec` objects that
+    * describe the node type associated with that name. Their order is
+    * significant — it determines which [parse rules](#model.NodeSpec.parseDOM)
     * take precedence by default, and which nodes come first in a given
     * [group](#model.NodeSpec.group).
     */
-   nodes?: { [key: string]: NodeSpec } | OrderedMap<NodeSpec>;
+   nodes?: SimpleMap<NodeSpec> | OrderedMap<NodeSpec>;
 
    /**
     * The mark types that exist in this schema. The order in which they are
     * provided determines the order in which [mark sets](#model.Mark.addToSet)
     * are sorted and in which [parse rules](#model.MarkSpec.parseDOM) are tried.
     */
-   marks?: { [key: string]: MarkSpec } | OrderedMap<MarkSpec>;
+   marks?: SimpleMap<MarkSpec> | OrderedMap<MarkSpec>;
 
    /**
     * The name of the default top-level node for the schema. Defaults to
@@ -55,21 +54,17 @@ export class Schema {
     */
    spec: SchemaSpec;
    /** An object mapping the schema's node names to node type objects */
-   nodes: { [key: string]: NodeType };
+   nodes: SimpleMap<NodeType>;
    /** Mark types keyed to their names */
-   marks: { [key: string]: MarkType };
-   /**
-    * The type of the [default top node](#SchemaSpec.topNode) for this
-    * schema.
-    */
+   marks: SimpleMap<MarkType>;
+   /** Type of the default top node (usually a "doc") for this schema */
    topNodeType: NodeType | undefined;
 
    /**
     * An object for storing whatever values modules may want to compute and
-    * cache per schema. (If you want to store something in it, try to use
-    * property names unlikely to clash.)
+    * cache per schema.
     */
-   cached: { [key: string]: any };
+   cached: SimpleMap<any>;
 
    /**
     * Construct a schema from a `SchemaSpec`.
@@ -83,21 +78,21 @@ export class Schema {
          this.spec.nodes = OrderedMap.from<NodeSpec>(spec.nodes);
          this.nodes = NodeType.compile(this.spec.nodes, this);
       } else {
-         this.nodes = {};
+         this.nodes = new Object(null) as SimpleMap<NodeType>;
       }
 
       if (spec.marks !== undefined) {
          this.spec.marks = OrderedMap.from<MarkSpec>(spec.marks);
          this.marks = MarkType.compile(this.spec.marks, this);
       } else {
-         this.marks = {};
+         this.marks = new Object(null) as SimpleMap<MarkType>;
       }
 
       /** Cache of matches keyed to expression */
-      const contentExprCache: { [key: string]: ContentMatch } = {};
+      const contentExprCache: SimpleMap<ContentMatch> = Object.create(null);
 
       for (let key in this.nodes) {
-         if (this.marks.hasOwnProperty(key)) {
+         if (key in this.marks) {
             throw new RangeError(key + ' can not be both a node and a mark');
          }
          const type: NodeType = this.nodes[key];

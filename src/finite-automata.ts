@@ -1,13 +1,16 @@
 import { ContentMatch } from './content';
 import { Expression, TokenType } from './token-stream';
+import { NodeType } from './node-type';
 
 // The code below helps compile a regular-expression-like language into a
 // deterministic finite automaton. For a good introduction to these concepts,
 // see https://swtch.com/~rsc/regexp/regexp1.html
 
-interface Edge {
-   term?: any;
-   to?: number | null;
+type Term = string | NodeType;
+
+export interface Edge {
+   term?: Term;
+   to?: number;
 }
 
 /**
@@ -25,6 +28,8 @@ type NFA = Edge[][];
  *
  * Note that unlike typical NFAs, the edge ordering in this one is significant,
  * in that it is used to contruct filler content when necessary.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/content.js#L270
  */
 export function nfa(expr: Expression): NFA {
    const nfa: NFA = [[]];
@@ -40,7 +45,7 @@ export function nfa(expr: Expression): NFA {
     * Create new edge with `to` and `term` values and add to NFA array at
     * `from` position.
     */
-   function edge(from: number, to?: number | null, term?: any): Edge {
+   function edge(from: number, to?: number, term?: Term): Edge {
       const edge: Edge = { term, to };
       nfa[from].push(edge);
       return edge;
@@ -49,7 +54,7 @@ export function nfa(expr: Expression): NFA {
    /**
     * Assign `to` number to each edge.
     */
-   function connect(edges: Edge[], to?: number | null): void {
+   function connect(edges: Edge[], to?: number): void {
       edges.forEach(edge => (edge.to = to));
    }
 
@@ -131,7 +136,7 @@ export function nfa(expr: Expression): NFA {
          }
          return [edge(cur)];
       } else if (expr.type == TokenType.Name) {
-         return [edge(from, null, expr.value)];
+         return [edge(from, undefined, expr.value)];
       }
       return [];
    }
@@ -140,11 +145,13 @@ export function nfa(expr: Expression): NFA {
 const cmp = (a: number, b: number) => a - b;
 
 /**
- * Get the set of nodes reachable by `null` edges from `node`. Omit nodes with
- * only a single null-out-edge, since they may lead to needless duplicated
- * nodes.
+ * Get the set of nodes reachable by `null` edges from `node` index. Omit
+ * nodes with only a single null-out-edge, since they may lead to needless
+ * duplicated nodes.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/content.js#L333
  */
-function nullFrom(nfa: NFA, node: number) {
+export function nullFrom(nfa: NFA, node: number): number[] {
    let result: number[] = [];
 
    scan(node);
@@ -154,14 +161,14 @@ function nullFrom(nfa: NFA, node: number) {
    function scan(node: number): void {
       const edges: Edge[] = nfa[node];
 
-      if (edges.length == 1 && !edges[0].term) {
+      if (edges.length == 1 && edges[0].term === undefined) {
          return scan(edges[0].to!);
       }
       result.push(node);
 
       for (let i = 0; i < edges.length; i++) {
          let { term, to } = edges[i];
-         if (!term && result.indexOf(to!) == -1) {
+         if (term === undefined && result.indexOf(to!) == -1) {
             scan(to!);
          }
       }
@@ -173,6 +180,8 @@ function nullFrom(nfa: NFA, node: number) {
  *
  * Compiles an NFA as produced by `nfa` into a DFA, modeled as a set of state
  * objects (`ContentMatch` instances) with transitions between them.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/content.js#L353
  */
 export function dfa(nfa: NFA): ContentMatch {
    const labeled = Object.create(null);
@@ -180,11 +189,11 @@ export function dfa(nfa: NFA): ContentMatch {
    return explore(nullFrom(nfa, 0));
 
    function explore(states: number[]) {
-      let out: any[] = [];
+      let out: any[] = []; // TODO: narrow type
 
       states.forEach(node => {
          nfa[node].forEach(({ term, to }) => {
-            if (!term) {
+            if (term === undefined) {
                return;
             }
             const known: number = out.indexOf(term);

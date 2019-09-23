@@ -12,6 +12,7 @@ import {
    computeAttrs,
    Attributes
 } from './attribute';
+import { SimpleMap } from './types';
 
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L404
@@ -20,7 +21,7 @@ export interface MarkSpec {
    /**
     * The attributes that marks of this type get.
     */
-   attrs?: { [key: string]: AttributeSpec<any> };
+   attrs?: SimpleMap<AttributeSpec<any>>;
 
    /**
     * Whether this mark should be active when the cursor is positioned at its

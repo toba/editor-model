@@ -5,31 +5,39 @@ import { MarkType } from '../mark-type';
 import { Attributes } from '../attribute';
 import { Mark } from '../mark';
 import { NodeType } from '../node-type';
+import { SimpleMap } from '../types';
 
+const noTags = Object.create(null);
+
+/**
+ * Specification to create a node or mark.
+ */
 export interface MockSpec {
    type: string;
    attrs?: Attributes;
    isMark?: boolean;
 }
 
-export type NodeMaker = (...args: any[]) => EditorNode;
-export type MarkMaker = (
-   ...args: any[]
-) => { flat: EditorNode[]; tags: MockTag };
+export type MockTag = SimpleMap<number>;
+
+export class MockNode extends EditorNode {
+   flat?: EditorNode[];
+   tag?: MockTag = noTags;
+}
+
+export interface MockMark {
+   flat: EditorNode[];
+   tag: MockTag;
+}
+
+export type MockChild = string | MockNode | MockMark;
+export type NodeMaker = (...args: MockChild[]) => MockNode;
+export type MarkMaker = (...args: MockChild[]) => MockMark;
 
 export interface Mocker {
    schema: Schema;
-   node: { [key: string]: NodeMaker };
-   mark: { [key: string]: MarkMaker };
-}
-
-type MockTag = { [key: string]: number };
-
-const noTags = Object.create(null);
-
-class MockNode extends EditorNode {
-   tag?: MockTag = noTags;
-   flat?: EditorNode[];
+   node: SimpleMap<NodeMaker>;
+   mark: SimpleMap<MarkMaker>;
 }
 
 /**
@@ -37,7 +45,7 @@ class MockNode extends EditorNode {
  */
 function flatten(
    schema: Schema,
-   children: (EditorNode | string)[],
+   children: MockChild[],
    fn: (n: EditorNode) => EditorNode = (n: EditorNode) => n
 ) {
    const result: EditorNode[] = [];
@@ -45,7 +53,7 @@ function flatten(
    let tags: MockTag = noTags;
 
    for (let i = 0; i < children.length; i++) {
-      let child: EditorNode | string = children[i];
+      let child: MockChild = children[i];
 
       if (!is.text(child)) {
          const node = child as MockNode;
@@ -56,7 +64,7 @@ function flatten(
             }
             for (let id in node.tag) {
                tags[id] =
-                  node.tag[id] + (node.flat || child.isText ? 0 : 1) + pos;
+                  node.tag[id] + (node.flat || node.isText ? 0 : 1) + pos;
             }
          }
          if (node.flat !== undefined) {
@@ -80,6 +88,7 @@ function flatten(
             out += child.slice(at, m.index);
             pos += m.index - at;
             at = m.index + m[0].length;
+
             if (tags == noTags) {
                tags = Object.create(null);
             }
@@ -87,6 +96,7 @@ function flatten(
          }
          out += child.slice(at);
          pos += child.length - at;
+
          if (out) {
             result.push(fn(schema.text(out)));
          }
@@ -94,8 +104,6 @@ function flatten(
    }
    return { nodes: result, tags };
 }
-
-const noop = <T>(x: T): T => x;
 
 // function takeAttrs(
 //    attrs: Attributes | undefined,
@@ -127,16 +135,15 @@ const noop = <T>(x: T): T => x;
 //    return result;
 // }
 
-// : (string, ?Object) → (...content: [union<string, Node>]) → Node
 /**
  * Create a builder function for nodes with content.
  *
- * @see
+ * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/build.js#L61
  */
 function nodeMaker(type: NodeType, attrs?: Attributes): NodeMaker {
-   const result = function(...args: (string | EditorNode)[]) {
+   const result = function(...children: MockChild[]) {
       //const myAttrs = takeAttrs(attrs, args);
-      const { nodes, tags } = flatten(type.schema, args);
+      const { nodes, tags } = flatten(type.schema, children);
       const node = type.create(attrs, nodes) as MockNode;
 
       if (tags !== noTags) {
@@ -154,14 +161,16 @@ function nodeMaker(type: NodeType, attrs?: Attributes): NodeMaker {
 
 /**
  * Create a builder function for marks.
+ *
+ * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/build.js#L73
  */
 const markMaker = (type: MarkType, attrs?: Attributes): MarkMaker =>
-   function(...args: (string | EditorNode)[]) {
+   function(...children: MockChild[]) {
       const mark: Mark = type.create(attrs); //takeAttrs(attrs, args));
-      const { nodes, tags } = flatten(type.schema, args, (n: EditorNode) =>
+      const { nodes, tags } = flatten(type.schema, children, (n: EditorNode) =>
          mark.type.isInSet(n.marks) ? n : n.mark(mark.addToSet(n.marks))
       );
-      return { flat: nodes, tags };
+      return { flat: nodes, tag: tags };
    };
 
 export function makeMockers(

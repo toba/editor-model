@@ -1,6 +1,6 @@
 import { Fragment } from './fragment';
 import { Slice } from './slice';
-import { ResolvedPos } from './resolved-pos';
+import { Position } from './position';
 import { EditorNode } from './node';
 import { TextNode } from './text-node';
 
@@ -22,7 +22,7 @@ export class ReplaceError extends Error {
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L121
  */
-export function replace(from: ResolvedPos, to: ResolvedPos, slice: Slice) {
+export function replace(from: Position, to: Position, slice: Slice) {
    if (slice.openStart > from.depth) {
       throw new ReplaceError('Inserted content deeper than insertion position');
    }
@@ -36,8 +36,8 @@ export function replace(from: ResolvedPos, to: ResolvedPos, slice: Slice) {
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L129
  */
 function replaceOuter(
-   from: ResolvedPos,
-   to: ResolvedPos,
+   from: Position,
+   to: Position,
    slice: Slice,
    depth: number
 ): EditorNode {
@@ -87,8 +87,8 @@ function checkJoin(main: EditorNode, sub: EditorNode): void {
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L150
  */
 function joinable(
-   before: ResolvedPos,
-   after: ResolvedPos,
+   before: Position,
+   after: Position,
    depth: number
 ): EditorNode {
    const node: EditorNode = before.node(depth);
@@ -118,8 +118,8 @@ function addNode(child: EditorNode | null, target: (EditorNode | TextNode)[]) {
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L164
  */
 function addRange(
-   start: ResolvedPos | null,
-   end: ResolvedPos | null,
+   start: Position | null,
+   end: Position | null,
    depth: number,
    target: EditorNode[]
 ) {
@@ -161,10 +161,10 @@ function close(node: EditorNode, content: Fragment): EditorNode {
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L187
  */
 function replaceThreeWay(
-   from: ResolvedPos,
-   start: ResolvedPos,
-   end: ResolvedPos,
-   to: ResolvedPos,
+   from: Position,
+   start: Position,
+   end: Position,
+   to: Position,
    depth: number
 ) {
    const openStart: false | EditorNode =
@@ -207,7 +207,7 @@ function replaceThreeWay(
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L207
  */
-function replaceTwoWay(from: ResolvedPos, to: ResolvedPos, depth: number) {
+function replaceTwoWay(from: Position, to: Position, depth: number) {
    const content: EditorNode[] = [];
 
    addRange(null, from, depth, content);
@@ -226,8 +226,8 @@ function replaceTwoWay(from: ResolvedPos, to: ResolvedPos, depth: number) {
  */
 function prepareSliceForReplace(
    slice: Slice,
-   along: ResolvedPos
-): { start: ResolvedPos; end: ResolvedPos } {
+   along: Position
+): { start: Position; end: Position } {
    const extra: number = along.depth - slice.openStart;
    const parent: EditorNode = along.node(extra);
    let node: EditorNode = parent.copy(slice.content);
