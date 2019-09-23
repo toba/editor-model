@@ -141,9 +141,12 @@ export class EditorNode {
     * Call the given callback for every descendant node. Doesn't descend into a
     * node when the callback returns `false`.
     */
-   descendants(fn: PerNodeCallback) {
+   forEachDescendant(fn: PerNodeCallback) {
       this.forEachNodeBetween(0, this.content.size, fn);
    }
+
+   // Maintain old name for ProseMirror compatibility
+   descendants = this.forEachDescendant;
 
    /**
     * Concatenates all the text nodes found in this fragment and its children.

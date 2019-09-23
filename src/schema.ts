@@ -9,6 +9,7 @@ import { MarkType, MarkSpec } from './mark-type';
 import { Attributes } from './attribute';
 import { Fragment } from './fragment';
 import { SimpleMap } from './types';
+import { forEach } from './list';
 
 /**
  * An object describing a schema.
@@ -19,15 +20,17 @@ export interface SchemaSpec {
    /**
     * The node types in this schema. Maps names to `NodeSpec` objects that
     * describe the node type associated with that name. Their order is
-    * significant — it determines which [parse rules](#model.NodeSpec.parseDOM)
+    * significant — it determines which
+    * [parse rules](http://prosemirror.net/docs/ref/#model.NodeSpec.parseDOM)
     * take precedence by default, and which nodes come first in a given
-    * [group](#model.NodeSpec.group).
+    * [group](http://prosemirror.net/docs/ref/#model.NodeSpec.group).
     */
    nodes?: SimpleMap<NodeSpec> | OrderedMap<NodeSpec>;
 
    /**
     * The mark types that exist in this schema. The order in which they are
-    * provided determines the order in which [mark sets](#model.Mark.addToSet)
+    * provided determines the order in which
+    * [mark sets](http://prosemirror.net/docs/ref/#model.Mark.addToSet)
     * are sorted and in which [parse rules](#model.MarkSpec.parseDOM) are tried.
     */
    marks?: SimpleMap<MarkSpec> | OrderedMap<MarkSpec>;
@@ -40,6 +43,16 @@ export interface SchemaSpec {
 }
 
 /**
+ * Each editor [document](http://prosemirror.net/docs/guide/#doc) has a schema
+ * associated with it. The schema describes the kind of
+ * [`EditorNode`s](http://prosemirror.net/docs/ref/#model.Node) that may occur
+ * in the document, and the way they are nested. For example, it might say that
+ * the top-level node can contain one or more blocks, and that paragraph nodes
+ * can contain any number of inline nodes, with any
+ * [marks](http://prosemirror.net/docs/ref/#model.Mark) applied to them.
+ *
+ * @see http://prosemirror.net/docs/guide/#schema
+ *
  * A document schema. Holds `NodeType` and `MarkType` objects for the nodes and
  * marks that may occur in conforming documents, and provides functionality for
  * creating and deserializing such documents.
@@ -211,7 +224,7 @@ export class Schema {
 function gatherMarks(schema: Schema, names: string[]): MarkType[] {
    const matches: MarkType[] = [];
 
-   names.forEach(name => {
+   forEach(names, name => {
       const mark = schema.marks[name];
       let found = mark !== undefined;
 

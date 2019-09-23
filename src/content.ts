@@ -1,9 +1,10 @@
 import { Fragment } from './fragment';
 import { EditorNode } from './node';
 import { NodeType } from './node-type';
-import { nfa, dfa } from './finite-automata';
+import { nfa, nfaToDFA } from './finite-automata';
 import { TokenStream, parseExpr, Expression } from './token-stream';
 import { SimpleMap } from './types';
+import { forEach, filterEach } from './list';
 
 interface NodeEdge {
    type: NodeType;
@@ -50,7 +51,7 @@ export class ContentMatch {
       if (stream.next !== undefined) {
          stream.err('Unexpected trailing text');
       }
-      const match: ContentMatch = dfa(nfa(expr));
+      const match: ContentMatch = nfaToDFA(nfa(expr));
 
       checkForDeadEnds(match, stream);
 
@@ -200,7 +201,7 @@ export class ContentMatch {
             return result.reverse();
          }
 
-         match.next.forEach(([type, m]) => {
+         forEach(match.next, ([type, m]) => {
             if (
                !type.isLeaf &&
                !type.hasRequiredAttrs() &&
@@ -245,10 +246,7 @@ export class ContentMatch {
 
       function scan(match: ContentMatch) {
          seen.push(match);
-         match.next
-            .map(([, m]) => m)
-            .filter(m => !seen.includes(m))
-            .forEach(scan);
+         filterEach(match.next.map(([, m]) => m), m => !seen.includes(m), scan);
       }
       scan(this);
 

@@ -1,5 +1,6 @@
 import { is } from '@toba/tools';
 import { SimpleMap } from './types';
+import { forEach } from './list';
 
 /**
  * Kinds of data that can be parsed by `OrderedMap`.
@@ -25,7 +26,7 @@ export class OrderedMap<T> {
          this.keys = [];
          this.values = [];
 
-         keys.forEach(key => {
+         forEach(keys, key => {
             const pair = key as [string, T];
             this.keys.push(pair[0]);
             this.values.push(pair[1]);
@@ -141,7 +142,7 @@ export class OrderedMap<T> {
     * Method invoked for each key/value pair in the map, in order.
     */
    forEach(fn: (key: string, value: T) => void) {
-      this.keys.forEach((key, i) => fn(key, this.values[i]));
+      forEach(this.keys, (key, i) => fn(key, this.values[i]));
    }
 
    /**
@@ -154,7 +155,7 @@ export class OrderedMap<T> {
    map<M>(fn: (key: string, value: T) => M, allowEmpty = true): SimpleMap<M> {
       const out = Object.create(null) as SimpleMap<M>;
 
-      this.keys.forEach((key, i) => {
+      forEach(this.keys, (key, i) => {
          const value: M = fn(key, this.values[i]);
          if (allowEmpty || is.value<M>(value)) {
             out[key] = value;

@@ -23,6 +23,7 @@ export interface Expression {
 export class TokenStream {
    string: string;
    nodeTypes: SimpleMap<NodeType>;
+   /** Input split on whitespace */
    tokens: string[];
    /** Position of current token */
    pos: number;
@@ -59,7 +60,7 @@ export class TokenStream {
    }
 }
 
-function parseExprSubscript(stream: TokenStream): Expression {
+export function parseExprSubscript(stream: TokenStream): Expression {
    let expr = parseExprAtom(stream);
    for (;;) {
       if (stream.eat('+')) {
@@ -77,7 +78,7 @@ function parseExprSubscript(stream: TokenStream): Expression {
    return expr;
 }
 
-function parseExprSeq(stream: TokenStream): Expression {
+export function parseExprSeq(stream: TokenStream): Expression {
    const exprs: Expression[] = [];
    do {
       exprs.push(parseExprSubscript(stream));
@@ -98,7 +99,7 @@ export function parseExpr(stream: TokenStream) {
    return exprs.length == 1 ? exprs[0] : { type: TokenType.Choice, exprs };
 }
 
-function parseNum(stream: TokenStream): number {
+export function parseNum(stream: TokenStream): number {
    const next = stream.next;
 
    if (next === undefined || /\D/.test(next)) {
@@ -111,7 +112,10 @@ function parseNum(stream: TokenStream): number {
    return result;
 }
 
-function parseExprRange(stream: TokenStream, expr?: Expression): Expression {
+export function parseExprRange(
+   stream: TokenStream,
+   expr?: Expression
+): Expression {
    const min = parseNum(stream);
    let max = min;
 
@@ -128,7 +132,7 @@ function parseExprRange(stream: TokenStream, expr?: Expression): Expression {
    return { type: TokenType.Range, min, max, expr };
 }
 
-function resolveName(stream: TokenStream, name: string): NodeType[] {
+export function resolveName(stream: TokenStream, name: string): NodeType[] {
    const types = stream.nodeTypes;
    let type: NodeType | undefined = types[name];
 
@@ -149,7 +153,7 @@ function resolveName(stream: TokenStream, name: string): NodeType[] {
    return result;
 }
 
-function parseExprAtom(stream: TokenStream): Expression {
+export function parseExprAtom(stream: TokenStream): Expression {
    if (stream.eat('(')) {
       const expr = parseExpr(stream);
 

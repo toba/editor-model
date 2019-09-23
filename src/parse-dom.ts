@@ -6,6 +6,7 @@ import { ContentMatch } from './content';
 import { EditorNode } from './node';
 import { Position } from './position';
 import { ParseContext, PreserveWhitespace } from './parse-context';
+import { forEach } from './list';
 
 export interface NodesToFind {
    node: Node;
@@ -229,7 +230,7 @@ export class DOMParser {
       this.tags = [];
       this.styles = [];
 
-      rules.forEach(rule => {
+      forEach(rules, rule => {
          if (rule.tag !== undefined) {
             this.tags.push(rule);
          } else if (rule.style !== undefined) {
@@ -329,7 +330,7 @@ export class DOMParser {
 
       function updateRule(fn: (rule: ParseRule) => void, rules?: ParseRule[]) {
          if (rules !== undefined) {
-            rules.forEach(r => {
+            forEach(rules, r => {
                insert((r = copy<ParseRule>(r)));
                fn(r);
             });

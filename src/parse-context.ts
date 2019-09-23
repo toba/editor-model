@@ -15,6 +15,7 @@ import { NodeType } from './node-type';
 import { MarkType } from './mark-type';
 import { AttributeMap, Attributes } from './attribute';
 import { Position } from './position';
+import { forEach, filterEach } from './list';
 
 export type PreserveWhitespace = boolean | 'full';
 
@@ -97,8 +98,7 @@ export class ParseContext {
       let topContext: NodeContext;
       /** Options bitmask */
       let topOptions =
-         wsOptionsFor(options.preserveSpace) |
-         (open ? Whitespace.OpenLeft : 0);
+         wsOptionsFor(options.preserveSpace) | (open ? Whitespace.OpenLeft : 0);
 
       if (topNode) {
          topContext = new NodeContext(
@@ -154,12 +154,12 @@ export class ParseContext {
             style !== null ? this.readStyles(parseStyles(style)) : null;
 
          if (marks !== null) {
-            marks.forEach(this.addPendingMark);
+            forEach(marks, this.addPendingMark);
          }
          this.addElement(el);
 
          if (marks !== null) {
-            marks.forEach(this.removePendingMark);
+            forEach(marks, this.removePendingMark);
          }
       }
    }
@@ -434,7 +434,7 @@ export class ParseContext {
          this.sync(syncTo);
       }
 
-      route.forEach(r => this.enterInner(r, undefined, false));
+      forEach(route, r => this.enterInner(r, undefined, false));
 
       return true;
    }
@@ -597,45 +597,48 @@ export class ParseContext {
       if (this.find === undefined) {
          return;
       }
-
-      this.find
-         .filter(f => f.node === parent && f.offset == offset)
-         .forEach(f => (f.pos = this.currentPos));
+      filterEach(
+         this.find,
+         f => f.node === parent && f.offset == offset,
+         f => {
+            f.pos = this.currentPos;
+         }
+      );
    }
 
    findInside(parent: Node) {
       if (this.find === undefined) {
          return;
       }
-
-      this.find
-         .filter(
-            f =>
-               f.pos === undefined &&
-               parent.nodeType == HtmlNodeType.Element &&
-               parent.contains(f.node)
-         )
-         .forEach(f => (f.pos = this.currentPos));
+      filterEach(
+         this.find,
+         f =>
+            f.pos === undefined &&
+            parent.nodeType == HtmlNodeType.Element &&
+            parent.contains(f.node),
+         f => {
+            f.pos = this.currentPos;
+         }
+      );
    }
 
    findAround(parent: Node, content: Element, before: boolean) {
       if (this.find === undefined || parent === content) {
          return;
       }
-
-      this.find
-         .filter(
-            f =>
-               f.pos === undefined &&
-               parent.nodeType == HtmlNodeType.Element &&
-               parent.contains(f.node)
-         )
-         .forEach(f => {
+      filterEach(
+         this.find,
+         f =>
+            f.pos === undefined &&
+            parent.nodeType == HtmlNodeType.Element &&
+            parent.contains(f.node),
+         f => {
             const pos = content.compareDocumentPosition(f.node);
             if (pos & (before ? 2 : 4)) {
                f.pos = this.currentPos;
             }
-         });
+         }
+      );
    }
 
    findInText(textNode: Node) {
@@ -646,9 +649,13 @@ export class ParseContext {
       const text = textNode.nodeValue;
       const textLength = text === null ? 0 : text.length;
 
-      this.find
-         .filter(f => f.node === textNode)
-         .forEach(f => (f.pos = this.currentPos - textLength - f.offset));
+      filterEach(
+         this.find,
+         f => f.node === textNode,
+         f => {
+            f.pos = this.currentPos - textLength - f.offset;
+         }
+      );
    }
 
    /**

@@ -19,6 +19,8 @@ import { Mark } from './mark';
 import { SimpleMap } from './types';
 
 /**
+ * Specifications for an `EditorNode`.
+ *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L319
  */
 export interface NodeSpec {
@@ -130,9 +132,8 @@ export interface NodeSpec {
 }
 
 /**
- * Node types are objects allocated once per `Schema` and used to
- * [tag](#model.Node.type) `Node` instances. They contain information about the
- * node type, such as its name and what kind of node it represents.
+ * Node types are objects allocated once per `Schema` used to described
+ * `EditorNode` instances.
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L46
  */
@@ -140,7 +141,7 @@ export class NodeType {
    name: string;
    /** Link back to the `Schema` the node type belongs to */
    schema: Schema;
-   /** Spec that this type is based on */
+   /** Specification this type is based on */
    spec: NodeSpec;
    attrs: AttributeMap;
    groups: string[];

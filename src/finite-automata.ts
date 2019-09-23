@@ -1,16 +1,17 @@
 import { ContentMatch } from './content';
 import { Expression, TokenType } from './token-stream';
 import { NodeType } from './node-type';
+import { SimpleMap } from './types';
+import { forEach } from './list';
 
 // The code below helps compile a regular-expression-like language into a
 // deterministic finite automaton. For a good introduction to these concepts,
 // see https://swtch.com/~rsc/regexp/regexp1.html
 
-type Term = string | NodeType;
-
 export interface Edge {
-   term?: Term;
-   to?: number;
+   term?: NodeType;
+   /** Index of `Edge` this one connects to (or `-1` if not connected) */
+   to: number;
 }
 
 /**
@@ -27,13 +28,14 @@ type NFA = Edge[][];
  * last node is the success state.
  *
  * Note that unlike typical NFAs, the edge ordering in this one is significant,
- * in that it is used to contruct filler content when necessary.
+ * in that it is used to construct filler content when necessary.
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/content.js#L270
  */
 export function nfa(expr: Expression): NFA {
    const nfa: NFA = [[]];
-   const node = () => nfa.push([]) - 1;
+   /** Add new `Edges` array tp `NFA` and return its index */
+   const node = (): number => nfa.push([]) - 1;
 
    connect(
       compile(expr, 0),
@@ -45,7 +47,7 @@ export function nfa(expr: Expression): NFA {
     * Create new edge with `to` and `term` values and add to NFA array at
     * `from` position.
     */
-   function edge(from: number, to?: number, term?: Term): Edge {
+   function edge(from: number, to = -1, term?: NodeType): Edge {
       const edge: Edge = { term, to };
       nfa[from].push(edge);
       return edge;
@@ -54,8 +56,10 @@ export function nfa(expr: Expression): NFA {
    /**
     * Assign `to` number to each edge.
     */
-   function connect(edges: Edge[], to?: number): void {
-      edges.forEach(edge => (edge.to = to));
+   function connect(edges: Edge[], to: number): void {
+      forEach(edges, edge => {
+         edge.to = to;
+      });
    }
 
    function compile(expr: Expression, from: number): Edge[] {
@@ -72,7 +76,8 @@ export function nfa(expr: Expression): NFA {
             return [];
          }
          for (let i = 0; ; i++) {
-            let next = compile(expr.exprs[i], from);
+            const next = compile(expr.exprs[i], from);
+
             if (i == expr.exprs.length - 1) {
                return next;
             }
@@ -85,7 +90,8 @@ export function nfa(expr: Expression): NFA {
          if (expr.expr === undefined) {
             return [];
          }
-         let loop = node();
+         const loop = node();
+
          edge(from, loop);
          connect(
             compile(expr.expr, loop),
@@ -96,7 +102,8 @@ export function nfa(expr: Expression): NFA {
          if (expr.expr === undefined) {
             return [];
          }
-         let loop = node();
+         const loop = node();
+
          connect(
             compile(expr.expr, from),
             loop
@@ -110,8 +117,10 @@ export function nfa(expr: Expression): NFA {
          return [edge(from)].concat(compile(expr.expr!, from));
       } else if (expr.type == TokenType.Range) {
          let cur = from;
+
          for (let i = 0; i < expr.min!; i++) {
-            let next = node();
+            const next = node();
+
             connect(
                compile(expr.expr!, cur),
                next
@@ -125,7 +134,8 @@ export function nfa(expr: Expression): NFA {
             );
          } else {
             for (let i = expr.min; i! < expr.max!; i!++) {
-               let next = node();
+               const next = node();
+
                edge(cur, next);
                connect(
                   compile(expr.expr!, cur),
@@ -142,7 +152,7 @@ export function nfa(expr: Expression): NFA {
    }
 }
 
-const cmp = (a: number, b: number) => a - b;
+const numberSort = (n1: number, n2: number) => n1 - n2;
 
 /**
  * Get the set of nodes reachable by `null` edges from `node` index. Omit
@@ -156,7 +166,7 @@ export function nullFrom(nfa: NFA, node: number): number[] {
 
    scan(node);
 
-   return result.sort(cmp);
+   return result.sort(numberSort);
 
    function scan(node: number): void {
       const edges: Edge[] = nfa[node];
@@ -166,14 +176,15 @@ export function nullFrom(nfa: NFA, node: number): number[] {
       }
       result.push(node);
 
-      for (let i = 0; i < edges.length; i++) {
-         let { term, to } = edges[i];
+      forEach(edges, ({ term, to }) => {
          if (term === undefined && result.indexOf(to!) == -1) {
             scan(to!);
          }
-      }
+      });
    }
 }
+
+type Thing = [NodeType, number[]];
 
 /**
  * Deterministic Finite Automota.
@@ -183,25 +194,26 @@ export function nullFrom(nfa: NFA, node: number): number[] {
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/content.js#L353
  */
-export function dfa(nfa: NFA): ContentMatch {
-   const labeled = Object.create(null);
+export function nfaToDFA(nfa: NFA): ContentMatch {
+   const labeled: SimpleMap<ContentMatch> = Object.create(null);
 
    return explore(nullFrom(nfa, 0));
 
-   function explore(states: number[]) {
-      let out: any[] = []; // TODO: narrow type
+   function explore(states: number[]): ContentMatch {
+      let out: Thing[] = []; // interleaved types and number arrays
 
-      states.forEach(node => {
-         nfa[node].forEach(({ term, to }) => {
+      forEach(states, node => {
+         forEach(nfa[node], ({ term, to }) => {
             if (term === undefined) {
                return;
             }
             const known: number = out.indexOf(term);
-            let set: number[] = known > -1 && out[known + 1];
+            let set: number[] | null = known > -1 ? out[known + 1] : null;
 
-            nullFrom(nfa, to!).forEach(node => {
-               if (!set) {
-                  out.push(term, (set = []));
+            forEach(nullFrom(nfa, to!), node => {
+               if (set === null) {
+                  set = [];
+                  out.push([term, set]);
                }
                if (set.indexOf(node) == -1) {
                   set.push(node);
@@ -209,13 +221,19 @@ export function dfa(nfa: NFA): ContentMatch {
             });
          });
       });
-      let state = (labeled[states.join(',')] = new ContentMatch(
-         states.indexOf(nfa.length - 1) > -1
-      ));
+
+      const state = new ContentMatch(states.indexOf(nfa.length - 1) > -1);
+
+      labeled[states.join(',')] = state;
 
       for (let i = 0; i < out.length; i += 2) {
-         let states = out[i + 1].sort(cmp);
-         state.next.push(out[i], labeled[states.join(',')] || explore(states));
+         const states = out[i + 1].sort(numberSort);
+         let match: ContentMatch = labeled[states.join[',']];
+
+         if (match === undefined) {
+            match = explore(states);
+         }
+         state.next.push([out[i], match]);
       }
       return state;
    }

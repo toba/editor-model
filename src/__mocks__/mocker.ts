@@ -6,6 +6,7 @@ import { Attributes } from '../attribute';
 import { Mark } from '../mark';
 import { NodeType } from '../node-type';
 import { SimpleMap } from '../types';
+import { forEach } from '../list';
 
 const noTags = Object.create(null);
 
@@ -69,7 +70,7 @@ function flatten(
          }
          if (node.flat !== undefined) {
             // send flat nodes through transform function then add to result
-            node.flat.map(fn).forEach(n => {
+            forEach(node.flat.map(fn), n => {
                pos += n.nodeSize;
                result.push(n);
             });
