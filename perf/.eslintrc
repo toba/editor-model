@@ -1,0 +1,11 @@
+{
+   "parserOptions": {
+      "project": null,
+      "sourceType": "script"
+   },
+   "rules": {
+      "no-plusplus": "off",
+      "prefer-destructuring": "off",
+      "eqeqeq": "off"
+   }
+}
