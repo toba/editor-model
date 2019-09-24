@@ -147,7 +147,7 @@ export class DOMSerializer {
                   continue;
                }
                if (
-                  !next.equals(active.item(keep)[0]) ||
+                  !next.equals(active.item(keep)![0]) ||
                   next.type.spec.spanning === false
                ) {
                   break;
