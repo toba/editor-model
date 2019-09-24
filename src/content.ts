@@ -4,7 +4,7 @@ import { NodeType } from './node-type';
 import { nfa, nfaToDFA } from './finite-automata';
 import { TokenStream, parseExpr, Expression } from './token-stream';
 import { SimpleMap } from './types';
-import { forEach, filterEach } from './list';
+import { forEach, filterEach, DuoList, makeDuoList } from './list';
 
 interface NodeEdge {
    type: NodeType;
@@ -28,16 +28,16 @@ interface ActiveMatch {
 export class ContentMatch {
    /** Whether this match state represents a valid end of the node */
    validEnd: boolean;
-   next: [NodeType, ContentMatch][];
-   wrapCache: [NodeType, NodeType[]][];
+   next: DuoList<NodeType, ContentMatch>;
+   wrapCache: DuoList<NodeType, NodeType[]>;
 
    /**
     * @param validEnd Whether match state represents a valid end of the node
     */
    constructor(validEnd: boolean) {
       this.validEnd = validEnd;
-      this.next = [];
-      this.wrapCache = [];
+      this.next = makeDuoList();
+      this.wrapCache = makeDuoList();
    }
 
    static parse(string: string, nodeTypes: SimpleMap<NodeType>): ContentMatch {
@@ -62,7 +62,7 @@ export class ContentMatch {
     * Match a node type, returning a match after that node if successful.
     */
    matchType(type: NodeType): ContentMatch | null {
-      const found = this.next.find(([t, m]) => t === type);
+      const found = this.next.find(t => t === type);
       return found === undefined ? null : found[1];
    }
 
@@ -83,7 +83,7 @@ export class ContentMatch {
    }
 
    get inlineContent(): boolean {
-      const first = this.next[0];
+      const first = this.next.item(0);
       return first !== undefined ? first[0].isInline : false;
    }
 
@@ -92,9 +92,7 @@ export class ContentMatch {
     * generated.
     */
    get defaultType(): NodeType | undefined {
-      const found = this.next.find(
-         ([t, _]) => !(t.isText || t.hasRequiredAttrs)
-      );
+      const found = this.next.find(t => !(t.isText || t.hasRequiredAttrs));
       return found !== undefined ? found[0] : found;
    }
 
@@ -102,9 +100,10 @@ export class ContentMatch {
       if (other === null) {
          return false;
       }
-      for (let i = 0; i < this.next.length; i++) {
-         for (let j = 0; j < other.next.length; j++) {
-            if (this.next[i][0] === other.next[j][0]) {
+      for (let i = 0; i < this.next.size(); i++) {
+         for (let j = 0; j < other.next.size(); j++) {
+            if (this.next.item(i)[0] === other.next.item(j)[0]) {
+               // same NodeType
                return true;
             }
          }
@@ -143,8 +142,8 @@ export class ContentMatch {
             return Fragment.from(nodes);
          }
 
-         for (let i = 0; i < searchMatch.next.length; i++) {
-            const [type, match] = searchMatch.next[i];
+         for (let i = 0; i < searchMatch.next.size(); i++) {
+            const [type, match] = searchMatch.next.item(i);
 
             if (
                !(type.isText || type.hasRequiredAttrs()) &&
@@ -168,8 +167,8 @@ export class ContentMatch {
     * directly) and will be null when no such wrapping exists.
     */
    findWrapping(target: NodeType): NodeType[] | null {
-      for (let i = 0; i < this.wrapCache.length; i++) {
-         const [type, wrapTypes] = this.wrapCache[i];
+      for (let i = 0; i < this.wrapCache.size(); i++) {
+         const [type, wrapTypes] = this.wrapCache.item(i);
 
          if (type === target) {
             return wrapTypes;
@@ -178,7 +177,7 @@ export class ContentMatch {
       const computed = this.computeWrapping(target);
 
       if (computed !== null) {
-         this.wrapCache.push([target, computed]);
+         this.wrapCache.push(target, computed);
       }
       return computed;
    }
@@ -201,7 +200,7 @@ export class ContentMatch {
             return result.reverse();
          }
 
-         forEach(match.next, ([type, m]) => {
+         match.next.each((type, m) => {
             if (
                !type.isLeaf &&
                !type.hasRequiredAttrs() &&
@@ -222,7 +221,7 @@ export class ContentMatch {
     * describes the content expression.
     */
    get edgeCount(): number {
-      return this.next.length >> 1;
+      return this.next.size() >> 1;
    }
 
    /**
@@ -232,10 +231,10 @@ export class ContentMatch {
    edge(n: number): NodeEdge {
       let i = n << 1;
 
-      if (i > this.next.length) {
+      if (i > this.next.size()) {
          throw new RangeError(`There's no ${n}th edge in this content match`);
       }
-      const [type, next] = this.next[i];
+      const [type, next] = this.next.item(i);
 
       return { type, next };
    }
@@ -246,17 +245,23 @@ export class ContentMatch {
 
       function scan(match: ContentMatch) {
          seen.push(match);
-         filterEach(match.next.map(([, m]) => m), m => !seen.includes(m), scan);
+         match.next.each((_, m) => {
+            if (!seen.includes(m)) {
+               scan(m);
+            }
+         });
       }
       scan(this);
 
       return seen
          .map((m, i) => {
             let out = i + (m.validEnd ? '*' : ' ') + ' ';
-            for (let i = 0; i < m.next.length; i++) {
-               const [type, match] = m.next[i];
+
+            m.next.each((_, m) => {
+               const [type, match] = m.next.item(i);
                out += (i ? ', ' : '') + type.name + '->' + seen.indexOf(match);
-            }
+            });
+
             return out;
          })
          .join('\n');
@@ -271,9 +276,7 @@ function checkForDeadEnds(rootMatch: ContentMatch, stream: TokenStream) {
       const types: string[] = [];
       let deadEnd: boolean = !state.validEnd;
 
-      for (let j = 0; j < state.next.length; j++) {
-         const [type, match] = state.next[j];
-
+      state.next.each((type, match) => {
          types.push(type.name);
 
          if (deadEnd && !(type.isText || type.hasRequiredAttrs())) {
@@ -282,7 +285,8 @@ function checkForDeadEnds(rootMatch: ContentMatch, stream: TokenStream) {
          if (work.indexOf(match) == -1) {
             work.push(match);
          }
-      }
+      });
+
       if (deadEnd)
          stream.err(
             'Only non-generatable nodes (' +

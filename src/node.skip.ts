@@ -1,5 +1,5 @@
 import '@toba/test';
-import { doc, p, em, blockquote } from './__mocks__/';
+import { doc, p, em, blockquote } from './__mocks__';
 
 const testDoc = doc(p('ab'), blockquote(p(em('cd'), 'ef')));
 

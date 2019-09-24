@@ -46,8 +46,8 @@ function insertInto(
    insert: Fragment,
    parent?: EditorNode
 ): Fragment | null {
-   let { index, offset } = content.findIndex(dist);
-   let child = content.maybeChild(index);
+   const { index, offset } = content.findIndex(dist);
+   const child = content.maybeChild(index);
 
    if (offset == dist || (child !== undefined && child.isText)) {
       if (parent && !parent.canReplace(index, index, insert)) {
@@ -121,10 +121,13 @@ export class Slice {
    /**
     * Tests whether this slice is equal to another slice.
     */
-   eq = (other: Slice): boolean =>
+   equals = (other: Slice): boolean =>
       this.content.equals(other.content) &&
       this.openStart == other.openStart &&
       this.openEnd == other.openEnd;
+
+   // Maintain old name for ProseMirror compatibility
+   eq = this.equals;
 
    toString = () =>
       this.content + '(' + this.openStart + ',' + this.openEnd + ')';

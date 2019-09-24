@@ -2,5 +2,6 @@ import '@toba/test';
 import { TokenStream } from './token-stream';
 
 it('works', () => {
-   const tokens = new TokenStream('block+');
+   //const tokens = new TokenStream('block+');
+   expect(TokenStream).toBeDefined();
 });

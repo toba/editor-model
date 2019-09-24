@@ -1,4 +1,4 @@
-import { is, ValueType } from '@toba/tools';
+import { is } from '@toba/tools';
 import { EditorNode } from './node';
 import { Mark } from './mark';
 import { Fragment as EditorFragment } from './fragment';
@@ -8,6 +8,7 @@ import { NodeType } from './node-type';
 import { TextNode } from './text-node';
 import { Attributes } from './attribute';
 import { SimpleMap } from './types';
+import { DuoList, makeDuoList } from './list';
 
 /**
  * An array describing a DOM element. The first value in the array should be a
@@ -127,18 +128,18 @@ export class DOMSerializer {
       }
       let top: Node = target;
       /** Active marks and their DOM rendering */
-      let active: [Mark, Node][] | null = null;
+      let active: DuoList<Mark, Node> | null = null;
 
       fragment.forEachChild(child => {
          if (active !== null || child.marks.length > 0) {
             if (active === null) {
-               active = [];
+               active = makeDuoList<Mark, Node>();
             }
             let keep = 0;
             /** Count of already rendered marks */
             let rendered = 0;
 
-            while (keep < active.length && rendered < child.marks.length) {
+            while (keep < active.size() && rendered < child.marks.length) {
                const next: Mark = child.marks[rendered];
 
                if (this.marks[next.type.name] === null) {
@@ -146,7 +147,7 @@ export class DOMSerializer {
                   continue;
                }
                if (
-                  !next.equals(active[keep][0]) ||
+                  !next.equals(active.item(keep)[0]) ||
                   next.type.spec.spanning === false
                ) {
                   break;
@@ -155,7 +156,7 @@ export class DOMSerializer {
                rendered++;
             }
 
-            while (keep < active.length) {
+            while (keep < active.size()) {
                const [_, n] = active.pop()!;
                top = n;
             }
@@ -167,7 +168,7 @@ export class DOMSerializer {
                const markDOM = this.serializeMark(add, child.isInline, options);
 
                if (markDOM !== null) {
-                  active.push([add, top]);
+                  active.push(add, top);
                   top.appendChild(markDOM.node);
                   top = markDOM.contentNode || markDOM.node;
                }

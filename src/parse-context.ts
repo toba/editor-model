@@ -13,7 +13,7 @@ import {
 import { TextNode } from './text-node';
 import { NodeType } from './node-type';
 import { MarkType } from './mark-type';
-import { AttributeMap, Attributes } from './attribute';
+import { Attributes } from './attribute';
 import { Position } from './position';
 import { forEach, filterEach } from './list';
 

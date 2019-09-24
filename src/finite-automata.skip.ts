@@ -5,10 +5,10 @@ import { Expression, TokenType } from './token-stream';
 import { nullFrom } from './finite-automata';
 import { NodeType } from './node-type';
 
-const basicSchema = new Schema({
-   nodes: basic.spec.nodes,
-   marks: basic.spec.marks
-});
+// const basicSchema = new Schema({
+//    nodes: basic.spec.nodes,
+//    marks: basic.spec.marks
+// });
 
 // const expr: Expression = {
 //    type: TokenType.Plus,
@@ -25,5 +25,5 @@ const basicSchema = new Schema({
 
 it('does a thing', () => {
    expect(nullFrom).toBeDefined();
-   expect(basicSchema).toBeDefined();
+   // expect(basicSchema).toBeDefined();
 });

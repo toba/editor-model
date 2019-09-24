@@ -2,7 +2,7 @@ import { ContentMatch } from './content';
 import { Expression, TokenType } from './token-stream';
 import { NodeType } from './node-type';
 import { SimpleMap } from './types';
-import { forEach } from './list';
+import { forEach, DuoList, makeDuoList } from './list';
 
 // The code below helps compile a regular-expression-like language into a
 // deterministic finite automaton. For a good introduction to these concepts,
@@ -200,20 +200,20 @@ export function nfaToDFA(nfa: NFA): ContentMatch {
    return explore(nullFrom(nfa, 0));
 
    function explore(states: number[]): ContentMatch {
-      let out: Thing[] = []; // interleaved types and number arrays
+      const out = makeDuoList<NodeType, number[]>();
 
       forEach(states, node => {
-         forEach(nfa[node], ({ term, to }) => {
+         forEach(nfa[node], ({ term, to }: Edge) => {
             if (term === undefined) {
                return;
             }
             const known: number = out.indexOf(term);
-            let set: number[] | null = known > -1 ? out[known + 1] : null;
+            let set: number[] | null = known > -1 ? out.item(known)[1] : null;
 
             forEach(nullFrom(nfa, to!), node => {
                if (set === null) {
                   set = [];
-                  out.push([term, set]);
+                  out.push(term, set);
                }
                if (set.indexOf(node) == -1) {
                   set.push(node);
@@ -226,14 +226,14 @@ export function nfaToDFA(nfa: NFA): ContentMatch {
 
       labeled[states.join(',')] = state;
 
-      for (let i = 0; i < out.length; i += 2) {
-         const states = out[i + 1].sort(numberSort);
-         let match: ContentMatch = labeled[states.join[',']];
+      for (let i = 0; i < out.size(); i++) {
+         const states: number[] = out.item(i)[1].sort(numberSort);
+         let match: ContentMatch = labeled[states.join(',')];
 
          if (match === undefined) {
             match = explore(states);
          }
-         state.next.push([out[i], match]);
+         state.next.push(out.item(i)[0], match);
       }
       return state;
    }

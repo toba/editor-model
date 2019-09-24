@@ -1,9 +1,10 @@
 import { Mark } from './mark';
 import { EditorNode } from './node';
 import { NodeRange } from './node-range';
+import { TrioList, makeTrioList } from './list';
 
 /** Node, index and offset */
-type PathItem = [EditorNode, number, number];
+//type PathItem = [EditorNode, number, number];
 
 const cache: Position[] = [];
 let cacheIndex = 0;
@@ -23,7 +24,9 @@ let cacheSize = 12;
 export class Position {
    /** Position that was resolved */
    pos: number;
-   path: PathItem[];
+   //path: PathItem[];
+   /** `EditorNode`, index and offset */
+   path: TrioList<EditorNode, number, number>;
    /**
     * The number of levels the parent node is from the root. If this position
     * points directly into the root node, it is 0. If it points into a top-level
@@ -33,10 +36,14 @@ export class Position {
    /** Offset this position has into its parent node */
    parentOffset: number;
 
-   constructor(pos: number, path: PathItem[], parentOffset: number) {
+   constructor(
+      pos: number,
+      path: TrioList<EditorNode, number, number>,
+      parentOffset: number
+   ) {
       this.pos = pos;
       this.path = path;
-      this.depth = path.length;
+      this.depth = path.size();
       this.parentOffset = parentOffset;
    }
 
@@ -67,14 +74,15 @@ export class Position {
     * The ancestor node at the given level. `p.node(p.depth)` is the same as
     * `p.parent`.
     */
-   node = (depth: number = 0): EditorNode => this.path[depth][0];
+   node = (depth: number = 0): EditorNode => this.path.item(depth)[0];
 
    /**
     * The index into the ancestor at the given level. If this points at the 3rd
     * node in the 2nd paragraph on the top level, for example, `p.index(0)` is 2
     * and `p.index(1)` is 3.
     */
-   index = (depth?: number): number => this.path[this.resolveDepth(depth)][1];
+   index = (depth?: number): number =>
+      this.path.item(this.resolveDepth(depth))[1];
 
    /**
     * The index pointing after this position into the ancestor at the given
@@ -92,7 +100,7 @@ export class Position {
     */
    start(depth?: number): number {
       depth = this.resolveDepth(depth);
-      return depth == 0 ? 0 : this.path[depth][1] + 1;
+      return depth == 0 ? 0 : this.path.item(depth)[1] + 1;
    }
 
    /**
@@ -112,7 +120,7 @@ export class Position {
       if (!depth) {
          throw new RangeError('There is no position before the top-level node');
       }
-      return depth == this.depth + 1 ? this.pos : this.path[depth][1];
+      return depth == this.depth + 1 ? this.pos : this.path.item(depth)[1];
    }
 
    /**
@@ -126,7 +134,7 @@ export class Position {
       }
       return depth == this.depth + 1
          ? this.pos
-         : this.path[depth - 1][2] + this.path[depth][0].nodeSize;
+         : this.path.item(depth - 1)[2] + this.path.item(depth)[0].nodeSize;
    }
 
    /**
@@ -135,7 +143,7 @@ export class Position {
     * positions that point between nodes.
     */
    get textOffset(): number {
-      return this.pos - this.path[this.path.length][2];
+      return this.pos - this.path.item(this.path.size())[2];
    }
 
    /**
@@ -150,7 +158,7 @@ export class Position {
       if (index == parent.childCount) {
          return null;
       }
-      const dOff = this.pos - this.path[this.path.length - 1][2];
+      const dOff = this.pos - this.path.lastItem()[2];
       const child = parent.child(index);
 
       return dOff ? parent.child(index).cut(dOff) : child;
@@ -163,7 +171,7 @@ export class Position {
     */
    get nodeBefore(): EditorNode | null {
       let index = this.index(this.depth);
-      let dOff = this.pos - this.path[this.path.length - 1][2];
+      let dOff = this.pos - this.path.lastItem()[2];
 
       if (dOff) {
          return this.parent.child(index).cut(0, dOff);
@@ -317,7 +325,7 @@ export class Position {
       if (!(pos >= 0 && pos <= doc.content.size)) {
          throw new RangeError('Position ' + pos + ' out of range');
       }
-      const path: PathItem[] = [];
+      const path: TrioList<EditorNode, number, number> = makeTrioList();
       let start = 0;
       let parentOffset = pos;
 
@@ -325,7 +333,7 @@ export class Position {
          const { index, offset } = node.content.findIndex(parentOffset);
          let remaining: number = parentOffset - offset;
 
-         path.push([node, index, start + offset]);
+         path.push(node, index, start + offset);
 
          if (!remaining) {
             break;
