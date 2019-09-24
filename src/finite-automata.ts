@@ -208,7 +208,7 @@ export function nfaToDFA(nfa: NFA): ContentMatch {
                return;
             }
             const known: number = out.indexOf(term);
-            let set: number[] | null = known > -1 ? out.item(known)[1] : null;
+            let set: number[] | null = known > -1 ? out.item(known)![1] : null;
 
             forEach(nullFrom(nfa, to!), node => {
                if (set === null) {
@@ -227,13 +227,13 @@ export function nfaToDFA(nfa: NFA): ContentMatch {
       labeled[states.join(',')] = state;
 
       for (let i = 0; i < out.size(); i++) {
-         const states: number[] = out.item(i)[1].sort(numberSort);
+         const states: number[] = out.item(i)![1].sort(numberSort);
          let match: ContentMatch = labeled[states.join(',')];
 
          if (match === undefined) {
             match = explore(states);
          }
-         state.next.push(out.item(i)[0], match);
+         state.next.push(out.item(i)![0], match);
       }
       return state;
    }

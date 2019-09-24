@@ -30,161 +30,138 @@ export function filterEach<T>(
    });
 }
 
-/**
- * Utility methods for treating an array of alternating types as a simple array.
- */
-const duo = {
-   size: 2,
-
-   each<T, U>(list: (T | U)[], fn: DuoCallback<T, U, void>) {
-      const length = list.length;
-      for (let i = 0; i < length; i += this.size) {
-         fn(list[i] as T, list[i + 1] as U, i / this.size);
-      }
-   },
-
-   find<T, U>(
-      list: (T | U)[],
-      fn: DuoCallback<T, U, boolean>
-   ): [T, U] | undefined {
-      const length = list.length;
-      for (let i = 0; i < length; i += this.size) {
-         const t = list[i] as T;
-         const u = list[i + 1] as U;
-
-         if (fn(t, u, i / this.size)) {
-            return [t, u];
-         }
-      }
-   },
-
-   pop<T, U>(list: (T | U)[]): [T, U] {
-      const u = list.pop() as U;
-      const t = list.pop() as T;
-      return [t, u];
-   },
-
-   push<T, U>(list: (T | U)[], t: T, u: U): number {
-      list.push(t);
-      const length = list.push(u);
-      return length / this.size;
-   },
-
-   item<T, U>(list: (T | U)[], i: number): [T, U] {
-      i *= this.size;
-      return [list[i] as T, list[i + 1] as U];
-   },
-
-   lastItem<T, U>(list: (T | U)[]): [T, U] {
-      const i = list.length / this.size;
-      return this.item<T, U>(list, i);
-   },
-
-   indexOf<T, U>(list: (T | U)[], t?: T, u?: U): number {
-      if (t !== undefined) {
-         const index = list.indexOf(t);
-         if (index !== -1) {
-            return index / this.size;
-         }
-      }
-      if (u !== undefined) {
-         const index = list.indexOf(u);
-         if (index !== -1) {
-            return (index - 1) / this.size;
-         }
-      }
-      return -1;
+function trioEach<T, U, V>(
+   a: T[],
+   b: U[],
+   c: V[],
+   fn: TrioCallback<T, U, V, void>
+) {
+   const length = a.length;
+   for (let i = 0; i < length; i++) {
+      fn(a[i], b[i], c[i], i);
    }
-};
+}
 
-/**
- * Utility methods for treating an array of three types as a simple array.
- */
-const trio = {
-   size: 3,
-
-   each<T, U, V>(list: (T | U | V)[], fn: TrioCallback<T, U, V, void>) {
-      const length = list.length;
-      for (let i = 0; i < length; i += this.size) {
-         fn(list[i] as T, list[i + 1] as U, list[i + 2] as V, i / this.size);
-      }
-   },
-
-   find<T, U, V>(
-      list: (T | U | V)[],
-      fn: TrioCallback<T, U, V, boolean>
-   ): [T, U, V] | undefined {
-      const length = list.length;
-      for (let i = 0; i < length; i += this.size) {
-         const t = list[i] as T;
-         const u = list[i + 1] as U;
-         const v = list[i + 2] as V;
-
-         if (fn(t, u, v, i / this.size)) {
-            return [t, u, v];
-         }
-      }
-   },
-
-   pop<T, U, V>(list: (T | U | V)[]): [T, U, V] {
-      const v = list.pop() as V;
-      const u = list.pop() as U;
-      const t = list.pop() as T;
-      return [t, u, v];
-   },
-
-   push<T, U, V>(list: (T | U | V)[], t: T, u: U, v: V): number {
-      list.push(t);
-      list.push(u);
-      const length = list.push(v);
-      return length / this.size;
-   },
-
-   item<T, U, V>(list: (T | U | V)[], i: number): [T, U, V] {
-      i *= this.size;
-      return [list[i] as T, list[i + 1] as U, list[i + 2] as V];
-   },
-
-   lastItem<T, U, V>(list: (T | U | V)[]): [T, U, V] {
-      const i = list.length / this.size;
-      return this.item<T, U, V>(list, i);
-   },
-
-   indexOf<T, U, V>(list: (T | U | V)[], t?: T, u?: U, v?: V): number {
-      if (t !== undefined) {
-         const index = list.indexOf(t);
-         if (index !== -1) {
-            return index / this.size;
-         }
-      }
-      if (u !== undefined) {
-         const index = list.indexOf(u);
-         if (index !== -1) {
-            return (index - 1) / this.size;
-         }
-      }
-      if (v !== undefined) {
-         const index = list.indexOf(v);
-         if (index !== -1) {
-            return (index - 2) / this.size;
-         }
-      }
-      return -1;
+function duoEach<T, U>(a: T[], b: U[], fn: DuoCallback<T, U, void>) {
+   const length = a.length;
+   for (let i = 0; i < length; i++) {
+      fn(a[i], b[i], i);
    }
-};
+}
+
+function duoFind<T, U>(
+   a: T[],
+   b: U[],
+   fn: DuoCallback<T, U, boolean>
+): [T, U] | undefined {
+   const length = a.length;
+
+   for (let i = 0; i < length; i++) {
+      const t = a[i];
+      const u = b[i];
+
+      if (fn(t, u, i)) {
+         return [t, u];
+      }
+   }
+}
+
+function trioFind<T, U, V>(
+   a: T[],
+   b: U[],
+   c: V[],
+   fn: TrioCallback<T, U, V, boolean>
+): [T, U, V] | undefined {
+   const length = a.length;
+
+   for (let i = 0; i < length; i++) {
+      const t = a[i];
+      const u = b[i];
+      const v = c[i];
+
+      if (fn(t, u, v, i)) {
+         return [t, u, v];
+      }
+   }
+}
+
+const duoPop = <T, U>(a: T[], b: U[]): [T, U] | undefined =>
+   a.length === 0 ? undefined : [a.pop()!, b.pop()!];
+
+const trioPop = <T, U, V>(a: T[], b: U[], c: V[]): [T, U, V] | undefined =>
+   a.length == 0 ? undefined : [a.pop()!, b.pop()!, c.pop()!];
+
+function duoPush<T, U>(a: T[], b: U[], t: T, u: U): number {
+   a.push(t);
+   return b.push(u);
+}
+
+function trioPush<T, U, V>(a: T[], b: U[], c: V[], t: T, u: U, v: V): number {
+   a.push(t);
+   b.push(u);
+   return c.push(v);
+}
+
+const duoItem = <T, U>(a: T[], b: U[], i: number): [T, U] | undefined =>
+   a.length <= i ? undefined : [a[i], b[i]];
+
+const trioItem = <T, U, V>(
+   a: T[],
+   b: U[],
+   c: V[],
+   i: number
+): [T, U, V] | undefined => (a.length <= i ? undefined : [a[i], b[i], c[i]]);
+
+const duoLastItem = <T, U>(a: T[], b: U[]) => duoItem(a, b, a.length - 1);
+
+const trioLastItem = <T, U, V>(a: T[], b: U[], c: V[]) =>
+   trioItem(a, b, c, a.length - 1);
+
+function trioIndexOf<T, U, V>(
+   a: T[],
+   b: U[],
+   c: V[],
+   t?: T,
+   u?: U,
+   v?: V
+): number {
+   let index = -1;
+
+   if (t !== undefined && (index = a.indexOf(t)) >= 0) {
+      return index;
+   }
+   if (u !== undefined && (index = b.indexOf(u)) >= 0) {
+      return index;
+   }
+   if (v !== undefined && (index = c.indexOf(v)) >= 0) {
+      return index;
+   }
+   return index;
+}
+
+function duoIndexOf<T, U>(a: T[], b: U[], t?: T, u?: U): number {
+   let index = -1;
+
+   if (t !== undefined && (index = a.indexOf(t)) >= 0) {
+      return index;
+   }
+   if (u !== undefined && (index = b.indexOf(u)) >= 0) {
+      return index;
+   }
+   return index;
+}
 
 interface TupleList<G> {
    size: () => number;
-   item: (index: number) => G;
-   pop: () => G;
-   lastItem: () => G;
+   item: (index: number) => G | undefined;
+   pop: () => G | undefined;
+   lastItem: () => G | undefined;
 }
 
 /**
  * Alternating list of two item types stored internally as a flat array.
  */
 export interface DuoList<T, U> extends TupleList<[T, U]> {
-   list: (T | U)[];
    each: (fn: DuoCallback<T, U, void>) => void;
    find: (fn: DuoCallback<T, U, boolean>) => [T, U] | undefined;
    push: (t: T, u: U) => number;
@@ -195,49 +172,54 @@ export interface DuoList<T, U> extends TupleList<[T, U]> {
  * Alternating list of three item types stored internally as a flat array.
  */
 export interface TrioList<T, U, V> extends TupleList<[T, U, V]> {
-   list: (T | U | V)[];
    each: (fn: TrioCallback<T, U, V, void>) => void;
    find: (fn: TrioCallback<T, U, V, boolean>) => [T, U, V] | undefined;
    push: (t: T, u: U, v: V) => number;
    indexOf: (t?: T, u?: U, v?: V) => number;
 }
 
-export function makeDuoList<T, U>(list: (T | U)[] = []): DuoList<T, U> {
-   if (list.length % 2 !== 0) {
-      throw new RangeError(
-         `Invalid array length: ${list.length} — must be 0 or a multiple of 2`
-      );
-   }
+export function makeDuoList<T, U>(...list: [T, U][]): DuoList<T, U> {
+   const length = list.length;
+   const a: T[] = new Array(length);
+   const b: U[] = new Array(length);
+
+   forEach(list, (item, i) => {
+      a[i] = item[0];
+      b[i] = item[1];
+   });
+
    return {
-      list,
-      each: (fn: DuoCallback<T, U, void>) => duo.each(list, fn),
-      find: (fn: DuoCallback<T, U, boolean>) => duo.find(list, fn),
-      pop: () => duo.pop<T, U>(list),
-      push: (t: T, u: U) => duo.push(list, t, u),
-      item: (i: number) => duo.item<T, U>(list, i),
-      lastItem: () => duo.lastItem<T, U>(list),
-      size: () => list.length / 2,
-      indexOf: (t?: T, u?: U) => duo.indexOf(list, t, u)
+      each: (fn: DuoCallback<T, U, void>) => duoEach(a, b, fn),
+      find: (fn: DuoCallback<T, U, boolean>) => duoFind(a, b, fn),
+      pop: () => duoPop<T, U>(a, b),
+      push: (t: T, u: U) => duoPush(a, b, t, u),
+      item: (i: number) => duoItem<T, U>(a, b, i),
+      lastItem: () => duoLastItem<T, U>(a, b),
+      size: () => a.length,
+      indexOf: (t?: T, u?: U) => duoIndexOf(a, b, t, u)
    };
 }
 
-export function makeTrioList<T, U, V>(
-   list: (T | U | V)[] = []
-): TrioList<T, U, V> {
-   if (list.length % 3 !== 0) {
-      throw new RangeError(
-         `Invalid array length: ${list.length} — must be 0 or a multiple of 3`
-      );
-   }
+export function makeTrioList<T, U, V>(...list: [T, U, V][]): TrioList<T, U, V> {
+   const length = list.length;
+   const a: T[] = new Array(length);
+   const b: U[] = new Array(length);
+   const c: V[] = new Array(length);
+
+   forEach(list, (item, i) => {
+      a[i] = item[0];
+      b[i] = item[1];
+      c[i] = item[2];
+   });
+
    return {
-      list,
-      each: (fn: TrioCallback<T, U, V, void>) => trio.each(list, fn),
-      find: (fn: TrioCallback<T, U, V, boolean>) => trio.find(list, fn),
-      pop: () => trio.pop<T, U, V>(list),
-      push: (t: T, u: U, v: V) => trio.push(list, t, u, v),
-      item: (i: number) => trio.item<T, U, V>(list, i),
-      lastItem: () => trio.lastItem<T, U, V>(list),
-      size: () => list.length / 3,
-      indexOf: (t?: T, u?: U, v?: V) => trio.indexOf(list, t, u, v)
+      each: (fn: TrioCallback<T, U, V, void>) => trioEach(a, b, c, fn),
+      find: (fn: TrioCallback<T, U, V, boolean>) => trioFind(a, b, c, fn),
+      pop: () => trioPop<T, U, V>(a, b, c),
+      push: (t: T, u: U, v: V) => trioPush(a, b, c, t, u, v),
+      item: (i: number) => trioItem<T, U, V>(a, b, c, i),
+      lastItem: () => trioLastItem<T, U, V>(a, b, c),
+      size: () => a.length,
+      indexOf: (t?: T, u?: U, v?: V) => trioIndexOf(a, b, c, t, u, v)
    };
 }

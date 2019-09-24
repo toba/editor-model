@@ -2,20 +2,14 @@ import '@toba/test';
 import { makeDuoList, makeTrioList } from './list';
 
 const sampleDuo = () =>
-   makeDuoList<string, number>(['one', 1, 'two', 2, 'three', 3]);
+   makeDuoList<string, number>(['one', 1], ['two', 2], ['three', 3]);
 
 const sampleTrio = (d: Date) =>
-   makeTrioList<string, number, Date>([
-      'one',
-      1,
-      d,
-      'two',
-      2,
-      d,
-      'three',
-      3,
-      d
-   ]);
+   makeTrioList<string, number, Date>(
+      ['one', 1, d],
+      ['two', 2, d],
+      ['three', 3, d]
+   );
 
 it('makes duo', () => {
    const duo = sampleDuo();
@@ -33,10 +27,11 @@ it('allows items to be added to a duo', () => {
 
 it('allows items to be popped from a duo', () => {
    const duo = sampleDuo();
-   const [a, b] = duo.pop();
+   const pair = duo.pop();
 
-   expect(a).toBe('three');
-   expect(b).toBe(3);
+   expect(pair).toBeDefined();
+   expect(pair![0]).toBe('three');
+   expect(pair![1]).toBe(3);
    expect(duo.size()).toBe(2);
 });
 
@@ -73,12 +68,12 @@ it('allows items to be added to a trio', () => {
 it('allows items to be popped from a trio', () => {
    const now = new Date();
    const trio = sampleTrio(now);
+   const triple = trio.pop();
 
-   const [a, b, c] = trio.pop();
-
-   expect(a).toBe('three');
-   expect(b).toBe(3);
-   expect(c).toBe(now);
+   expect(triple).toBeDefined();
+   expect(triple![0]).toBe('three');
+   expect(triple![1]).toBe(3);
+   expect(triple![2]).toBe(now);
 });
 
 it('returns index for any trio member', () => {

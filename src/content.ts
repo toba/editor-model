@@ -102,7 +102,7 @@ export class ContentMatch {
       }
       for (let i = 0; i < this.next.size(); i++) {
          for (let j = 0; j < other.next.size(); j++) {
-            if (this.next.item(i)[0] === other.next.item(j)[0]) {
+            if (this.next.item(i)![0] === other.next.item(j)![0]) {
                // same NodeType
                return true;
             }
@@ -143,7 +143,7 @@ export class ContentMatch {
          }
 
          for (let i = 0; i < searchMatch.next.size(); i++) {
-            const [type, match] = searchMatch.next.item(i);
+            const [type, match] = searchMatch.next.item(i)!;
 
             if (
                !(type.isText || type.hasRequiredAttrs()) &&
@@ -168,7 +168,7 @@ export class ContentMatch {
     */
    findWrapping(target: NodeType): NodeType[] | null {
       for (let i = 0; i < this.wrapCache.size(); i++) {
-         const [type, wrapTypes] = this.wrapCache.item(i);
+         const [type, wrapTypes] = this.wrapCache.item(i)!;
 
          if (type === target) {
             return wrapTypes;
@@ -234,7 +234,7 @@ export class ContentMatch {
       if (i > this.next.size()) {
          throw new RangeError(`There's no ${n}th edge in this content match`);
       }
-      const [type, next] = this.next.item(i);
+      const [type, next] = this.next.item(i)!;
 
       return { type, next };
    }
@@ -257,8 +257,7 @@ export class ContentMatch {
          .map((m, i) => {
             let out = i + (m.validEnd ? '*' : ' ') + ' ';
 
-            m.next.each((_, m) => {
-               const [type, match] = m.next.item(i);
+            m.next.each((type, match) => {
                out += (i ? ', ' : '') + type.name + '->' + seen.indexOf(match);
             });
 

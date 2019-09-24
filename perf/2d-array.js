@@ -11,13 +11,16 @@ const pending = new Array(size * 2);
 
 let i = 0;
 
+const getItem = (list, index) => [list[index * 2], list[index * 2 + 1]];
+const pushItem = (list, a, b) => {
+   list.push(a);
+   return list.push(b);
+};
+
 function duo(list) {
    return {
-      item: index => [list[index * 2], list[index * 2 + 1]],
-      push: (a, b) => {
-         list.push(a);
-         return list.push(b);
-      }
+      item: index => getItem(list, index),
+      push: (a, b) => pushItem(list, a, b)
    };
 }
 
