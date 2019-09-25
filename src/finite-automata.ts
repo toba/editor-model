@@ -152,6 +152,9 @@ export function nfa(expr: Expression): NFA {
    }
 }
 
+/**
+ * Needed because default array sort is alphabetical.
+ */
 const numberSort = (n1: number, n2: number) => n1 - n2;
 
 /**

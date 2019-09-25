@@ -60,29 +60,32 @@ export class Position {
     * parent—text nodes are ‘flat’ in this model, and have no content.
     */
    get parent(): EditorNode {
-      return this.node(this.depth);
+      return this.node(this.depth)!;
    }
 
    /**
     * The root node in which the position was resolved.
     */
    get doc(): EditorNode {
-      return this.node(0);
+      return this.node(0)!;
    }
 
    /**
     * The ancestor node at the given level. `p.node(p.depth)` is the same as
     * `p.parent`.
     */
-   node = (depth: number = 0): EditorNode => this.path.item(depth)[0];
+   node = (depth: number = 0): EditorNode | undefined =>
+      this.path.size() > depth ? this.path.item(depth)![0] : undefined;
 
    /**
     * The index into the ancestor at the given level. If this points at the 3rd
     * node in the 2nd paragraph on the top level, for example, `p.index(0)` is 2
     * and `p.index(1)` is 3.
     */
-   index = (depth?: number): number =>
-      this.path.item(this.resolveDepth(depth))[1];
+   index = (depth?: number): number => {
+      const d = this.resolveDepth(depth);
+      return this.path.size() > d ? this.path.item(d)![1] : -1;
+   };
 
    /**
     * The index pointing after this position into the ancestor at the given
@@ -99,16 +102,17 @@ export class Position {
     * The (absolute) position at the start of the node at the given level.
     */
    start(depth?: number): number {
-      depth = this.resolveDepth(depth);
-      return depth == 0 ? 0 : this.path.item(depth)[1] + 1;
+      const d = this.resolveDepth(depth);
+      return d == 0 || d > this.path.size() ? 0 : this.path.item(d)![1] + 1;
    }
 
    /**
     * The (absolute) position at the end of the node at the given level.
     */
    end(depth?: number): number {
-      depth = this.resolveDepth(depth);
-      return this.start(depth) + this.node(depth).content.size;
+      const d = this.resolveDepth(depth);
+      const node = this.node(d); // TODO: this check doesn't exist in ProseMirror
+      return this.start(d) + (node === undefined ? 0 : node.content.size);
    }
 
    /**
@@ -116,11 +120,11 @@ export class Position {
     * level, or, when `depth` is `this.depth + 1`, the original position.
     */
    before(depth?: number): number {
-      depth = this.resolveDepth(depth);
-      if (!depth) {
+      const d = this.resolveDepth(depth);
+      if (d == 0 || d > this.path.size()) {
          throw new RangeError('There is no position before the top-level node');
       }
-      return depth == this.depth + 1 ? this.pos : this.path.item(depth)[1];
+      return d == this.depth + 1 ? this.pos : this.path.item(d)![1];
    }
 
    /**
@@ -128,13 +132,13 @@ export class Position {
     * level, or the original position when `depth` is `this.depth + 1`.
     */
    after(depth?: number): number {
-      depth = this.resolveDepth(depth);
-      if (!depth) {
+      const d = this.resolveDepth(depth);
+      if (d == 0 || d > this.path.size()) {
          throw new RangeError('There is no position after the top-level node');
       }
-      return depth == this.depth + 1
+      return d == this.depth + 1
          ? this.pos
-         : this.path.item(depth - 1)[2] + this.path.item(depth)[0].nodeSize;
+         : this.path.item(d - 1)![2] + this.path.item(d)![0].nodeSize;
    }
 
    /**
@@ -143,7 +147,11 @@ export class Position {
     * positions that point between nodes.
     */
    get textOffset(): number {
-      return this.pos - this.path.item(this.path.size())[2];
+      const pathEnd = this.path.lastItem();
+      if (pathEnd === undefined) {
+         throw Error('Cannot compute text offset for undefined path');
+      }
+      return this.pos - pathEnd[2];
    }
 
    /**
@@ -158,7 +166,12 @@ export class Position {
       if (index == parent.childCount) {
          return null;
       }
-      const dOff = this.pos - this.path.lastItem()[2];
+      const pathEnd = this.path.lastItem();
+
+      if (pathEnd === undefined) {
+         throw Error('Cannot compute next node for undefined path');
+      }
+      const dOff = this.pos - pathEnd[2];
       const child = parent.child(index);
 
       return dOff ? parent.child(index).cut(dOff) : child;
@@ -170,10 +183,15 @@ export class Position {
     * returned.
     */
    get nodeBefore(): EditorNode | null {
-      let index = this.index(this.depth);
-      let dOff = this.pos - this.path.lastItem()[2];
+      const index = this.index(this.depth);
+      const pathEnd = this.path.lastItem();
 
-      if (dOff) {
+      if (pathEnd === undefined) {
+         throw Error('Cannot compute previous node for undefined path');
+      }
+      let dOff = this.pos - pathEnd[2];
+
+      if (dOff != 0) {
          return this.parent.child(index).cut(0, dOff);
       }
       return index == 0 ? null : this.parent.child(index - 1);
@@ -276,7 +294,7 @@ export class Position {
     */
    blockRange(
       other: Position = this,
-      pred?: (node: EditorNode) => boolean
+      pred?: (node: EditorNode | undefined) => boolean
    ): NodeRange | null {
       if (other.pos < this.pos) {
          return other.blockRange(this);
@@ -288,7 +306,10 @@ export class Position {
          d >= 0;
          d--
       ) {
-         if (other.pos <= this.end(d) && (!pred || pred(this.node(d)))) {
+         if (
+            other.pos <= this.end(d) &&
+            (pred === undefined || pred(this.node(d)))
+         ) {
             return new NodeRange(this, other, d);
          }
       }
@@ -315,8 +336,10 @@ export class Position {
       let str = '';
 
       for (let i = 1; i <= this.depth; i++) {
-         str +=
-            (str ? '/' : '') + this.node(i).type.name + '_' + this.index(i - 1);
+         const n = this.node(i);
+         if (n !== undefined) {
+            str += (str ? '/' : '') + n.type.name + '_' + this.index(i - 1);
+         }
       }
       return str + ':' + this.parentOffset;
    }
