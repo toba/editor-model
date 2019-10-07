@@ -1,9 +1,13 @@
+/** Method to call for each item in an array */
 export type ArrayCallback<T, R> = (item: T, index: number) => R;
+/** Method to call for both items in equal length array pairs */
 export type DuoCallback<T, U, R> = (t: T, u: U, i: number) => R;
+/** Method to call for all three items in three equal length arrays */
 export type TrioCallback<T, U, V, R> = (t: T, u: U, v: V, i: number) => R;
 
 /**
- * More than twice as fast as built-in array `forEach`.
+ * Execute method for each item in an array (more than twice as fast as
+ * built-in array `forEach`).
  *
  * @see https://jsperf.com/toba-array
  */
@@ -117,6 +121,10 @@ const duoLastItem = <T, U>(a: T[], b: U[]) => duoItem(a, b, a.length - 1);
 const trioLastItem = <T, U, V>(a: T[], b: U[], c: V[]) =>
    trioItem(a, b, c, a.length - 1);
 
+/**
+ * Get the first index that matches _one_ (all do not need to match) of the
+ * given values.
+ */
 function trioIndexOf<T, U, V>(
    a: T[],
    b: U[],
@@ -159,7 +167,8 @@ interface TupleList<G> {
 }
 
 /**
- * Alternating list of two item types stored internally as a flat array.
+ * Alternating list of two item types stored internally as two equal length
+ * arrays.
  */
 export interface DuoList<T, U> extends TupleList<[T, U]> {
    each: (fn: DuoCallback<T, U, void>) => void;
@@ -169,7 +178,8 @@ export interface DuoList<T, U> extends TupleList<[T, U]> {
 }
 
 /**
- * Alternating list of three item types stored internally as a flat array.
+ * Alternating list of three item types stored internally as three equal length
+ * arrays.
  */
 export interface TrioList<T, U, V> extends TupleList<[T, U, V]> {
    each: (fn: TrioCallback<T, U, V, void>) => void;

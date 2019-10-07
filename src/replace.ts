@@ -55,7 +55,7 @@ function replaceOuter(
       from.depth == depth &&
       to.depth == depth
    ) {
-      // Simple, flat case
+      // simple flat case
       const parent = from.parent;
       const content = parent.content;
 
@@ -93,8 +93,7 @@ function joinable(
 ): EditorNode {
    const node: EditorNode = before.node(depth);
    checkJoin(node, after.node(depth));
-   return node;
-   //return true;
+   return node!;
 }
 
 /**
@@ -230,6 +229,7 @@ function prepareSliceForReplace(
 ): { start: Position; end: Position } {
    const extra: number = along.depth - slice.openStart;
    const parent: EditorNode = along.node(extra);
+
    let node: EditorNode = parent.copy(slice.content);
 
    for (let i = extra - 1; i >= 0; i--) {

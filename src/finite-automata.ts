@@ -2,7 +2,7 @@ import { ContentMatch } from './content';
 import { Expression, TokenType } from './token-stream';
 import { NodeType } from './node-type';
 import { SimpleMap } from './types';
-import { forEach, DuoList, makeDuoList } from './list';
+import { forEach, makeDuoList } from './list';
 
 // The code below helps compile a regular-expression-like language into a
 // deterministic finite automaton. For a good introduction to these concepts,

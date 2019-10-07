@@ -60,22 +60,27 @@ export class Position {
     * parent—text nodes are ‘flat’ in this model, and have no content.
     */
    get parent(): EditorNode {
-      return this.node(this.depth)!;
+      return this.node(this.depth);
    }
 
    /**
     * The root node in which the position was resolved.
     */
    get doc(): EditorNode {
-      return this.node(0)!;
+      return this.node(0);
    }
 
    /**
     * The ancestor node at the given level. `p.node(p.depth)` is the same as
     * `p.parent`.
     */
-   node = (depth: number = 0): EditorNode | undefined =>
-      this.path.size() > depth ? this.path.item(depth)![0] : undefined;
+   node = (depth: number = this.depth): EditorNode => {
+      const d = this.resolveDepth(depth);
+      if (d < 0 || d > this.path.size()) {
+         throw new RangeError(`Depth ${d} is invalid`);
+      }
+      return this.path.item(d)![0];
+   };
 
    /**
     * The index into the ancestor at the given level. If this points at the 3rd

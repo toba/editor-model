@@ -18,10 +18,9 @@ interface ActiveMatch {
 }
 
 /**
- * Instances of this class represent a match state of a node type's
- * [content expression](#model.NodeSpec.content), and can be used to find out
- * whether further content matches here, and whether a given position is a valid
- * end of the node.
+ * Represent a match state of a node type's [content expression](#model.NodeSpec.content),
+ * and can be used to find out whether further content matches here, and whether a given
+ * position is a valid end of the node.
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/content.js
  */
@@ -76,7 +75,7 @@ export class ContentMatch {
    ): ContentMatch | null {
       let match: ContentMatch | null = this;
 
-      for (let i = start; match && i < end; i++) {
+      for (let i = start; match !== null && i < end; i++) {
          match = match.matchType(frag.child(i).type);
       }
       return match;

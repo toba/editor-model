@@ -252,8 +252,12 @@ export class EditorNode {
       const fromPos: Position = this.resolve(from);
       const toPos: Position = this.resolve(to);
       const depth: number = includeParents ? 0 : fromPos.sharedDepth(to);
+      const node: EditorNode | undefined = fromPos.node(depth);
+
+      if (node == undefined) {
+         return Slice.empty;
+      }
       const start: number = fromPos.start(depth);
-      const node: EditorNode = fromPos.node(depth);
       const content = node.content.cut(fromPos.pos - start, toPos.pos - start);
 
       return new Slice(content, fromPos.depth - depth, toPos.depth - depth);
