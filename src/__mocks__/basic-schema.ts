@@ -5,54 +5,74 @@ import { NodeSpec } from '../node-type';
 import { MarkSpec } from '../mark-type';
 import { SimpleMap } from '../types';
 
-const el: SimpleMap<ElementSpec> = {
-   p: ['p', 0],
+// https://github.com/ProseMirror/prosemirror-schema-basic/blob/master/src/schema-basic.js
+
+export const enum SchemaType {
+   Document = 'doc',
+   Paragraph = 'paragraph',
+   BlockQuote = 'blockquote',
+   Line = 'horizontal_rule',
+   Heading = 'heading',
+   CodeBlock = 'code_block',
+   Text = 'text',
+   Image = 'image',
+   Break = 'hard_break',
+   Link = 'link',
+   Emphasis = 'em',
+   Strong = 'strong',
+   Code = 'code'
+}
+
+export const typeSequence = (...types: SchemaType[]): string => types.join(' ');
+
+const elSpec: SimpleMap<ElementSpec> = {
+   paragraph: ['p', 0],
    blockquote: ['blockquote', 0],
-   hr: ['hr'],
+   line: ['hr'],
    pre: ['pre', ['code', 0]],
-   br: ['br'],
-   em: ['em', 0],
+   break: ['br'],
+   emphasis: ['em', 0],
    strong: ['strong', 0],
    code: ['code', 0]
 };
 
 export const nodes: SimpleMap<NodeSpec> = {
    /** Top level document node. */
-   doc: {
+   [SchemaType.Document]: {
       content: 'block+'
    },
 
    /**
     * A plain paragraph textblock. Represented in the DOM as a `<p>` element.
     */
-   paragraph: {
+   [SchemaType.Paragraph]: {
       content: 'inline*',
       group: 'block',
       parseDOM: [{ tag: 'p' }],
-      toDOM: () => el.p
+      toDOM: () => elSpec.paragraph
    },
 
    /** A blockquote (`<blockquote>`) wrapping one or more blocks. */
-   blockquote: {
+   [SchemaType.BlockQuote]: {
       content: 'block+',
       group: 'block',
       defining: true,
       parseDOM: [{ tag: 'blockquote' }],
-      toDOM: () => el.blockquote
+      toDOM: () => elSpec.blockquote
    },
 
    /** A horizontal rule (`<hr>`). */
-   horizontal_rule: {
+   [SchemaType.Line]: {
       group: 'block',
       parseDOM: [{ tag: 'hr' }],
-      toDOM: () => el.hr
+      toDOM: () => elSpec.line
    },
 
    /**
     * A heading textblock, with a `level` attribute that should hold the number
     * 1 to 6. Parsed and serialized as `<h1>` to `<h6>` elements.
     */
-   heading: {
+   [SchemaType.Heading]: {
       attrs: { level: { default: 1 } },
       content: 'inline*',
       group: 'block',
@@ -72,18 +92,18 @@ export const nodes: SimpleMap<NodeSpec> = {
     * A code listing. Disallows marks or non-text inline nodes by default.
     * Represented as a `<pre>` element with a `<code>` element inside of it.
     */
-   code_block: {
+   [SchemaType.CodeBlock]: {
       content: 'text*',
       marks: '',
       group: 'block',
       code: true,
       defining: true,
       parseDOM: [{ tag: 'pre', preserveWhitespace: 'full' }],
-      toDOM: () => el.pre
+      toDOM: () => elSpec.pre
    },
 
    /** The text node */
-   text: {
+   [SchemaType.Text]: {
       group: 'inline'
    },
 
@@ -91,7 +111,7 @@ export const nodes: SimpleMap<NodeSpec> = {
     * An inline image (`<img>`) node. Supports `src`, `alt`, and `href`
     * attributes. The latter two default to the empty string.
     */
-   image: {
+   [SchemaType.Image]: {
       inline: true,
       attrs: {
          src: {},
@@ -120,12 +140,12 @@ export const nodes: SimpleMap<NodeSpec> = {
    },
 
    /** A hard line break, represented in the DOM as `<br>`. */
-   hard_break: {
+   [SchemaType.Break]: {
       inline: true,
       group: 'inline',
       selectable: false,
       parseDOM: [{ tag: 'br' }],
-      toDOM: () => el.brDOM
+      toDOM: () => elSpec.break
    }
 };
 
@@ -134,7 +154,7 @@ export const marks: SimpleMap<MarkSpec> = {
     * A link. Has `href` and `title` attributes. `title` defaults to the empty
     * string. Rendered and parsed as an `<a>` element.
     */
-   link: {
+   [SchemaType.Link]: {
       attrs: {
          href: {},
          title: { default: null }
@@ -162,16 +182,16 @@ export const marks: SimpleMap<MarkSpec> = {
     * An emphasis mark. Rendered as an `<em>` element. Has parse rules that also
     * match `<i>` and `font-style: italic`.
     */
-   em: {
+   [SchemaType.Emphasis]: {
       parseDOM: [{ tag: 'i' }, { tag: 'em' }, { style: 'font-style=italic' }],
-      toDOM: () => el.em
+      toDOM: () => elSpec.emphasis
    },
 
    /**
     * A strong mark. Rendered as `<strong>`, parse rules also match `<b>` and
     * `font-weight: bold`.
     */
-   strong: {
+   [SchemaType.Strong]: {
       parseDOM: [
          { tag: 'strong' },
          // This works around a Google Docs misbehavior where
@@ -193,14 +213,14 @@ export const marks: SimpleMap<MarkSpec> = {
          }
       ],
       toDOM() {
-         return el.strong;
+         return elSpec.strong;
       }
    },
 
    /** Code font mark. Represented as a `<code>` element. */
-   code: {
+   [SchemaType.Code]: {
       parseDOM: [{ tag: 'code' }],
-      toDOM: () => el.code
+      toDOM: () => elSpec.code
    }
 };
 

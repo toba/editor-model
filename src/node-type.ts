@@ -172,21 +172,21 @@ export class NodeType {
    }
 
    /**
-    * True if this is an inline type.
+    * `true` if this is an inline type.
     */
    get isInline(): boolean {
       return !this.isBlock;
    }
 
    /**
-    * True if this is a textblock type, a block that contains inline content.
+    * `true` if this is a textblock type, a block that contains inline content.
     */
    get isTextblock(): boolean {
       return this.isBlock && this.inlineContent === true;
    }
 
    /**
-    * True for node types that allow no content.
+    * `true` for node types that allow no content.
     */
    get isLeaf(): boolean {
       return this.contentMatch === ContentMatch.empty;

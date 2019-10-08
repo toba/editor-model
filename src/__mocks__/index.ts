@@ -1,4 +1,4 @@
-import { basicSchema as basic } from './basic-schema';
+import { basicSchema as basic, SchemaType } from './basic-schema';
 //import { addListNodes } from 'prosemirror-schema-list';
 import { Schema } from '../schema';
 import { makeMockers } from './mocker';
@@ -12,18 +12,18 @@ const testSchema = new Schema({
  * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/index.js
  */
 export const mock = makeMockers(testSchema, {
-   p: { type: 'paragraph' },
-   pre: { type: 'code_block' },
-   h1: { type: 'heading', attrs: { level: 1 } },
-   h2: { type: 'heading', attrs: { level: 2 } },
-   h3: { type: 'heading', attrs: { level: 3 } },
+   p: { type: SchemaType.Paragraph },
+   pre: { type: SchemaType.CodeBlock },
+   h1: { type: SchemaType.Heading, attrs: { level: 1 } },
+   h2: { type: SchemaType.Heading, attrs: { level: 2 } },
+   h3: { type: SchemaType.Heading, attrs: { level: 3 } },
    //li: { type: 'list_item' },
    //ul: { type: 'bullet_list' },
    //ol: { type: 'ordered_list' },
-   br: { type: 'hard_break' },
-   img: { type: 'image', attrs: { src: 'img.png' } },
-   hr: { type: 'horizontal_rule' },
-   a: { type: 'link', isMark: true, attrs: { href: 'foo' } }
+   br: { type: SchemaType.Break },
+   img: { type: SchemaType.Image, attrs: { src: 'img.png' } },
+   hr: { type: SchemaType.Line },
+   a: { type: SchemaType.Link, isMark: true, attrs: { href: 'foo' } }
 });
 
 // from basic schema
@@ -40,7 +40,7 @@ export const h3 = mock.node['h3'];
 export const br = mock.node['br'];
 export const img = mock.node['img'];
 export const hr = mock.node['hr'];
-export const a = mock.node['a'];
+export const a = mock.mark['a'];
 export const em = mock.mark['em'];
 
 // from list schema

@@ -7,6 +7,7 @@ import { Mark } from '../mark';
 import { NodeType } from '../node-type';
 import { SimpleMap } from '../types';
 import { forEach } from '../list';
+import { SchemaType } from './basic-schema';
 
 const noTags = Object.create(null);
 
@@ -14,8 +15,9 @@ const noTags = Object.create(null);
  * Specification to create a node or mark.
  */
 export interface MockSpec {
-   type: string;
+   type: SchemaType;
    attrs?: Attributes;
+   /** Whether spec is for a `Mark` rather than an `EditorNode` */
    isMark?: boolean;
 }
 
@@ -27,13 +29,20 @@ export class MockNode extends EditorNode {
 }
 
 export interface MockMark {
-   flat: EditorNode[];
-   tag: MockTag;
+   flat?: EditorNode[];
+   tag?: MockTag;
 }
 
 export type MockChild = string | MockNode | MockMark;
-export type NodeMaker = (...args: MockChild[]) => MockNode;
 export type MarkMaker = (...args: MockChild[]) => MockMark;
+/**
+ * A `NodeMaker` may pose directly as a `MockNode` with `flat` values when it
+ * is for a leaf Node that cant't have children.
+ */
+export interface NodeMaker {
+   (...args: MockChild[]): MockNode;
+   flat?: EditorNode[];
+}
 
 export interface Mocker {
    schema: Schema;
@@ -106,35 +115,39 @@ function flatten(
    return { nodes: result, tags };
 }
 
-// function takeAttrs(
-//    attrs: Attributes | undefined,
-//    ...args: (EditorNode | string)[]
-// ) {
-//    let a0 = args[0];
-//    if (
-//       !args.length ||
-//       (a0 && (typeof a0 == 'string' || a0 instanceof EditorNode || a0.flat))
-//    ) {
-//       return attrs;
-//    }
-//    args.shift();
+function takeAttrs(
+   attrs: Attributes | undefined,
+   args: (MockChild | Attributes)[]
+): Attributes | undefined {
+   const arg1 = args[0];
 
-//    if (!attrs) {
-//       return a0;
-//    }
-//    if (!a0) {
-//       return attrs;
-//    }
-//    let result: any = {};
+   if (
+      args.length == 0 ||
+      (arg1 !== undefined &&
+         (is.text(arg1) || arg1 instanceof MockNode || arg1.flat !== undefined))
+   ) {
+      // arg1 is string, MockMark or MockNode
+      return attrs;
+   }
+   // if still here then arg1 is Attributes
+   args.shift();
 
-//    for (let prop in attrs) {
-//       result[prop] = attrs[prop];
-//    }
-//    for (let prop in a0) {
-//       result[prop] = a0[prop];
-//    }
-//    return result;
-// }
+   if (attrs === undefined) {
+      return arg1 as Attributes;
+   }
+   if (arg1 === undefined) {
+      return attrs;
+   }
+   let result: Attributes = {};
+
+   for (let prop in attrs) {
+      result[prop] = attrs[prop];
+   }
+   for (let prop in arg1 as Attributes) {
+      result[prop] = (arg1 as Attributes)[prop];
+   }
+   return result;
+}
 
 /**
  * Create a builder function for nodes with content.
@@ -143,18 +156,21 @@ function flatten(
  */
 function nodeMaker(type: NodeType, attrs?: Attributes): NodeMaker {
    const result = function(...children: MockChild[]) {
-      //const myAttrs = takeAttrs(attrs, args);
+      const allAttrs = takeAttrs(attrs, children);
       const { nodes, tags } = flatten(type.schema, children);
-      const node = type.create(attrs, nodes) as MockNode;
+      const node = type.create(allAttrs, nodes) as MockNode;
 
       if (tags !== noTags) {
          node.tag = tags;
       }
       return node;
    };
+
    if (type.isLeaf) {
+      // NodeMaker may be used directly as a MockNode since it can have no
+      // children
       try {
-         (result as any).flat = [type.create(attrs)];
+         result.flat = [type.create(attrs)];
       } catch (_) {}
    }
    return result;
@@ -167,13 +183,17 @@ function nodeMaker(type: NodeType, attrs?: Attributes): NodeMaker {
  */
 const markMaker = (type: MarkType, attrs?: Attributes): MarkMaker =>
    function(...children: MockChild[]) {
-      const mark: Mark = type.create(attrs); //takeAttrs(attrs, args));
+      const mark: Mark = type.create(takeAttrs(attrs, children));
       const { nodes, tags } = flatten(type.schema, children, (n: EditorNode) =>
          mark.type.isInSet(n.marks) ? n : n.mark(mark.addToSet(n.marks))
       );
       return { flat: nodes, tag: tags };
    };
 
+/**
+ * If `specs` are supplied having the same name as `schema` members, the
+ * `schema` members will be replaced.
+ */
 export function makeMockers(
    schema: Schema,
    specs?: { [tag: string]: MockSpec }

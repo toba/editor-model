@@ -4,7 +4,7 @@ import { NodeType } from './node-type';
 import { nfa, nfaToDFA } from './finite-automata';
 import { TokenStream, parseExpr, Expression } from './token-stream';
 import { SimpleMap } from './types';
-import { forEach, filterEach, DuoList, makeDuoList } from './list';
+import { DuoList, makeDuoList } from './list';
 
 interface NodeEdge {
    type: NodeType;
@@ -39,8 +39,11 @@ export class ContentMatch {
       this.wrapCache = makeDuoList();
    }
 
-   static parse(string: string, nodeTypes: SimpleMap<NodeType>): ContentMatch {
-      const stream = new TokenStream(string, nodeTypes);
+   /**
+    * @param pattern Regular Expression-type pattern
+    */
+   static parse(pattern: string, nodeTypes: SimpleMap<NodeType>): ContentMatch {
+      const stream = new TokenStream(pattern, nodeTypes);
 
       if (stream.next === undefined) {
          return ContentMatch.empty;
@@ -60,9 +63,9 @@ export class ContentMatch {
    /**
     * Match a node type, returning a match after that node if successful.
     */
-   matchType(type: NodeType): ContentMatch | null {
+   matchType(type: NodeType): ContentMatch | undefined {
       const found = this.next.find(t => t === type);
-      return found === undefined ? null : found[1];
+      return found === undefined ? found : found[1];
    }
 
    /**
@@ -72,10 +75,10 @@ export class ContentMatch {
       frag: Fragment,
       start = 0,
       end = frag.childCount
-   ): ContentMatch | null {
-      let match: ContentMatch | null = this;
+   ): ContentMatch | undefined {
+      let match: ContentMatch | undefined = this;
 
-      for (let i = start; match !== null && i < end; i++) {
+      for (let i = start; match !== undefined && i < end; i++) {
          match = match.matchType(frag.child(i).type);
       }
       return match;
@@ -129,11 +132,11 @@ export class ContentMatch {
          searchMatch: ContentMatch,
          types: NodeType[]
       ): Fragment | undefined {
-         let finished: ContentMatch | null = searchMatch.matchFragment(
+         let finished: ContentMatch | undefined = searchMatch.matchFragment(
             after,
             startIndex
          );
-         if (finished !== null && (!toEnd || finished.validEnd)) {
+         if (finished !== undefined && (!toEnd || finished.validEnd)) {
             const nodes = types
                .map(t => t.createAndFill())
                .filter(n => n !== null) as EditorNode[];

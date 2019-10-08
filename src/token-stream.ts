@@ -21,7 +21,8 @@ export interface Expression {
 }
 
 export class TokenStream {
-   string: string;
+   /** Regular Expression-like pattern */
+   pattern: string;
    nodeTypes: SimpleMap<NodeType>;
    /** Input split on whitespace */
    tokens: string[];
@@ -29,12 +30,15 @@ export class TokenStream {
    pos: number;
    inline: boolean | null;
 
-   constructor(string: string, nodeTypes: SimpleMap<NodeType>) {
-      this.string = string;
+   /**
+    * @param pattern Regular Expression-like pattern
+    */
+   constructor(pattern: string, nodeTypes: SimpleMap<NodeType>) {
+      this.pattern = pattern;
       this.nodeTypes = nodeTypes;
       this.inline = null;
       this.pos = 0;
-      this.tokens = string.split(/\s*(?=\b|\W|$)/);
+      this.tokens = pattern.split(/\s*(?=\b|\W|$)/);
 
       // remove empty strings from start and end
 
@@ -55,7 +59,7 @@ export class TokenStream {
 
    err(str: string): never {
       throw new SyntaxError(
-         str + " (in content expression '" + this.string + "')"
+         str + " (in content expression '" + this.pattern + "')"
       );
    }
 }
