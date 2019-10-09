@@ -8,7 +8,7 @@ import { replace } from './replace';
 import { Position } from './position';
 import { compareDeep } from './compare-deep';
 import { MarkType } from './mark-type';
-import { ContentMatch } from './content';
+import { ContentMatch } from './match';
 import { Schema } from './schema';
 import { TextNode } from './text-node';
 
@@ -450,9 +450,10 @@ export class EditorNode {
          start,
          end
       );
-      const two = one === null ? null : one.matchFragment(this.content, to);
+      const two =
+         one === undefined ? undefined : one.matchFragment(this.content, to);
 
-      if (two === null || !two.validEnd) {
+      if (two === undefined || !two.validEnd) {
          return false;
       }
       for (let i = start; i < end; i++) {
@@ -477,9 +478,12 @@ export class EditorNode {
          return false;
       }
       const start = this.contentMatchAt(from).matchType(type);
-      const end = start === null ? null : start.matchFragment(this.content, to);
+      const end =
+         start === undefined
+            ? undefined
+            : start.matchFragment(this.content, to);
 
-      return end !== null ? end.validEnd : false;
+      return end !== undefined ? end.validEnd : false;
    }
 
    /**

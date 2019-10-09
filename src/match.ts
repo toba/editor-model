@@ -51,6 +51,7 @@ export class ContentMatch {
       const expr: Expression = parseExpr(stream);
 
       if (stream.next !== undefined) {
+         // expression parser should have consumed all stream tokens
          stream.err('Unexpected trailing text');
       }
       const match: ContentMatch = nfaToDFA(nfa(expr));

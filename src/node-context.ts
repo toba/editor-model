@@ -3,7 +3,7 @@ import { Mark } from './mark';
 import { NodeType } from './node-type';
 import { EditorNode } from './node';
 import { Attributes } from './attribute';
-import { ContentMatch } from './content';
+import { ContentMatch } from './match';
 import { TextNode } from './text-node';
 import { Whitespace } from './constants';
 

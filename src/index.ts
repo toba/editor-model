@@ -9,7 +9,7 @@ export { MarkType } from './mark-type';
 export { Slice } from './slice';
 
 export { Schema } from './schema';
-export { ContentMatch } from './content';
+export { ContentMatch } from './match';
 
 export { DOMParser } from './parse-dom';
 export { DOMSerializer } from './to-dom';

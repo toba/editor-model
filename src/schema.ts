@@ -3,7 +3,7 @@ import { OrderedMap } from './ordered-map';
 import { EditorNode, NodeJSON } from './node';
 import { TextNode } from './text-node';
 import { Mark, MarkJSON } from './mark';
-import { ContentMatch } from './content';
+import { ContentMatch } from './match';
 import { NodeType, NodeSpec } from './node-type';
 import { MarkType, MarkSpec } from './mark-type';
 import { Attributes } from './attribute';

@@ -2,7 +2,7 @@ import { Fragment } from './fragment';
 import { Schema } from './schema';
 import { Attributes } from './attribute';
 import { Slice } from './slice';
-import { ContentMatch } from './content';
+import { ContentMatch } from './match';
 import { EditorNode } from './node';
 import { Position } from './position';
 import { ParseContext, PreserveWhitespace } from './parse-context';

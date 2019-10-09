@@ -1,4 +1,4 @@
-import { ContentMatch } from './content';
+import { ContentMatch } from './match';
 import { Expression, TokenType } from './token-stream';
 import { NodeType } from './node-type';
 import { SimpleMap } from './types';
@@ -19,7 +19,7 @@ export interface Edge {
  * is some way it can read the string and follow arrows to a matching state."
  * @see https://swtch.com/~rsc/regexp/regexp1.html
  */
-type NFA = Edge[][];
+export type NFA = Edge[][];
 
 /**
  * Construct an NFA from an expression as returned by the parser. The NFA is

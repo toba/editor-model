@@ -57,9 +57,12 @@ export class TokenStream {
    eat = (token: string): number | boolean =>
       this.next == token && (this.pos++ || true);
 
-   err(str: string): never {
+   /**
+    * Throw `SyntaxError` with standard information.
+    */
+   err(msg: string): never {
       throw new SyntaxError(
-         str + " (in content expression '" + this.pattern + "')"
+         msg + " (in content expression '" + this.pattern + "')"
       );
    }
 }
@@ -92,7 +95,8 @@ export function parseExprSeq(stream: TokenStream): Expression {
 }
 
 /**
- * Create expression from stream. `stream.next` should be `undefined` when done.
+ * Create expression from stream. If all tokens are parsable then `stream.next`
+ * will be `undefined` when done.
  */
 export function parseExpr(stream: TokenStream) {
    const exprs: Expression[] = [];

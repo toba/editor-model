@@ -13,7 +13,7 @@ import {
    Attributes,
    AttributeSpec
 } from './attribute';
-import { ContentMatch } from './content';
+import { ContentMatch } from './match';
 import { Fragment } from './fragment';
 import { Mark } from './mark';
 import { SimpleMap } from './types';
@@ -296,10 +296,10 @@ export class NodeType {
       let after: Fragment | undefined;
 
       if (this.contentMatch !== null) {
-         const match: ContentMatch | null = this.contentMatch.matchFragment(
-            content
-         );
-         if (match !== null) {
+         const match:
+            | ContentMatch
+            | undefined = this.contentMatch.matchFragment(content);
+         if (match !== undefined) {
             after = match.fillBefore(Fragment.empty, true);
          }
       }
