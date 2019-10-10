@@ -58,7 +58,7 @@ function expectMismatch(pattern: string, typeNames: string) {
    expect(match(pattern, typeNames)).toBe(false);
 }
 
-function fill(
+function expectFillResult(
    pattern: string,
    before: EditorNode,
    after: EditorNode,
@@ -73,7 +73,7 @@ function fill(
    if (result !== undefined) {
       expect(filled).toEqual(result.content);
    } else {
-      expect(filled).not.toBeDefined();
+      expect(filled).toBeUndefined();
    }
 }
 
@@ -265,7 +265,7 @@ describe('matchType', () => {
 
 describe('fillBefore', () => {
    it('returns the empty fragment when things match', () =>
-      fill(
+      expectFillResult(
          typeSequence(
             SchemaType.Paragraph,
             SchemaType.Line,
@@ -276,20 +276,8 @@ describe('fillBefore', () => {
          doc()
       ));
 
-   it.skip('adds nodes in the same way as ProseMirror', () => {
-      const pattern = typeSequence(
-         SchemaType.Paragraph,
-         SchemaType.Line,
-         SchemaType.Paragraph
-      );
-      const match = ContentMatch.parse(pattern, schema.nodes);
-      const pm_match = pm_ContentMatch.parse(pattern, schema.nodes);
-
-      expect(match.edgeCount).toBe(pm_match.edgeCount);
-   });
-
-   it.skip('adds a node when necessary', () =>
-      fill(
+   it('adds a node when necessary', () =>
+      expectFillResult(
          typeSequence(
             SchemaType.Paragraph,
             SchemaType.Line,

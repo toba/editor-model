@@ -1,10 +1,11 @@
 import '@toba/test';
 import { Schema } from './schema';
 import { TokenStream, parseExpr, Expression } from './token-stream';
-import { nfa, NFA, Edge, nfaToDFA } from './finite-automata';
+import { nfa, NFA, Edge, nfaToDFA, nullFrom } from './finite-automata';
 import {
    nfa as pm_nfa,
    dfa as pm_nfaToDFA,
+   nullFrom as pm_nullFrom,
    TokenStream as pm_TokenStream,
    parseExpr as pm_parseExpr
 } from 'prosemirror-model';
@@ -88,6 +89,18 @@ it('creates finite automata the same as ProseMirror', () => {
             expect(pm_e.term).toBeUndefined();
          }
       }
+   }
+});
+
+it('finds same nodes reachable by null edges as ProseMirror', () => {
+   const [auto, pm_auto] = makeNFA();
+
+   for (let i = 0; i < 3; i++) {
+      const from = nullFrom(auto, i);
+      const pm_from = pm_nullFrom(pm_auto, i);
+
+      expect(from.length).toBe(pm_from.length);
+      expect(from).toEqual(pm_from);
    }
 });
 

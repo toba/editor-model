@@ -3,6 +3,7 @@ import { Expression, TokenType } from './token-stream';
 import { NodeType } from './node-type';
 import { SimpleMap } from './types';
 import { forEach, makeDuoList } from './list';
+import { Content } from '@toba/tools/esm/constants';
 
 // The code below helps compile a regular-expression-like language into a
 // deterministic finite automaton. For a good introduction to these concepts,
@@ -187,8 +188,6 @@ export function nullFrom(nfa: NFA, node: number): number[] {
    }
 }
 
-type Thing = [NodeType, number[]];
-
 /**
  * Deterministic Finite Automota.
  *
@@ -213,7 +212,7 @@ export function nfaToDFA(nfa: NFA): ContentMatch {
             const known: number = out.indexOf(term);
             let set: number[] | null = known > -1 ? out.item(known)![1] : null;
 
-            forEach(nullFrom(nfa, to!), node => {
+            forEach(nullFrom(nfa, to), node => {
                if (set === null) {
                   set = [];
                   out.push(term, set);

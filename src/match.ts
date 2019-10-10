@@ -224,7 +224,7 @@ export class ContentMatch {
     * describes the content expression.
     */
    get edgeCount(): number {
-      return this.next.size() >> 1;
+      return this.next.size();
    }
 
    /**
