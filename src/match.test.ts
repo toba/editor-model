@@ -1,7 +1,7 @@
 import '@toba/test';
 import { is } from '@toba/tools';
 import { ContentMatch as pm_ContentMatch } from '@toba/test-prosemirror-model';
-import pm from '@toba/test-prosemirror-tester';
+import pm, { testSchema as pm_testSchema } from '@toba/test-prosemirror-tester';
 import { ContentMatch } from './match';
 import { doc, p, hr } from './__mocks__';
 import { testSchema, TestTypeName, typeSequence } from './test-schema';
@@ -221,18 +221,19 @@ describe('duplicate ProseMirror functionality', () => {
          pattern,
          testSchema.nodes
       );
-      const pm_match = pm_ContentMatch.parse(pattern, testSchema.nodes);
+      const pm_match = pm_ContentMatch.parse(pattern, pm_testSchema.nodes);
 
       return [match, pm_match];
    }
 
    function makeFragMatch(
       node: TestNode,
+      pm_node: any,
       pattern?: string
    ): [ContentMatch | undefined, any] {
       const [match, pm_match] = makeParseMatch(pattern);
       const fragMatch = match!.matchFragment(node.content);
-      const pm_fragMatch = pm_match.matchFragment(node.content);
+      const pm_fragMatch = pm_match.matchFragment(pm_node.content);
 
       return [fragMatch, pm_fragMatch];
    }
@@ -242,7 +243,12 @@ describe('duplicate ProseMirror functionality', () => {
       pm_match: any
    ): void {
       expect(match).toBeDefined();
-      expect(match!.defaultType).toBe(pm_match.defaultType);
+      if (match!.defaultType) {
+         expect(match!.defaultType!.name).toBe(pm_match.defaultType.name);
+      } else {
+         expect(pm_match.defaultType).toBeUndefined();
+      }
+
       expect(match!.edgeCount).toBe(pm_match.edgeCount);
       expect(match!.validEnd).toBe(pm_match.validEnd);
    }
@@ -253,7 +259,7 @@ describe('duplicate ProseMirror functionality', () => {
    });
 
    it('matches fragment the same', () => {
-      const [match, pm_match] = makeFragMatch(doc(p()));
+      const [match, pm_match] = makeFragMatch(doc(p()), pm.doc(pm.p()));
       expectSameMatch(match, pm_match);
    });
 
@@ -262,6 +268,7 @@ describe('duplicate ProseMirror functionality', () => {
       const pm_after = pm.doc(pm.p());
       const [match, pm_match] = makeFragMatch(
          doc(p()),
+         pm.doc(pm.p()),
          typeSequence(
             TestTypeName.Paragraph,
             TestTypeName.Line,

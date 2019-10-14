@@ -1,10 +1,5 @@
 import '@toba/test';
-import pm, {
-   block as pm_makeNode,
-   mark as pm_makeMark,
-   takeAttrs as pm_takeAttrs,
-   flatten as pm_flatten
-} from '@toba/test-prosemirror-tester';
+import pm, { takeAttrs as pm_takeAttrs } from '@toba/test-prosemirror-tester';
 import { testSchema, TestTypeName } from './test-schema';
 import {
    makeTestItems,
