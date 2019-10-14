@@ -1,47 +1,40 @@
-import { basicSchema as basic, SchemaType } from './basic-schema';
-//import { addListNodes } from 'prosemirror-schema-list';
-import { Schema } from '../schema';
-import { makeMockers } from './mocker';
-
-const testSchema = new Schema({
-   nodes: basic.spec.nodes,
-   marks: basic.spec.marks
-});
+import { testSchema, TestTypeName } from '../test-schema';
+import { makeTestItems } from '../test-maker';
 
 /**
  * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/index.js
  */
-export const mock = makeMockers(testSchema, {
-   p: { type: SchemaType.Paragraph },
-   pre: { type: SchemaType.CodeBlock },
-   h1: { type: SchemaType.Heading, attrs: { level: 1 } },
-   h2: { type: SchemaType.Heading, attrs: { level: 2 } },
-   h3: { type: SchemaType.Heading, attrs: { level: 3 } },
+export const items = makeTestItems(testSchema, {
+   p: { type: TestTypeName.Paragraph },
+   pre: { type: TestTypeName.CodeBlock },
+   h1: { type: TestTypeName.Heading, attrs: { level: 1 } },
+   h2: { type: TestTypeName.Heading, attrs: { level: 2 } },
+   h3: { type: TestTypeName.Heading, attrs: { level: 3 } },
    //li: { type: 'list_item' },
    //ul: { type: 'bullet_list' },
    //ol: { type: 'ordered_list' },
-   br: { type: SchemaType.Break },
-   img: { type: SchemaType.Image, attrs: { src: 'img.png' } },
-   hr: { type: SchemaType.Line },
-   a: { type: SchemaType.Link, isMark: true, attrs: { href: 'foo' } }
+   br: { type: TestTypeName.Break },
+   img: { type: TestTypeName.Image, attrs: { src: 'img.png' } },
+   hr: { type: TestTypeName.Line },
+   a: { type: TestTypeName.Link, isMark: true, attrs: { href: 'foo' } }
 });
 
 // from basic schema
 /** Root node */
-export const doc = mock.node['doc'];
-export const blockquote = mock.node['blockquote'];
+export const doc = items.node['doc'];
+export const blockquote = items.node['blockquote'];
 
 //
-export const p = mock.node['p'];
-export const pre = mock.node['pre'];
-export const h1 = mock.node['h1'];
-export const h2 = mock.node['h2'];
-export const h3 = mock.node['h3'];
-export const br = mock.node['br'];
-export const img = mock.node['img'];
-export const hr = mock.node['hr'];
-export const a = mock.mark['a'];
-export const em = mock.mark['em'];
+export const p = items.node['p'];
+export const pre = items.node['pre'];
+export const h1 = items.node['h1'];
+export const h2 = items.node['h2'];
+export const h3 = items.node['h3'];
+export const br = items.node['br'];
+export const img = items.node['img'];
+export const hr = items.node['hr'];
+export const a = items.mark['a'];
+export const em = items.mark['em'];
 
 // from list schema
 // export const li = mock.node['li'];

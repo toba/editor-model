@@ -91,11 +91,10 @@ export class ContentMatch {
    }
 
    /**
-    * Get the first matching node type at this match position that can be
-    * generated.
+    * First `NodeType` at this match position that can be generated.
     */
    get defaultType(): NodeType | undefined {
-      const found = this.next.find(t => !(t.isText || t.hasRequiredAttrs));
+      const found = this.next.find(t => !(t.isText || t.hasRequiredAttrs()));
       return found !== undefined ? found[0] : found;
    }
 

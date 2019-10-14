@@ -1,13 +1,16 @@
 import { is } from '@toba/tools';
-import { Schema } from '../schema';
-import { ElementSpec } from '../to-dom';
-import { NodeSpec } from '../node-type';
-import { MarkSpec } from '../mark-type';
-import { SimpleMap } from '../types';
+import { Schema } from './schema';
+import { ElementSpec } from './to-dom';
+import { NodeSpec } from './node-type';
+import { MarkSpec } from './mark-type';
+import { SimpleMap } from './types';
 
 // https://github.com/ProseMirror/prosemirror-schema-basic/blob/master/src/schema-basic.js
 
-export const enum SchemaType {
+/**
+ * `NodeType` and `MarkType` names.
+ */
+export const enum TestTypeName {
    Document = 'doc',
    Paragraph = 'paragraph',
    BlockQuote = 'blockquote',
@@ -23,29 +26,34 @@ export const enum SchemaType {
    Code = 'code'
 }
 
-export const typeSequence = (...types: SchemaType[]): string => types.join(' ');
+/**
+ * Combine `NodeType` names into space-delimited string.
+ */
+export const typeSequence = (...types: TestTypeName[]): string =>
+   types.join(' ');
 
+// no reason why these need the same keys as TestTypeName
 const elSpec: SimpleMap<ElementSpec> = {
-   paragraph: ['p', 0],
-   blockquote: ['blockquote', 0],
+   [TestTypeName.Paragraph]: ['p', 0],
+   [TestTypeName.BlockQuote]: ['blockquote', 0],
    line: ['hr'],
    pre: ['pre', ['code', 0]],
    break: ['br'],
    emphasis: ['em', 0],
-   strong: ['strong', 0],
-   code: ['code', 0]
+   [TestTypeName.Strong]: ['strong', 0],
+   [TestTypeName.Code]: ['code', 0]
 };
 
 export const nodes: SimpleMap<NodeSpec> = {
    /** Top level document node. */
-   [SchemaType.Document]: {
+   [TestTypeName.Document]: {
       content: 'block+'
    },
 
    /**
     * A plain paragraph textblock. Represented in the DOM as a `<p>` element.
     */
-   [SchemaType.Paragraph]: {
+   [TestTypeName.Paragraph]: {
       content: 'inline*',
       group: 'block',
       parseDOM: [{ tag: 'p' }],
@@ -53,7 +61,7 @@ export const nodes: SimpleMap<NodeSpec> = {
    },
 
    /** A blockquote (`<blockquote>`) wrapping one or more blocks. */
-   [SchemaType.BlockQuote]: {
+   [TestTypeName.BlockQuote]: {
       content: 'block+',
       group: 'block',
       defining: true,
@@ -62,7 +70,7 @@ export const nodes: SimpleMap<NodeSpec> = {
    },
 
    /** A horizontal rule (`<hr>`). */
-   [SchemaType.Line]: {
+   [TestTypeName.Line]: {
       group: 'block',
       parseDOM: [{ tag: 'hr' }],
       toDOM: () => elSpec.line
@@ -72,7 +80,7 @@ export const nodes: SimpleMap<NodeSpec> = {
     * A heading textblock, with a `level` attribute that should hold the number
     * 1 to 6. Parsed and serialized as `<h1>` to `<h6>` elements.
     */
-   [SchemaType.Heading]: {
+   [TestTypeName.Heading]: {
       attrs: { level: { default: 1 } },
       content: 'inline*',
       group: 'block',
@@ -92,7 +100,7 @@ export const nodes: SimpleMap<NodeSpec> = {
     * A code listing. Disallows marks or non-text inline nodes by default.
     * Represented as a `<pre>` element with a `<code>` element inside of it.
     */
-   [SchemaType.CodeBlock]: {
+   [TestTypeName.CodeBlock]: {
       content: 'text*',
       marks: '',
       group: 'block',
@@ -103,7 +111,7 @@ export const nodes: SimpleMap<NodeSpec> = {
    },
 
    /** The text node */
-   [SchemaType.Text]: {
+   [TestTypeName.Text]: {
       group: 'inline'
    },
 
@@ -111,7 +119,7 @@ export const nodes: SimpleMap<NodeSpec> = {
     * An inline image (`<img>`) node. Supports `src`, `alt`, and `href`
     * attributes. The latter two default to the empty string.
     */
-   [SchemaType.Image]: {
+   [TestTypeName.Image]: {
       inline: true,
       attrs: {
          src: {},
@@ -140,7 +148,7 @@ export const nodes: SimpleMap<NodeSpec> = {
    },
 
    /** A hard line break, represented in the DOM as `<br>`. */
-   [SchemaType.Break]: {
+   [TestTypeName.Break]: {
       inline: true,
       group: 'inline',
       selectable: false,
@@ -154,7 +162,7 @@ export const marks: SimpleMap<MarkSpec> = {
     * A link. Has `href` and `title` attributes. `title` defaults to the empty
     * string. Rendered and parsed as an `<a>` element.
     */
-   [SchemaType.Link]: {
+   [TestTypeName.Link]: {
       attrs: {
          href: {},
          title: { default: null }
@@ -182,7 +190,7 @@ export const marks: SimpleMap<MarkSpec> = {
     * An emphasis mark. Rendered as an `<em>` element. Has parse rules that also
     * match `<i>` and `font-style: italic`.
     */
-   [SchemaType.Emphasis]: {
+   [TestTypeName.Emphasis]: {
       parseDOM: [{ tag: 'i' }, { tag: 'em' }, { style: 'font-style=italic' }],
       toDOM: () => elSpec.emphasis
    },
@@ -191,7 +199,7 @@ export const marks: SimpleMap<MarkSpec> = {
     * A strong mark. Rendered as `<strong>`, parse rules also match `<b>` and
     * `font-weight: bold`.
     */
-   [SchemaType.Strong]: {
+   [TestTypeName.Strong]: {
       parseDOM: [
          { tag: 'strong' },
          // This works around a Google Docs misbehavior where
@@ -218,7 +226,7 @@ export const marks: SimpleMap<MarkSpec> = {
    },
 
    /** Code font mark. Represented as a `<code>` element. */
-   [SchemaType.Code]: {
+   [TestTypeName.Code]: {
       parseDOM: [{ tag: 'code' }],
       toDOM: () => elSpec.code
    }
@@ -231,4 +239,4 @@ export const marks: SimpleMap<MarkSpec> = {
  * To reuse elements from this schema, extend or read from its `spec.nodes` and
  * `spec.marks` [properties](#model.Schema.spec).
  */
-export const basicSchema = new Schema({ nodes, marks });
+export const testSchema = new Schema({ nodes, marks });

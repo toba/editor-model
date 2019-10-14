@@ -1,21 +1,21 @@
 import { is } from '@toba/tools';
-import { EditorNode } from '../node';
-import { Schema } from '../schema';
-import { MarkType } from '../mark-type';
-import { Attributes } from '../attribute';
-import { Mark } from '../mark';
-import { NodeType } from '../node-type';
-import { SimpleMap } from '../types';
-import { forEach } from '../list';
-import { SchemaType } from './basic-schema';
+import { EditorNode } from './node';
+import { Schema } from './schema';
+import { MarkType } from './mark-type';
+import { Attributes } from './attribute';
+import { Mark } from './mark';
+import { NodeType } from './node-type';
+import { SimpleMap } from './types';
+import { forEach } from './list';
+import { TestTypeName } from './test-schema';
 
 const noTags = Object.create(null);
 
 /**
  * Specification to create a node or mark.
  */
-export interface MockSpec {
-   type: SchemaType;
+export interface TestItemSpec {
+   type: TestTypeName;
    attrs?: Attributes;
    /** Whether spec is for a `Mark` rather than an `EditorNode` */
    isMark?: boolean;
@@ -23,28 +23,28 @@ export interface MockSpec {
 
 export type MockTag = SimpleMap<number>;
 
-export class MockNode extends EditorNode {
+export class TestNode extends EditorNode {
    flat?: EditorNode[];
    tag?: MockTag = noTags;
 }
 
-export interface MockMark {
+export interface TestMark {
    flat?: EditorNode[];
    tag?: MockTag;
 }
 
-export type MockChild = string | MockNode | MockMark;
-export type MarkMaker = (...args: MockChild[]) => MockMark;
+export type TestChild = string | TestNode | TestMark;
+export type MarkMaker = (...args: TestChild[]) => TestMark;
 /**
  * A `NodeMaker` may pose directly as a `MockNode` with `flat` values when it
  * is for a leaf Node that cant't have children.
  */
 export interface NodeMaker {
-   (...args: MockChild[]): MockNode;
+   (...args: TestChild[]): TestNode;
    flat?: EditorNode[];
 }
 
-export interface Mocker {
+export interface TestItemMaker {
    schema: Schema;
    node: SimpleMap<NodeMaker>;
    mark: SimpleMap<MarkMaker>;
@@ -55,7 +55,7 @@ export interface Mocker {
  */
 function flatten(
    schema: Schema,
-   children: MockChild[],
+   children: TestChild[],
    fn: (n: EditorNode) => EditorNode = (n: EditorNode) => n
 ) {
    const result: EditorNode[] = [];
@@ -63,12 +63,12 @@ function flatten(
    let tags: MockTag = noTags;
 
    for (let i = 0; i < children.length; i++) {
-      let child: MockChild = children[i];
+      let child: TestChild = children[i];
 
       if (!is.text(child)) {
-         const node = child as MockNode;
+         const node = child as TestNode;
 
-         if (node.tag !== undefined && node.tag !== MockNode.prototype.tag) {
+         if (node.tag !== undefined && node.tag !== TestNode.prototype.tag) {
             if (tags === noTags) {
                tags = Object.create(null);
             }
@@ -115,18 +115,24 @@ function flatten(
    return { nodes: result, tags };
 }
 
-function takeAttrs(
+/**
+ * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/build.js#L45
+ */
+export function takeAttrs(
    attrs: Attributes | undefined,
-   args: (MockChild | Attributes)[]
+   args: (TestChild | Attributes)[]
 ): Attributes | undefined {
    const arg1 = args[0];
 
    if (
       args.length == 0 ||
       (arg1 !== undefined &&
-         (is.text(arg1) || arg1 instanceof MockNode || arg1.flat !== undefined))
+         (is.text(arg1) ||
+            arg1 instanceof TestNode ||
+            arg1 instanceof EditorNode ||
+            arg1.flat !== undefined))
    ) {
-      // arg1 is string, MockMark or MockNode
+      // arg1 is string, TestMark or TestNode
       return attrs;
    }
    // if still here then arg1 is Attributes
@@ -155,10 +161,10 @@ function takeAttrs(
  * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/build.js#L61
  */
 function nodeMaker(type: NodeType, attrs?: Attributes): NodeMaker {
-   const result = function(...children: MockChild[]) {
+   const result = function(...children: TestChild[]) {
       const allAttrs = takeAttrs(attrs, children);
       const { nodes, tags } = flatten(type.schema, children);
-      const node = type.create(allAttrs, nodes) as MockNode;
+      const node = type.create(allAttrs, nodes) as TestNode;
 
       if (tags !== noTags) {
          node.tag = tags;
@@ -182,7 +188,7 @@ function nodeMaker(type: NodeType, attrs?: Attributes): NodeMaker {
  * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/build.js#L73
  */
 const markMaker = (type: MarkType, attrs?: Attributes): MarkMaker =>
-   function(...children: MockChild[]) {
+   function(...children: TestChild[]) {
       const mark: Mark = type.create(takeAttrs(attrs, children));
       const { nodes, tags } = flatten(type.schema, children, (n: EditorNode) =>
          mark.type.isInSet(n.marks) ? n : n.mark(mark.addToSet(n.marks))
@@ -191,14 +197,15 @@ const markMaker = (type: MarkType, attrs?: Attributes): MarkMaker =>
    };
 
 /**
- * If `specs` are supplied having the same name as `schema` members, the
+ * Prepare methods than can be used to create test nodes and marks for the given
+ * schema. If `specs` are supplied having the same name as `schema` members, the
  * `schema` members will be replaced.
  */
-export function makeMockers(
+export function makeTestItems(
    schema: Schema,
-   specs?: { [tag: string]: MockSpec }
-): Mocker {
-   const result: Mocker = { schema, node: {}, mark: {} };
+   specs?: { [tag: string]: TestItemSpec }
+): TestItemMaker {
+   const result: TestItemMaker = { schema, node: {}, mark: {} };
 
    for (let name in schema.nodes) {
       result.node[name] = nodeMaker(schema.nodes[name], {});
@@ -209,7 +216,7 @@ export function makeMockers(
 
    if (specs !== undefined) {
       for (let tag in specs) {
-         const spec: MockSpec = specs[tag];
+         const spec: TestItemSpec = specs[tag];
 
          if (spec.isMark === true) {
             const type = schema.marks[spec.type];

@@ -125,6 +125,22 @@ const trioLastItem = <T, U, V>(a: T[], b: U[], c: V[]) =>
  * Get the first index that matches _one_ (all do not need to match) of the
  * given values.
  */
+function duoIndexOf<T, U>(a: T[], b: U[], t?: T, u?: U): number {
+   let index = -1;
+
+   if (t !== undefined && (index = a.indexOf(t)) >= 0) {
+      return index;
+   }
+   if (u !== undefined && (index = b.indexOf(u)) >= 0) {
+      return index;
+   }
+   return index;
+}
+
+/**
+ * Get the first index that matches _one_ (all do not need to match) of the
+ * given values.
+ */
 function trioIndexOf<T, U, V>(
    a: T[],
    b: U[],
@@ -147,17 +163,21 @@ function trioIndexOf<T, U, V>(
    return index;
 }
 
-function duoIndexOf<T, U>(a: T[], b: U[], t?: T, u?: U): number {
-   let index = -1;
+const duoFlat = <T, U>(a: T[], b: U[]): (T | U)[] => {
+   const flat: (T | U)[] = [];
+   forEach(a, (item, index) => {
+      flat.push(item, b[index]);
+   });
+   return flat;
+};
 
-   if (t !== undefined && (index = a.indexOf(t)) >= 0) {
-      return index;
-   }
-   if (u !== undefined && (index = b.indexOf(u)) >= 0) {
-      return index;
-   }
-   return index;
-}
+const trioFlat = <T, U, V>(a: T[], b: U[], c: V[]): (T | U | V)[] => {
+   const flat: (T | U | V)[] = [];
+   forEach(a, (item, index) => {
+      flat.push(item, b[index], c[index]);
+   });
+   return flat;
+};
 
 interface TupleList<G> {
    size: () => number;
@@ -175,6 +195,7 @@ export interface DuoList<T, U> extends TupleList<[T, U]> {
    find: (fn: DuoCallback<T, U, boolean>) => [T, U] | undefined;
    push: (t: T, u: U) => number;
    indexOf: (t?: T, u?: U) => number;
+   flat: () => (T | U)[];
 }
 
 /**
@@ -186,6 +207,7 @@ export interface TrioList<T, U, V> extends TupleList<[T, U, V]> {
    find: (fn: TrioCallback<T, U, V, boolean>) => [T, U, V] | undefined;
    push: (t: T, u: U, v: V) => number;
    indexOf: (t?: T, u?: U, v?: V) => number;
+   flat: () => (T | U | V)[];
 }
 
 export function makeDuoList<T, U>(...list: [T, U][]): DuoList<T, U> {
@@ -206,7 +228,8 @@ export function makeDuoList<T, U>(...list: [T, U][]): DuoList<T, U> {
       item: (i: number) => duoItem<T, U>(a, b, i),
       lastItem: () => duoLastItem<T, U>(a, b),
       size: () => a.length,
-      indexOf: (t?: T, u?: U) => duoIndexOf(a, b, t, u)
+      indexOf: (t?: T, u?: U) => duoIndexOf(a, b, t, u),
+      flat: () => duoFlat(a, b)
    };
 }
 
@@ -230,6 +253,7 @@ export function makeTrioList<T, U, V>(...list: [T, U, V][]): TrioList<T, U, V> {
       item: (i: number) => trioItem<T, U, V>(a, b, c, i),
       lastItem: () => trioLastItem<T, U, V>(a, b, c),
       size: () => a.length,
-      indexOf: (t?: T, u?: U, v?: V) => trioIndexOf(a, b, c, t, u, v)
+      indexOf: (t?: T, u?: U, v?: V) => trioIndexOf(a, b, c, t, u, v),
+      flat: () => trioFlat(a, b, c)
    };
 }

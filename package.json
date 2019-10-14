@@ -41,6 +41,7 @@
       "@toba/develop": "^6.7.3",
       "@toba/editor-test": "^2.0.4",
       "@toba/test": "^4.1.16",
-      "prosemirror-model": "git+https://github.com/toba/prosemirror-model.git"
+      "@toba/test-prosemirror-model": "^1.7.4-test.1",
+      "@toba/test-prosemirror-tester": "*"
    }
 }
