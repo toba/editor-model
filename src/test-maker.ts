@@ -1,4 +1,4 @@
-import { is } from '@toba/tools';
+import { is, forEach } from '@toba/tools';
 import { EditorNode } from './node';
 import { Schema } from './schema';
 import { MarkType } from './mark-type';
@@ -6,7 +6,6 @@ import { Attributes } from './attribute';
 import { Mark } from './mark';
 import { NodeType } from './node-type';
 import { SimpleMap } from './types';
-import { forEach } from './list';
 import { TestTypeName } from './test-schema';
 
 const noTags = Object.create(null);
@@ -21,16 +20,16 @@ export interface TestItemSpec {
    isMark?: boolean;
 }
 
-export type MockTag = SimpleMap<number>;
+export type TestTag = SimpleMap<number>;
 
 export class TestNode extends EditorNode {
    flat?: EditorNode[];
-   tag?: MockTag = noTags;
+   tag?: TestTag = noTags;
 }
 
 export interface TestMark {
    flat?: EditorNode[];
-   tag?: MockTag;
+   tag?: TestTag;
 }
 
 export type TestChild = string | TestNode | TestMark;
@@ -60,7 +59,7 @@ function flatten(
 ) {
    const result: EditorNode[] = [];
    let pos = 0;
-   let tags: MockTag = noTags;
+   let tags: TestTag = noTags;
 
    for (let i = 0; i < children.length; i++) {
       let child: TestChild = children[i];

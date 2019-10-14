@@ -1,16 +1,10 @@
 import '@toba/test';
 import { makeStreams, makeExpressions } from './__mocks__/compare';
+import { typeSequence, TestTypeName } from './test-schema';
 
 describe('duplicate ProseMirror functionality', () => {
-   it('creates same token streams', () => {
-      const [stream, pm_stream] = makeStreams();
-
-      expect(stream.pattern).toBe(pm_stream.string);
-      expect(stream.tokens).toEqual(pm_stream.tokens);
-   });
-
-   it('parses expressions the same', () => {
-      const [expr, pm_expr] = makeExpressions();
+   function expectSameExpression(pattern: string) {
+      const [expr, pm_expr] = makeExpressions(pattern);
 
       expect(expr.type).toBe(pm_expr.type);
       expect(expr.exprs!.length).toBe(pm_expr.exprs.length);
@@ -20,8 +14,33 @@ describe('duplicate ProseMirror functionality', () => {
          const pm_ex = pm_expr.exprs[i];
 
          expect(ex.type).toBe(pm_ex.type);
-         expect(ex.value!.name).toBe(pm_ex.value.name);
+
+         if (ex.value === undefined) {
+            expect(pm_ex.value).toBeUndefined();
+         } else {
+            expect(ex.value.name).toBe(pm_ex.value.name);
+         }
       }
-      expect(pm_expr).toBeDefined();
+   }
+
+   it('creates same token streams', () => {
+      const [stream, pm_stream] = makeStreams();
+
+      expect(stream.pattern).toBe(pm_stream.string);
+      expect(stream.tokens).toEqual(pm_stream.tokens);
+   });
+
+   it('parses basic expressions the same', () => {
+      expectSameExpression(
+         typeSequence(
+            TestTypeName.Paragraph,
+            TestTypeName.Line,
+            TestTypeName.Paragraph
+         )
+      );
+   });
+
+   it('parses optional expressions the same', () => {
+      expectSameExpression('heading paragraph? horizontal_rule');
    });
 });

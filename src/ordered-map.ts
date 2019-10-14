@@ -1,6 +1,5 @@
-import { is } from '@toba/tools';
+import { is, forEach } from '@toba/tools';
 import { SimpleMap } from './types';
-import { forEach } from './list';
 
 /**
  * Kinds of data that can be parsed by `OrderedMap`.

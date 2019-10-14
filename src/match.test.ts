@@ -3,7 +3,7 @@ import { is } from '@toba/tools';
 import { ContentMatch as pm_ContentMatch } from '@toba/test-prosemirror-model';
 import pm, { testSchema as pm_testSchema } from '@toba/test-prosemirror-tester';
 import { ContentMatch } from './match';
-import { doc, p, hr } from './__mocks__';
+import { doc, p, hr, br, img, h1, pre } from './__mocks__';
 import { testSchema, TestTypeName, typeSequence } from './test-schema';
 import { NodeType } from './node-type';
 import { EditorNode } from './node';
@@ -227,8 +227,8 @@ describe('duplicate ProseMirror functionality', () => {
    }
 
    function makeFragMatch(
-      node: TestNode,
-      pm_node: any,
+      node: TestNode = doc(p()),
+      pm_node: any = pm.doc(pm.p()),
       pattern?: string
    ): [ContentMatch | undefined, any] {
       const [match, pm_match] = makeParseMatch(pattern);
@@ -243,14 +243,37 @@ describe('duplicate ProseMirror functionality', () => {
       pm_match: any
    ): void {
       expect(match).toBeDefined();
-      if (match!.defaultType) {
-         expect(match!.defaultType!.name).toBe(pm_match.defaultType.name);
-      } else {
-         expect(pm_match.defaultType).toBeUndefined();
+      if (match === undefined) {
+         return;
       }
+      let recurseCount = 0;
 
-      expect(match!.edgeCount).toBe(pm_match.edgeCount);
-      expect(match!.validEnd).toBe(pm_match.validEnd);
+      const compareMatch = (m1: ContentMatch, m2: any) => {
+         expect(m1.edgeCount).toBe(m2.edgeCount);
+         expect(m1.validEnd).toBe(m2.validEnd);
+
+         if (m1.defaultType) {
+            expect(m1.defaultType.name).toBe(m2.defaultType.name);
+         } else {
+            expect(m2.defaultType).toBeUndefined();
+         }
+
+         expect(m1.next.size()).toBe(m2.next.length / 2);
+
+         m1.next.each((node, m, index) => {
+            const pm_node = m2.next[index];
+            const pm_m = m2.next[index + 1];
+
+            expect(node.name).toBe(pm_node.name);
+
+            if (recurseCount < 25) {
+               compareMatch(m, pm_m);
+            }
+            recurseCount++;
+         });
+      };
+
+      compareMatch(match, pm_match);
    }
 
    it('parses pattern the same', () => {
@@ -258,23 +281,31 @@ describe('duplicate ProseMirror functionality', () => {
       expectSameMatch(match, pm_match);
    });
 
+   it('parses optional pattern the same', () => {
+      // const [match, pm_match] = makeFragMatch(
+      //    doc(h1()),
+      //    pm.doc(pm.h1()),
+      //    'heading paragraph? horizontal_rule'
+      // );
+      const [match, pm_match] = makeParseMatch(
+         'heading paragraph? horizontal_rule'
+      );
+      expectSameMatch(match, pm_match);
+      //doc(h1()), doc()).toBe(doc(hr)
+
+      //const patternMatch = matchNodes(pattern);
+      //const beforeMatch = patternMatch.matchFragment(before.content);
+   });
+
    it('matches fragment the same', () => {
-      const [match, pm_match] = makeFragMatch(doc(p()), pm.doc(pm.p()));
+      const [match, pm_match] = makeFragMatch();
       expectSameMatch(match, pm_match);
    });
 
    it('fills-before the same', () => {
       const after = doc(p());
       const pm_after = pm.doc(pm.p());
-      const [match, pm_match] = makeFragMatch(
-         doc(p()),
-         pm.doc(pm.p()),
-         typeSequence(
-            TestTypeName.Paragraph,
-            TestTypeName.Line,
-            TestTypeName.Paragraph
-         )
-      );
+      const [match, pm_match] = makeFragMatch();
       const filled = match!.fillBefore(after.content, true);
       const pm_filled = pm_match.fillBefore(pm_after.content, true);
 
@@ -285,80 +316,187 @@ describe('duplicate ProseMirror functionality', () => {
 });
 
 describe('fillBefore', () => {
-   function expectFillResult(
-      pattern: string,
-      before: EditorNode,
-      after: EditorNode,
-      result?: EditorNode
-   ) {
-      const m: ContentMatch | undefined = matchNodes(pattern).matchFragment(
-         before.content
-      );
+   function expectFill(pattern: string, before: EditorNode, after: EditorNode) {
+      const patternMatch = matchNodes(pattern);
+      const beforeMatch = patternMatch.matchFragment(before.content);
       const filled: Fragment | undefined =
-         m !== undefined ? m.fillBefore(after.content, true) : Fragment.empty;
+         beforeMatch !== undefined
+            ? beforeMatch.fillBefore(after.content, true)
+            : Fragment.empty;
 
-      if (result !== undefined) {
-         expect(filled).toEqual(result.content);
-      } else {
-         expect(filled).toBeUndefined();
-      }
+      return {
+         toBe(result: EditorNode) {
+            expect(filled).toBeDefined();
+            expect(filled!.toJSON()).toEqual(result.content.toJSON());
+         },
+         toBeUndefined() {
+            expect(filled).toBeUndefined();
+         }
+      };
    }
 
-   function fill3(
-      expr: string,
+   function expectDoubleFill(
+      pattern: string,
       before: EditorNode,
-      mid: EditorNode,
-      after: EditorNode,
-      left?: EditorNode,
-      right?: EditorNode
+      within: EditorNode,
+      after: EditorNode
    ) {
-      const m = matchNodes(expr);
-      const aMatch = m.matchFragment(before.content);
+      const patternMatch = matchNodes(pattern);
+      const beforeMatch = patternMatch.matchFragment(before.content);
+      const fillBefore =
+         beforeMatch !== undefined
+            ? beforeMatch.fillBefore(within.content)
+            : undefined;
 
-      let a: Fragment | undefined;
-      let b: Fragment | undefined;
+      let fillAfter: Fragment | undefined;
 
-      if (aMatch !== undefined) {
-         a = aMatch.fillBefore(mid.content);
-      }
-
-      if (a !== undefined) {
-         const bMatch = m.matchFragment(
-            before.content.append(a).append(mid.content)
+      if (fillBefore !== undefined) {
+         const withinMatch = patternMatch.matchFragment(
+            before.content.append(fillBefore).append(within.content)
          );
-         if (bMatch !== undefined) {
-            b = bMatch.fillBefore(after.content, true);
+         if (withinMatch !== undefined) {
+            fillAfter = withinMatch.fillBefore(after.content, true);
          }
       }
 
-      if (left !== undefined && right !== undefined) {
-         expect(a).toEqual(left.content);
-         expect(b).toEqual(right.content);
-      } else {
-         expect(b).not.toBeDefined();
-      }
+      return {
+         toBe(left: EditorNode, right: EditorNode) {
+            expect(fillBefore).toBeDefined();
+            expect(fillAfter).toBeDefined();
+            expect(fillBefore!.toJSON()).toEqual(left.content.toJSON());
+            expect(fillAfter!.toJSON()).toEqual(right.content.toJSON());
+         },
+         toBeUndefined() {
+            expect(fillAfter).toBeUndefined();
+         }
+      };
    }
    it('returns the empty fragment when things match', () =>
-      expectFillResult(
+      expectFill(
          typeSequence(
             TestTypeName.Paragraph,
             TestTypeName.Line,
             TestTypeName.Paragraph
          ),
          doc(p(), hr),
-         doc(p()),
-         doc()
-      ));
+         doc(p())
+      ).toBe(doc()));
 
-   it.skip('adds a node when necessary', () =>
-      expectFillResult(
+   it('adds a node when necessary', () =>
+      expectFill(
          typeSequence(
             TestTypeName.Paragraph,
             TestTypeName.Line,
             TestTypeName.Paragraph
          ),
          doc(p()),
-         doc(p()),
+         doc(p())
+      ).toBe(doc(hr)));
+
+   it('accepts an asterisk across the bound', () =>
+      expectFill('hard_break*', p(br), p(br)).toBe(p()));
+
+   it('accepts an asterisk only on the left', () =>
+      expectFill('hard_break*', p(br), p()).toBe(p()));
+
+   it('accepts an asterisk only on the right', () =>
+      expectFill('hard_break*', p(), p(br)).toBe(p()));
+
+   it('accepts an asterisk with no elements', () =>
+      expectFill('hard_break*', p(), p()).toBe(p()));
+
+   it('accepts a plus across the bound', () =>
+      expectFill('hard_break+', p(br), p(br)).toBe(p()));
+
+   it('adds an element for a content-less plus', () =>
+      expectFill('hard_break+', p(), p()).toBe(p(br)));
+
+   it('fails for a mismatched plus', () =>
+      expectFill('hard_break+', p(), p(img)).toBeUndefined());
+
+   it('accepts asterisk with content on both sides', () =>
+      expectFill('heading* paragraph*', doc(h1()), doc(p())).toBe(doc()));
+
+   it('accepts asterisk with no content after', () =>
+      expectFill('heading* paragraph*', doc(h1()), doc()).toBe(doc()));
+
+   it('accepts plus with content on both sides', () =>
+      expectFill('heading+ paragraph+', doc(h1()), doc(p())).toBe(doc()));
+
+   it('accepts plus with no content after', () =>
+      expectFill('heading+ paragraph+', doc(h1()), doc()).toBe(doc(p())));
+
+   it('adds elements to match a count', () =>
+      expectFill('hard_break{3}', p(br), p(br)).toBe(p(br)));
+
+   it('fails when there are too many elements', () =>
+      expectFill('hard_break{3}', p(br, br), p(br, br)).toBeUndefined());
+
+   it('adds elements for two counted groups', () =>
+      expectFill('code_block{2} paragraph{2}', doc(pre()), doc(p())).toBe(
+         doc(pre(), p())
+      ));
+
+   it('does not include optional elements', () =>
+      expectFill('heading paragraph? horizontal_rule', doc(h1()), doc()).toBe(
          doc(hr)
       ));
+
+   it('completes a sequence', () =>
+      expectDoubleFill(
+         typeSequence(
+            TestTypeName.Paragraph,
+            TestTypeName.Line,
+            TestTypeName.Paragraph,
+            TestTypeName.Line,
+            TestTypeName.Paragraph
+         ),
+         doc(p()),
+         doc(p()),
+         doc(p())
+      ).toBe(doc(hr), doc(hr)));
+
+   it('accepts plus across two bounds', () =>
+      expectDoubleFill(
+         'code_block+ paragraph+',
+         doc(pre()),
+         doc(pre()),
+         doc(p())
+      ).toBe(doc(), doc()));
+
+   it('fills a plus from empty input', () =>
+      expectDoubleFill('code_block+ paragraph+', doc(), doc(), doc()).toBe(
+         doc(),
+         doc(pre(), p())
+      ));
+
+   it('completes a count', () =>
+      expectDoubleFill(
+         'code_block{3} paragraph{3}',
+         doc(pre()),
+         doc(p()),
+         doc()
+      ).toBe(doc(pre(), pre()), doc(p(), p())));
+
+   it('fails on non-matching elements', () =>
+      expectDoubleFill(
+         'paragraph*',
+         doc(p()),
+         doc(pre()),
+         doc(p())
+      ).toBeUndefined());
+
+   it('completes a plus across two bounds', () =>
+      expectDoubleFill('paragraph{4}', doc(p()), doc(p()), doc(p())).toBe(
+         doc(),
+         doc(p())
+      ));
+
+   it('refuses to complete an overflown count across two bounds', () =>
+      expectDoubleFill(
+         'paragraph{2}',
+         doc(p()),
+         doc(p()),
+         doc(p())
+      ).toBeUndefined());
 });

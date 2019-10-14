@@ -1,7 +1,7 @@
+import { TrioList, makeTrioList } from '@toba/tools';
 import { Mark } from './mark';
 import { EditorNode } from './node';
 import { NodeRange } from './node-range';
-import { TrioList, makeTrioList } from './list';
 
 /** Node, index and offset */
 //type PathItem = [EditorNode, number, number];

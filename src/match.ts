@@ -1,10 +1,10 @@
+import { DuoList, makeDuoList } from '@toba/tools';
 import { Fragment } from './fragment';
 import { EditorNode } from './node';
 import { NodeType } from './node-type';
 import { nfa, nfaToDFA } from './finite-automata';
 import { TokenStream, parseExpr, Expression } from './token-stream';
 import { SimpleMap } from './types';
-import { DuoList, makeDuoList } from './list';
 
 interface NodeEdge {
    type: NodeType;

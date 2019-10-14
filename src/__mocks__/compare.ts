@@ -15,23 +15,22 @@ import { testSchema, TestTypeName, typeSequence } from '../test-schema';
 /**
  * Create token streams with internal methods and original ProseMirror source.
  */
-export const makeStreams = (): [TokenStream, any] => {
-   const pattern = typeSequence(
+export const makeStreams = (
+   pattern = typeSequence(
       TestTypeName.Paragraph,
       TestTypeName.Line,
       TestTypeName.Paragraph
-   );
-   return [
-      new TokenStream(pattern, testSchema.nodes),
-      new pm_TokenStream(pattern, testSchema.nodes)
-   ];
-};
+   )
+): [TokenStream, any] => [
+   new TokenStream(pattern, testSchema.nodes),
+   new pm_TokenStream(pattern, testSchema.nodes)
+];
 
 /**
  * Create expressions with internal methods and original ProseMirror source.
  */
-export const makeExpressions = (): [Expression, any] => {
-   const [stream, pm_stream] = makeStreams();
+export const makeExpressions = (pattern?: string): [Expression, any] => {
+   const [stream, pm_stream] = makeStreams(pattern);
    return [parseExpr(stream), pm_parseExpr(pm_stream)];
 };
 
@@ -47,7 +46,9 @@ export const makeNFA = (): [NFA, any] => {
 /**
  * Create `NodeType` with internal methods and original ProseMirror source.
  */
-export const makeNodeTypes = (name = TestTypeName.Paragraph): [NodeType, any] => {
+export const makeNodeTypes = (
+   name = TestTypeName.Paragraph
+): [NodeType, any] => {
    const spec = testSchema.nodes[name].spec;
    return [
       new NodeType(name, testSchema, spec),

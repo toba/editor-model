@@ -1,4 +1,4 @@
-import { is } from '@toba/tools';
+import { is, forEach, filterEach } from '@toba/tools';
 import { Mark } from './mark';
 import { EditorNode } from './node';
 import { NodeContext } from './node-context';
@@ -15,7 +15,6 @@ import { NodeType } from './node-type';
 import { MarkType } from './mark-type';
 import { Attributes } from './attribute';
 import { Position } from './position';
-import { forEach, filterEach } from './list';
 
 export type PreserveWhitespace = boolean | 'full';
 

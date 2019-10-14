@@ -1,4 +1,4 @@
-import { is } from '@toba/tools';
+import { is, forEach } from '@toba/tools';
 import { OrderedMap } from './ordered-map';
 import { EditorNode, NodeJSON } from './node';
 import { TextNode } from './text-node';
@@ -9,7 +9,6 @@ import { MarkType, MarkSpec } from './mark-type';
 import { Attributes } from './attribute';
 import { Fragment } from './fragment';
 import { SimpleMap } from './types';
-import { forEach } from './list';
 
 /**
  * An object describing a schema.

@@ -1,9 +1,8 @@
+import { forEach, makeDuoList } from '@toba/tools';
 import { ContentMatch } from './match';
 import { Expression, TokenType } from './token-stream';
 import { NodeType } from './node-type';
 import { SimpleMap } from './types';
-import { forEach, makeDuoList } from './list';
-import { Content } from '@toba/tools/esm/constants';
 
 // The code below helps compile a regular-expression-like language into a
 // deterministic finite automaton. For a good introduction to these concepts,

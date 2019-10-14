@@ -1,3 +1,4 @@
+import { forEach } from '@toba/tools';
 import { Fragment } from './fragment';
 import { Schema } from './schema';
 import { Attributes } from './attribute';
@@ -6,7 +7,6 @@ import { ContentMatch } from './match';
 import { EditorNode } from './node';
 import { Position } from './position';
 import { ParseContext, PreserveWhitespace } from './parse-context';
-import { forEach } from './list';
 
 export interface NodesToFind {
    node: Node;

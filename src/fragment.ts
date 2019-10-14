@@ -296,9 +296,9 @@ export class Fragment {
 
    /**
     * Find the first position at which this fragment and another fragment
-    * differ, or `null` if they are the same.
+    * differ, or `undefined` if they are the same.
     */
-   findDiffStart = (other: Fragment, pos = 0): number | null =>
+   findDiffStart = (other: Fragment, pos = 0): number | undefined =>
       findDiffStart(this, other, pos);
 
    /**
@@ -441,10 +441,10 @@ export function findDiffStart(
    a: Fragment,
    b: Fragment,
    pos: number
-): number | null {
+): number | undefined {
    for (let i = 0; ; i++) {
       if (i == a.childCount || i == b.childCount) {
-         return a.childCount == b.childCount ? null : pos;
+         return a.childCount == b.childCount ? undefined : pos;
       }
       const childA = a.child(i);
       const childB = b.child(i);

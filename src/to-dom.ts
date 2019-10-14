@@ -1,4 +1,4 @@
-import { is } from '@toba/tools';
+import { is, DuoList, makeDuoList } from '@toba/tools';
 import { EditorNode } from './node';
 import { Mark } from './mark';
 import { Fragment as EditorFragment } from './fragment';
@@ -8,7 +8,6 @@ import { NodeType } from './node-type';
 import { TextNode } from './text-node';
 import { Attributes } from './attribute';
 import { SimpleMap } from './types';
-import { DuoList, makeDuoList } from './list';
 
 /**
  * An array describing a DOM element. The first value in the array should be a
