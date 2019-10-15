@@ -37,6 +37,7 @@ export const img = items.node['img'];
 export const hr = items.node['hr'];
 export const a = items.mark['a'];
 export const em = items.mark['em'];
+export const strong = items.mark['strong'];
 
 // from list schema
 // export const li = mock.node['li'];
@@ -58,7 +59,7 @@ export function expectSameMatch(
       expect(m1.edgeCount).toBe(m2.edgeCount);
       expect(m1.validEnd).toBe(m2.validEnd);
 
-      if (m1.defaultType) {
+      if (m1.defaultType !== undefined) {
          expect(m1.defaultType.name).toBe(m2.defaultType.name);
       } else {
          expect(m2.defaultType).toBeUndefined();
@@ -67,8 +68,8 @@ export function expectSameMatch(
       expect(m1.next.size()).toBe(m2.next.length / 2);
 
       m1.next.each((node, m, index) => {
-         const pm_node = m2.next[index];
-         const pm_m = m2.next[index + 1];
+         const pm_node = m2.next[index * 2];
+         const pm_m = m2.next[index * 2 + 1];
 
          expect(node.name).toBe(pm_node.name);
 

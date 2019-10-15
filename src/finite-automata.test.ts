@@ -1,5 +1,5 @@
 import '@toba/test';
-import { Edge, nfaToDFA, nullFrom, oldDFA } from './finite-automata';
+import { Edge, nfaToDFA, nullFrom } from './finite-automata';
 import {
    dfa as pm_nfaToDFA,
    nullFrom as pm_nullFrom
@@ -69,8 +69,7 @@ describe('duplicate ProseMirror functionality', () => {
 
    it('creates optional pattern matches', () => {
       const [nfa, pm_nfa] = expectSameNFA('heading paragraph? horizontal_rule');
-      const match: ContentMatch = oldDFA(nfa);
-      //const maybe: any = pm_nfaToDFA(nfa);
+      const match: ContentMatch = nfaToDFA(nfa);
       const pm_match: any = pm_nfaToDFA(pm_nfa);
 
       expectSameMatch(match, pm_match);

@@ -88,6 +88,7 @@ function flatten(
             result.push(n);
          }
       } else {
+         /** Match tag and capture the name without alligators */
          const re = /<(\w+)>/g;
          let m;
          let at = 0;
@@ -101,6 +102,7 @@ function flatten(
             if (tags == noTags) {
                tags = Object.create(null);
             }
+            // key is the tag name
             tags[m[1]] = pos;
          }
          out += child.slice(at);
