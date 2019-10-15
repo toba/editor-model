@@ -32,6 +32,9 @@ export const enum TestTypeName {
 export const typeSequence = (...types: TestTypeName[]): string =>
    types.join(' ');
 
+export const repeatType = (times: number, type: TestTypeName): string =>
+   (type + ' ').repeat(times).trimRight();
+
 // no reason why these need the same keys as TestTypeName
 const elSpec: SimpleMap<ElementSpec> = {
    [TestTypeName.Paragraph]: ['p', 0],

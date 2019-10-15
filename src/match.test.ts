@@ -3,8 +3,13 @@ import { is } from '@toba/tools';
 import { ContentMatch as pm_ContentMatch } from '@toba/test-prosemirror-model';
 import pm, { testSchema as pm_testSchema } from '@toba/test-prosemirror-tester';
 import { ContentMatch } from './match';
-import { doc, p, hr, br, img, h1, pre } from './__mocks__';
-import { testSchema, TestTypeName, typeSequence } from './test-schema';
+import { doc, p, hr, br, img, h1, pre, expectSameMatch } from './__mocks__';
+import {
+   testSchema,
+   TestTypeName as type,
+   typeSequence,
+   repeatType
+} from './test-schema';
 import { NodeType } from './node-type';
 import { EditorNode } from './node';
 import { Fragment } from './fragment';
@@ -52,170 +57,171 @@ describe('matchType', () => {
    }
 
    it('accepts empty content for the empty expr', () => expectMatch('', ''));
+
    it("doesn't accept content in the empty expr", () =>
-      expectMismatch('', TestTypeName.Image));
+      expectMismatch('', type.Image));
+
    it('matches nothing to an asterisk', () => expectMatch('image*', ''));
+
    it('matches one element to an asterisk', () =>
-      expectMatch('image*', TestTypeName.Image));
+      expectMatch('image*', type.Image));
+
    it('matches multiple elements to an asterisk', () =>
-      expectMatch('image*', 'image image image image'));
+      expectMatch('image*', repeatType(4, type.Image)));
+
    it('only matches appropriate elements to an asterisk', () =>
-      expectMismatch('image*', 'image text'));
+      expectMismatch('image*', typeSequence(type.Image, type.Text)));
 
    it('matches group members to a group', () =>
-      expectMatch('inline*', 'image text'));
+      expectMatch('inline*', typeSequence(type.Image, type.Text)));
+
    it("doesn't match non-members to a group", () =>
-      expectMismatch('inline*', TestTypeName.Paragraph));
+      expectMismatch('inline*', type.Paragraph));
+
    it('matches an element to a choice expression', () =>
-      expectMatch('(paragraph | heading)', TestTypeName.Paragraph));
+      expectMatch('(paragraph | heading)', type.Paragraph));
+
    it("doesn't match unmentioned elements to a choice expr", () =>
-      expectMismatch(`(paragraph | heading)`, TestTypeName.Image));
+      expectMismatch(`(paragraph | heading)`, type.Image));
 
    it('matches a simple sequence', () => {
-      const seq = typeSequence(
-         TestTypeName.Paragraph,
-         TestTypeName.Line,
-         TestTypeName.Paragraph
-      );
+      const seq = typeSequence(type.Paragraph, type.Line, type.Paragraph);
       expectMatch(seq, seq);
    });
+
    it('fails when a sequence is too long', () =>
       expectMismatch(
-         'paragraph horizontal_rule',
-         'paragraph horizontal_rule paragraph'
+         typeSequence(type.Paragraph, type.Line),
+         typeSequence(type.Paragraph, type.Line, type.Paragraph)
       ));
+
    it('fails when a sequence is too short', () =>
       expectMismatch(
-         'paragraph horizontal_rule paragraph',
-         typeSequence(TestTypeName.Paragraph, TestTypeName.Line)
+         typeSequence(type.Paragraph, type.Line, type.Paragraph),
+         typeSequence(type.Paragraph, type.Line)
       ));
+
    it('fails when a sequence starts incorrectly', () =>
       expectMismatch(
-         'paragraph horizontal_rule',
-         'horizontal_rule paragraph horizontal_rule'
+         typeSequence(type.Paragraph, type.Line),
+         typeSequence(type.Line, type.Paragraph, type.Line)
       ));
 
    it('accepts a sequence asterisk matching zero elements', () =>
-      expectMatch('heading paragraph*', TestTypeName.Heading));
+      expectMatch('heading paragraph*', type.Heading));
+
    it('accepts a sequence asterisk matching multiple elts', () =>
       expectMatch(
          'heading paragraph*',
-         typeSequence(
-            TestTypeName.Heading,
-            TestTypeName.Paragraph,
-            TestTypeName.Paragraph
-         )
+         typeSequence(type.Heading, type.Paragraph, type.Paragraph)
       ));
+
    it('accepts a sequence plus matching one element', () =>
       expectMatch(
          'heading paragraph+',
-         typeSequence(TestTypeName.Heading, TestTypeName.Paragraph)
+         typeSequence(type.Heading, type.Paragraph)
       ));
+
    it('accepts a sequence plus matching multiple elts', () =>
       expectMatch(
          'heading paragraph+',
-         typeSequence(
-            TestTypeName.Heading,
-            TestTypeName.Paragraph,
-            TestTypeName.Paragraph
-         )
+         typeSequence(type.Heading, type.Paragraph, type.Paragraph)
       ));
+
    it('fails when a sequence plus has no elements', () =>
-      expectMismatch('heading paragraph+', TestTypeName.Heading));
+      expectMismatch('heading paragraph+', type.Heading));
+
    it('fails when a sequence plus misses its start', () =>
       expectMismatch(
          'heading paragraph+',
-         typeSequence(TestTypeName.Paragraph, TestTypeName.Paragraph)
+         typeSequence(type.Paragraph, type.Paragraph)
       ));
 
    it('accepts an optional element being present', () =>
-      expectMatch('image?', TestTypeName.Image));
+      expectMatch('image?', type.Image));
+
    it('accepts an optional element being missing', () =>
       expectMatch('image?', ''));
+
    it('fails when an optional element is present twice', () =>
-      expectMismatch(
-         'image?',
-         typeSequence(TestTypeName.Image, TestTypeName.Image)
-      ));
+      expectMismatch('image?', typeSequence(type.Image, type.Image)));
 
    it('accepts a nested repeat', () =>
       expectMatch(
          '(heading paragraph+)+',
-         'heading paragraph heading paragraph paragraph'
+         typeSequence(
+            type.Heading,
+            type.Paragraph,
+            type.Heading,
+            type.Paragraph,
+            type.Paragraph
+         )
       ));
    it('fails on extra input after a nested repeat', () =>
       expectMismatch(
          '(heading paragraph+)+',
-         'heading paragraph heading paragraph paragraph horizontal_rule'
+         typeSequence(
+            type.Heading,
+            type.Paragraph,
+            type.Heading,
+            type.Paragraph,
+            type.Paragraph,
+            type.Line
+         )
       ));
 
    it('accepts a matching count', () =>
-      expectMatch(
-         'hard_break{2}',
-         typeSequence(TestTypeName.Break, TestTypeName.Break)
-      ));
+      expectMatch('hard_break{2}', repeatType(2, type.Break)));
+
    it('rejects a count that comes up short', () =>
-      expectMismatch('hard_break{2}', TestTypeName.Break));
+      expectMismatch('hard_break{2}', type.Break));
+
    it('rejects a count that has too many elements', () =>
-      expectMismatch('hard_break{2}', 'hard_break hard_break hard_break'));
+      expectMismatch('hard_break{2}', repeatType(3, type.Break)));
+
    it('accepts a count on the lower bound', () =>
-      expectMatch(
-         'hard_break{2, 4}',
-         typeSequence(TestTypeName.Break, TestTypeName.Break)
-      ));
+      expectMatch('hard_break{2, 4}', repeatType(2, type.Break)));
+
    it('accepts a count on the upper bound', () =>
-      expectMatch(
-         'hard_break{2, 4}',
-         'hard_break hard_break hard_break hard_break'
-      ));
+      expectMatch('hard_break{2, 4}', repeatType(4, type.Break)));
+
    it('accepts a count between the bounds', () =>
-      expectMatch(
-         'hard_break{2, 4}',
-         typeSequence(
-            TestTypeName.Break,
-            TestTypeName.Break,
-            TestTypeName.Break
-         )
-      ));
+      expectMatch('hard_break{2, 4}', repeatType(3, type.Break)));
+
    it('rejects a sequence with too few elements', () =>
-      expectMismatch('hard_break{2, 4}', TestTypeName.Break));
+      expectMismatch('hard_break{2, 4}', type.Break));
+
    it('rejects a sequence with too many elements', () =>
-      expectMismatch(
-         'hard_break{2, 4}',
-         'hard_break hard_break hard_break hard_break hard_break'
-      ));
+      expectMismatch('hard_break{2, 4}', repeatType(5, type.Break)));
+
    it('rejects a sequence with a bad element after it', () =>
-      expectMismatch('hard_break{2, 4} text*', 'hard_break hard_break image'));
+      expectMismatch(
+         'hard_break{2, 4} text*',
+         typeSequence(type.Break, type.Break, type.Image)
+      ));
+
    it('accepts a sequence with a matching element after it', () =>
       expectMatch(
          'hard_break{2, 4} image?',
-         typeSequence(
-            TestTypeName.Break,
-            TestTypeName.Break,
-            TestTypeName.Image
-         )
+         typeSequence(type.Break, type.Break, type.Image)
       ));
+
    it('accepts an open range', () =>
-      expectMatch(
-         'hard_break{2,}',
-         typeSequence(TestTypeName.Break, TestTypeName.Break)
-      ));
+      expectMatch('hard_break{2,}', repeatType(2, type.Break)));
+
    it('accepts an open range matching many', () =>
-      expectMatch(
-         'hard_break{2,}',
-         'hard_break hard_break hard_break hard_break'
-      ));
+      expectMatch('hard_break{2,}', repeatType(4, type.Break)));
+
    it('rejects an open range with too few elements', () =>
-      expectMismatch('hard_break{2,}', TestTypeName.Break));
+      expectMismatch('hard_break{2,}', type.Break));
 });
 
 describe('duplicate ProseMirror functionality', () => {
+   /**
+    * Created a parsed `Match` for Toba and ProseMirror.
+    */
    function makeParseMatch(
-      pattern = typeSequence(
-         TestTypeName.Paragraph,
-         TestTypeName.Line,
-         TestTypeName.Paragraph
-      )
+      pattern = typeSequence(type.Paragraph, type.Line, type.Paragraph)
    ): [ContentMatch | undefined, any] {
       const match: ContentMatch | undefined = ContentMatch.parse(
          pattern,
@@ -236,44 +242,6 @@ describe('duplicate ProseMirror functionality', () => {
       const pm_fragMatch = pm_match.matchFragment(pm_node.content);
 
       return [fragMatch, pm_fragMatch];
-   }
-
-   function expectSameMatch(
-      match: ContentMatch | undefined,
-      pm_match: any
-   ): void {
-      expect(match).toBeDefined();
-      if (match === undefined) {
-         return;
-      }
-      let recurseCount = 0;
-
-      const compareMatch = (m1: ContentMatch, m2: any) => {
-         expect(m1.edgeCount).toBe(m2.edgeCount);
-         expect(m1.validEnd).toBe(m2.validEnd);
-
-         if (m1.defaultType) {
-            expect(m1.defaultType.name).toBe(m2.defaultType.name);
-         } else {
-            expect(m2.defaultType).toBeUndefined();
-         }
-
-         expect(m1.next.size()).toBe(m2.next.length / 2);
-
-         m1.next.each((node, m, index) => {
-            const pm_node = m2.next[index];
-            const pm_m = m2.next[index + 1];
-
-            expect(node.name).toBe(pm_node.name);
-
-            if (recurseCount < 25) {
-               compareMatch(m, pm_m);
-            }
-            recurseCount++;
-         });
-      };
-
-      compareMatch(match, pm_match);
    }
 
    it('parses pattern the same', () => {
@@ -373,22 +341,14 @@ describe('fillBefore', () => {
    }
    it('returns the empty fragment when things match', () =>
       expectFill(
-         typeSequence(
-            TestTypeName.Paragraph,
-            TestTypeName.Line,
-            TestTypeName.Paragraph
-         ),
+         typeSequence(type.Paragraph, type.Line, type.Paragraph),
          doc(p(), hr),
          doc(p())
       ).toBe(doc()));
 
    it('adds a node when necessary', () =>
       expectFill(
-         typeSequence(
-            TestTypeName.Paragraph,
-            TestTypeName.Line,
-            TestTypeName.Paragraph
-         ),
+         typeSequence(type.Paragraph, type.Line, type.Paragraph),
          doc(p()),
          doc(p())
       ).toBe(doc(hr)));
@@ -445,11 +405,11 @@ describe('fillBefore', () => {
    it('completes a sequence', () =>
       expectDoubleFill(
          typeSequence(
-            TestTypeName.Paragraph,
-            TestTypeName.Line,
-            TestTypeName.Paragraph,
-            TestTypeName.Line,
-            TestTypeName.Paragraph
+            type.Paragraph,
+            type.Line,
+            type.Paragraph,
+            type.Line,
+            type.Paragraph
          ),
          doc(p()),
          doc(p()),

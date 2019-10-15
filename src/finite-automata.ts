@@ -155,7 +155,7 @@ export function nfa(expr: Expression): NFA {
 /**
  * Needed because default array sort is alphabetical.
  */
-const numberSort = (n1: number, n2: number) => n1 - n2;
+const numberSort = (n1: number, n2: number) => n2 - n1;
 
 /**
  * Get the set of nodes reachable by `null` edges from `node` index. Omit
@@ -184,6 +184,50 @@ export function nullFrom(nfa: NFA, node: number): number[] {
             scan(to!);
          }
       });
+   }
+}
+
+function oldNullFrom(nfa: NFA, node: number): number[] {
+   let result: number[] = [];
+   scan(node);
+   return result.sort(numberSort);
+
+   function scan(node: number): void {
+      let edges = nfa[node];
+      if (edges.length == 1 && !edges[0].term) return scan(edges[0].to);
+      result.push(node);
+      for (let i = 0; i < edges.length; i++) {
+         let { term, to } = edges[i];
+         if (!term && result.indexOf(to) == -1) scan(to);
+      }
+   }
+}
+
+export function oldDFA(nfa: NFA): ContentMatch {
+   let labeled = Object.create(null);
+   return explore(oldNullFrom(nfa, 0));
+
+   function explore(states: number[]): ContentMatch {
+      let out: any = [];
+      states.forEach((node: any) => {
+         nfa[node].forEach(({ term, to }) => {
+            if (!term) return;
+            let known = out.indexOf(term),
+               set = known > -1 && out[known + 1];
+            oldNullFrom(nfa, to).forEach(node => {
+               if (!set) out.push(term, (set = []));
+               if (set.indexOf(node) == -1) set.push(node);
+            });
+         });
+      });
+      let state = (labeled[states.join(',')] = new ContentMatch(
+         states.indexOf(nfa.length - 1) > -1
+      ));
+      for (let i = 0; i < out.length; i += 2) {
+         let states = out[i + 1].sort(numberSort);
+         state.next.push(out[i], labeled[states.join(',')] || explore(states));
+      }
+      return state;
    }
 }
 

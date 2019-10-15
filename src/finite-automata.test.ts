@@ -1,21 +1,23 @@
 import '@toba/test';
-import { Edge, nfaToDFA, nullFrom } from './finite-automata';
+import { Edge, nfaToDFA, nullFrom, oldDFA } from './finite-automata';
 import {
    dfa as pm_nfaToDFA,
    nullFrom as pm_nullFrom
 } from '@toba/test-prosemirror-model';
+import { expectSameMatch } from './__mocks__';
 import { makeNFA } from './__mocks__/compare';
 import { ContentMatch } from './match';
+import { typeSequence, TestTypeName as type } from './test-schema';
 
 describe('duplicate ProseMirror functionality', () => {
-   it('creates finite automata the same', () => {
-      const [auto, pm_auto] = makeNFA();
+   function expectSameNFA(pattern: string) {
+      const [nfa, pm_nfa] = makeNFA(pattern);
 
-      expect(auto.length).toBe(pm_auto.length);
+      expect(nfa.length).toBe(pm_nfa.length);
 
-      for (let i = 0; i < auto.length; i++) {
-         const edges: Edge[] = auto[i];
-         const pm_edges: any[] = pm_auto[i];
+      for (let i = 0; i < nfa.length; i++) {
+         const edges: Edge[] = nfa[i];
+         const pm_edges: any[] = pm_nfa[i];
 
          expect(edges.length).toBe(pm_edges.length);
 
@@ -32,9 +34,19 @@ describe('duplicate ProseMirror functionality', () => {
             }
          }
       }
+
+      return [nfa, pm_nfa];
+   }
+
+   it('creates basic finite automata', () => {
+      expectSameNFA(typeSequence(type.Paragraph, type.Line, type.Paragraph));
    });
 
-   it('finds same nodes reachable by null edges', () => {
+   it('creates NFA with options', () => {
+      expectSameNFA('heading paragraph? horizontal_rule');
+   });
+
+   it('finds nodes reachable by null edges', () => {
       const [auto, pm_auto] = makeNFA();
 
       for (let i = 0; i < 3; i++) {
@@ -46,12 +58,21 @@ describe('duplicate ProseMirror functionality', () => {
       }
    });
 
-   it('creates match the same', () => {
-      const [auto, pm_auto] = makeNFA();
-      const match: ContentMatch = nfaToDFA(auto);
-      const pm_match: any = pm_nfaToDFA(pm_auto);
+   it('creates basic pattern matches', () => {
+      const [nfa, pm_nfa] = makeNFA();
+      const match: ContentMatch = nfaToDFA(nfa);
+      const pm_match: any = pm_nfaToDFA(pm_nfa);
 
       expect(match.edgeCount).toBe(pm_match.edgeCount);
-      expect(match.defaultType).toBe(pm_match.defaultType);
+      expect(match.defaultType!.name).toBe(pm_match.defaultType.name);
+   });
+
+   it('creates optional pattern matches', () => {
+      const [nfa, pm_nfa] = expectSameNFA('heading paragraph? horizontal_rule');
+      const match: ContentMatch = oldDFA(nfa);
+      //const maybe: any = pm_nfaToDFA(nfa);
+      const pm_match: any = pm_nfaToDFA(pm_nfa);
+
+      expectSameMatch(match, pm_match);
    });
 });
