@@ -303,15 +303,15 @@ export class Fragment {
 
    /**
     * Find the first position, searching from the end, at which this fragment
-    * and the given fragment differ, or `null` if they are the same. Since this
-    * position will not be the same in both nodes, an object with two separate
-    * positions is returned.
+    * and the given fragment differ, or `undefined` if they are the same. Since
+    * this position will not be the same in both nodes, an object with two
+    * separate positions is returned.
     */
    findDiffEnd = (
       other: Fragment,
       pos = this.size,
       otherPos = other.size
-   ): { a: number; b: number } | null =>
+   ): { a: number; b: number } | undefined =>
       findDiffEnd(this, other, pos, otherPos);
 
    /**
@@ -470,8 +470,8 @@ export function findDiffStart(
          }
       }
       if (childA.content.size || childB.content.size) {
-         let inner = findDiffStart(childA.content, childB.content, pos + 1);
-         if (inner !== null) {
+         const inner = findDiffStart(childA.content, childB.content, pos + 1);
+         if (inner !== undefined) {
             return inner;
          }
       }
@@ -484,10 +484,10 @@ export function findDiffEnd(
    b: Fragment,
    posA: number,
    posB: number
-): { a: number; b: number } | null {
+): { a: number; b: number } | undefined {
    for (let iA = a.childCount, iB = b.childCount; ; ) {
       if (iA == 0 || iB == 0) {
-         return iA == iB ? null : { a: posA, b: posB };
+         return iA == iB ? undefined : { a: posA, b: posB };
       }
       const childA = a.child(--iA);
       const childB = b.child(--iB);
