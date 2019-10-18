@@ -25,9 +25,8 @@ import { SimpleMap } from './types';
  */
 export interface NodeSpec {
    /**
-    * The content expression for this node, as described in the
-    * [schema guide](/docs/guide/#schema.content_expressions). When not given,
-    * the node does not allow any content.
+    * Pattern indicating allowed content based on `NodeType` or group name. If
+    * not given then no content will be allowed.
     */
    content?: string;
 
@@ -147,7 +146,7 @@ export class NodeType {
    groups: string[];
    defaultAttrs: Attributes | null;
    /** Starting match of the node type's content expression */
-   contentMatch: ContentMatch | null;
+   contentMatch?: ContentMatch;
    /** Set of marks allowed in this node. `null` means all marks are allowed. */
    markSet: MarkType[] | null;
    /** True if this node type has inline content */
@@ -164,7 +163,7 @@ export class NodeType {
       this.groups = spec.group === undefined ? [] : spec.group.split(' ');
       this.attrs = initAttrs(spec.attrs);
       this.defaultAttrs = defaultAttrs(this.attrs);
-      this.contentMatch = null;
+      this.contentMatch = undefined;
       this.markSet = null;
       this.inlineContent = null;
       this.isBlock = !(spec.inline || name == 'text');
@@ -216,7 +215,7 @@ export class NodeType {
 
    compatibleContent = (other: NodeType): boolean =>
       this === other ||
-      (this.contentMatch !== null &&
+      (this.contentMatch !== undefined &&
          this.contentMatch.compatible(other.contentMatch));
 
    computeAttrs = (attrs?: Attributes): Attributes =>
@@ -281,21 +280,22 @@ export class NodeType {
       attrs?: Attributes,
       content?: Fragment | EditorNode | EditorNode[],
       marks?: Mark[]
-   ): EditorNode | null {
+   ): EditorNode | undefined {
       attrs = this.computeAttrs(attrs);
       content = Fragment.from(content);
 
       if (content.size) {
          const before =
-            this.contentMatch !== null && this.contentMatch.fillBefore(content);
+            this.contentMatch !== undefined &&
+            this.contentMatch.fillBefore(content);
          if (!before) {
-            return null;
+            return undefined;
          }
          content = before.append(content);
       }
       let after: Fragment | undefined;
 
-      if (this.contentMatch !== null) {
+      if (this.contentMatch !== undefined) {
          const match:
             | ContentMatch
             | undefined = this.contentMatch.matchFragment(content);
@@ -305,7 +305,7 @@ export class NodeType {
       }
 
       return after === undefined
-         ? null
+         ? undefined
          : new EditorNode(
               this,
               attrs,
@@ -320,7 +320,8 @@ export class NodeType {
     */
    validContent(content: Fragment): boolean {
       const result =
-         this.contentMatch !== null && this.contentMatch.matchFragment(content);
+         this.contentMatch !== undefined &&
+         this.contentMatch.matchFragment(content);
 
       if (!result || !result.validEnd) {
          return false;
@@ -337,7 +338,7 @@ export class NodeType {
     * Check whether the given mark type is allowed in this node.
     */
    allowsMarkType = (markType: MarkType): boolean =>
-      this.markSet == null || this.markSet.indexOf(markType) > -1;
+      this.markSet == null || this.markSet.includes(markType);
 
    /**
     * Test whether the given set of marks are allowed in this node.
@@ -375,6 +376,9 @@ export class NodeType {
       return !copy ? marks : copy.length ? copy : Mark.empty;
    }
 
+   /**
+    * Compile node specifications into node types.
+    */
    static compile(
       specs: OrderedMap<NodeSpec>,
       schema: Schema

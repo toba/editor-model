@@ -7,7 +7,7 @@ import {
 import { expectSameMatch } from './__mocks__';
 import { makeNFA } from './__mocks__/compare';
 import { ContentMatch } from './match';
-import { typeSequence, TestTypeName as type } from './test-schema';
+import { typeSequence, Item as type } from './test-schema';
 
 describe('duplicate ProseMirror functionality', () => {
    function expectSameNFA(pattern: string) {

@@ -61,7 +61,7 @@ export function computeAttrs(
    for (let name in attrs) {
       let given: AttributeValue | undefined = values[name];
 
-      if (!is.value<string>(given)) {
+      if (!is.value<AttributeValue>(given)) {
          // no given value so try to use default value
          let attr = attrs[name];
 

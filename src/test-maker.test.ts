@@ -1,17 +1,11 @@
 import '@toba/test';
 import pm, { takeAttrs as pm_takeAttrs } from '@toba/test-prosemirror-tester';
-import { testSchema, TestTypeName } from './test-schema';
-import {
-   makeTestItems,
-   NodeMaker,
-   TestItemMaker,
-   TestNode,
-   takeAttrs
-} from './test-maker';
+import { testSchema, Item } from './test-schema';
+import { makeTestItems, TestItemMaker, takeAttrs } from './test-maker';
 
 const items = makeTestItems(testSchema, {
-   p: { type: TestTypeName.Paragraph },
-   hr: { type: TestTypeName.Line }
+   p: { type: Item.Paragraph },
+   hr: { type: Item.Line }
 });
 
 const doc = items.node['doc'];
@@ -26,8 +20,8 @@ describe('duplicate ProseMirror functionality', () => {
     * TODO: consider using same schema or write schema converter
     */
    const getItemMakers = (): [TestItemMaker, any] => [
-      makeTestItems(testSchema, { p: { type: TestTypeName.Paragraph } }),
-      pm.builders(testSchema, { p: { nodeType: TestTypeName.Paragraph } })
+      makeTestItems(testSchema, { p: { type: Item.Paragraph } }),
+      pm.builders(testSchema, { p: { nodeType: Item.Paragraph } })
    ];
 
    it('creates the same maker collections from schema', () => {

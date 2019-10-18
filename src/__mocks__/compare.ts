@@ -8,7 +8,7 @@ import {
    parseExpr as pm_parseExpr,
    NodeType as pm_NodeType
 } from '@toba/test-prosemirror-model';
-import { testSchema, TestTypeName as type, typeSequence } from '../test-schema';
+import { testSchema, Item as type, typeSequence } from '../test-schema';
 
 // Methods to create parallel instances of ProseMirror and Editor entities
 // based on the basic schema

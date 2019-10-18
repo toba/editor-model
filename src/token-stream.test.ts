@@ -1,6 +1,6 @@
 import '@toba/test';
 import { makeStreams, makeExpressions } from './__mocks__/compare';
-import { typeSequence, TestTypeName as type } from './test-schema';
+import { typeSequence, Item } from './test-schema';
 
 describe('duplicate ProseMirror functionality', () => {
    function expectSameExpression(pattern: string) {
@@ -32,11 +32,11 @@ describe('duplicate ProseMirror functionality', () => {
 
    it('parses basic expressions the same', () => {
       expectSameExpression(
-         typeSequence(type.Paragraph, type.Line, type.Paragraph)
+         typeSequence(Item.Paragraph, Item.Line, Item.Paragraph)
       );
    });
 
    it('parses optional expressions the same', () => {
-      expectSameExpression('heading paragraph? horizontal_rule');
+      expectSameExpression(`${Item.Heading} ${Item.Paragraph}? ${Item.Line}`);
    });
 });

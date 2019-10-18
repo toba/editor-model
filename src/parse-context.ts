@@ -412,7 +412,7 @@ export class ParseContext {
          const found = context.findWrapping(node);
 
          if (
-            found !== null &&
+            found !== undefined &&
             (route === null || route.length > found.length)
          ) {
             route = found;

@@ -98,8 +98,8 @@ export class ContentMatch {
       return found !== undefined ? found[0] : found;
    }
 
-   compatible(other: ContentMatch | null): boolean {
-      if (other === null) {
+   compatible(other?: ContentMatch): boolean {
+      if (other === undefined) {
          return false;
       }
       for (let i = 0; i < this.next.size(); i++) {
@@ -168,7 +168,7 @@ export class ContentMatch {
     * type to appear at this position. The result may be empty (when it fits
     * directly) and will be null when no such wrapping exists.
     */
-   findWrapping(target: NodeType): NodeType[] | null {
+   findWrapping(target: NodeType): NodeType[] | undefined {
       for (let i = 0; i < this.wrapCache.size(); i++) {
          const [type, wrapTypes] = this.wrapCache.item(i)!;
 
@@ -178,13 +178,13 @@ export class ContentMatch {
       }
       const computed = this.computeWrapping(target);
 
-      if (computed !== null) {
+      if (computed !== undefined) {
          this.wrapCache.push(target, computed);
       }
       return computed;
    }
 
-   computeWrapping(target: NodeType): NodeType[] | null {
+   computeWrapping(target: NodeType): NodeType[] | undefined {
       /** Names of `NodeType`s that have already been processed */
       const seen = Object.create(null) as SimpleMap<boolean>;
       const active: ActiveMatch[] = [{ match: this, type: null, via: null }];
@@ -207,7 +207,7 @@ export class ContentMatch {
                !type.isLeaf &&
                !type.hasRequiredAttrs() &&
                !(type.name in seen) &&
-               type.contentMatch !== null &&
+               type.contentMatch !== undefined &&
                (current.type === null || m.validEnd)
             ) {
                active.push({ match: type.contentMatch, type, via: current });
@@ -215,7 +215,7 @@ export class ContentMatch {
             }
          });
       }
-      return null;
+      return undefined;
    }
 
    /**

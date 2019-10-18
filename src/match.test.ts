@@ -6,9 +6,10 @@ import { ContentMatch } from './match';
 import { doc, p, hr, br, img, h1, pre, expectSameMatch } from './__mocks__';
 import {
    testSchema,
-   TestTypeName as type,
+   Item,
    typeSequence,
-   repeatType
+   repeatType,
+   Group
 } from './test-schema';
 import { NodeType } from './node-type';
 import { EditorNode } from './node';
@@ -59,161 +60,162 @@ describe('matchType', () => {
    it('accepts empty content for the empty expr', () => expectMatch('', ''));
 
    it("doesn't accept content in the empty expr", () =>
-      expectMismatch('', type.Image));
+      expectMismatch('', Item.Image));
 
-   it('matches nothing to an asterisk', () => expectMatch('image*', ''));
+   it('matches nothing to an asterisk', () =>
+      expectMatch(`${Item.Image}*`, ''));
 
    it('matches one element to an asterisk', () =>
-      expectMatch('image*', type.Image));
+      expectMatch(`${Item.Image}*`, Item.Image));
 
    it('matches multiple elements to an asterisk', () =>
-      expectMatch('image*', repeatType(4, type.Image)));
+      expectMatch(`${Item.Image}*`, repeatType(4, Item.Image)));
 
    it('only matches appropriate elements to an asterisk', () =>
-      expectMismatch('image*', typeSequence(type.Image, type.Text)));
+      expectMismatch(`${Item.Image}*`, typeSequence(Item.Image, Item.Text)));
 
    it('matches group members to a group', () =>
-      expectMatch('inline*', typeSequence(type.Image, type.Text)));
+      expectMatch(`${Group.Inline}*`, typeSequence(Item.Image, Item.Text)));
 
    it("doesn't match non-members to a group", () =>
-      expectMismatch('inline*', type.Paragraph));
+      expectMismatch(`${Group.Inline}*`, Item.Paragraph));
 
    it('matches an element to a choice expression', () =>
-      expectMatch('(paragraph | heading)', type.Paragraph));
+      expectMatch('(paragraph | heading)', Item.Paragraph));
 
    it("doesn't match unmentioned elements to a choice expr", () =>
-      expectMismatch(`(paragraph | heading)`, type.Image));
+      expectMismatch(`(paragraph | heading)`, Item.Image));
 
    it('matches a simple sequence', () => {
-      const seq = typeSequence(type.Paragraph, type.Line, type.Paragraph);
+      const seq = typeSequence(Item.Paragraph, Item.Line, Item.Paragraph);
       expectMatch(seq, seq);
    });
 
    it('fails when a sequence is too long', () =>
       expectMismatch(
-         typeSequence(type.Paragraph, type.Line),
-         typeSequence(type.Paragraph, type.Line, type.Paragraph)
+         typeSequence(Item.Paragraph, Item.Line),
+         typeSequence(Item.Paragraph, Item.Line, Item.Paragraph)
       ));
 
    it('fails when a sequence is too short', () =>
       expectMismatch(
-         typeSequence(type.Paragraph, type.Line, type.Paragraph),
-         typeSequence(type.Paragraph, type.Line)
+         typeSequence(Item.Paragraph, Item.Line, Item.Paragraph),
+         typeSequence(Item.Paragraph, Item.Line)
       ));
 
    it('fails when a sequence starts incorrectly', () =>
       expectMismatch(
-         typeSequence(type.Paragraph, type.Line),
-         typeSequence(type.Line, type.Paragraph, type.Line)
+         typeSequence(Item.Paragraph, Item.Line),
+         typeSequence(Item.Line, Item.Paragraph, Item.Line)
       ));
 
    it('accepts a sequence asterisk matching zero elements', () =>
-      expectMatch('heading paragraph*', type.Heading));
+      expectMatch('heading paragraph*', Item.Heading));
 
    it('accepts a sequence asterisk matching multiple elts', () =>
       expectMatch(
          'heading paragraph*',
-         typeSequence(type.Heading, type.Paragraph, type.Paragraph)
+         typeSequence(Item.Heading, Item.Paragraph, Item.Paragraph)
       ));
 
    it('accepts a sequence plus matching one element', () =>
       expectMatch(
          'heading paragraph+',
-         typeSequence(type.Heading, type.Paragraph)
+         typeSequence(Item.Heading, Item.Paragraph)
       ));
 
    it('accepts a sequence plus matching multiple elts', () =>
       expectMatch(
          'heading paragraph+',
-         typeSequence(type.Heading, type.Paragraph, type.Paragraph)
+         typeSequence(Item.Heading, Item.Paragraph, Item.Paragraph)
       ));
 
    it('fails when a sequence plus has no elements', () =>
-      expectMismatch('heading paragraph+', type.Heading));
+      expectMismatch('heading paragraph+', Item.Heading));
 
    it('fails when a sequence plus misses its start', () =>
       expectMismatch(
          'heading paragraph+',
-         typeSequence(type.Paragraph, type.Paragraph)
+         typeSequence(Item.Paragraph, Item.Paragraph)
       ));
 
    it('accepts an optional element being present', () =>
-      expectMatch('image?', type.Image));
+      expectMatch(`${Item.Image}?`, Item.Image));
 
    it('accepts an optional element being missing', () =>
-      expectMatch('image?', ''));
+      expectMatch(`${Item.Image}?`, ''));
 
    it('fails when an optional element is present twice', () =>
-      expectMismatch('image?', typeSequence(type.Image, type.Image)));
+      expectMismatch(`${Item.Image}?`, typeSequence(Item.Image, Item.Image)));
 
    it('accepts a nested repeat', () =>
       expectMatch(
          '(heading paragraph+)+',
          typeSequence(
-            type.Heading,
-            type.Paragraph,
-            type.Heading,
-            type.Paragraph,
-            type.Paragraph
+            Item.Heading,
+            Item.Paragraph,
+            Item.Heading,
+            Item.Paragraph,
+            Item.Paragraph
          )
       ));
    it('fails on extra input after a nested repeat', () =>
       expectMismatch(
          '(heading paragraph+)+',
          typeSequence(
-            type.Heading,
-            type.Paragraph,
-            type.Heading,
-            type.Paragraph,
-            type.Paragraph,
-            type.Line
+            Item.Heading,
+            Item.Paragraph,
+            Item.Heading,
+            Item.Paragraph,
+            Item.Paragraph,
+            Item.Line
          )
       ));
 
    it('accepts a matching count', () =>
-      expectMatch('hard_break{2}', repeatType(2, type.Break)));
+      expectMatch(`${Item.Break}{2}`, repeatType(2, Item.Break)));
 
    it('rejects a count that comes up short', () =>
-      expectMismatch('hard_break{2}', type.Break));
+      expectMismatch('hard_break{2}', Item.Break));
 
    it('rejects a count that has too many elements', () =>
-      expectMismatch('hard_break{2}', repeatType(3, type.Break)));
+      expectMismatch('hard_break{2}', repeatType(3, Item.Break)));
 
    it('accepts a count on the lower bound', () =>
-      expectMatch('hard_break{2, 4}', repeatType(2, type.Break)));
+      expectMatch('hard_break{2, 4}', repeatType(2, Item.Break)));
 
    it('accepts a count on the upper bound', () =>
-      expectMatch('hard_break{2, 4}', repeatType(4, type.Break)));
+      expectMatch('hard_break{2, 4}', repeatType(4, Item.Break)));
 
    it('accepts a count between the bounds', () =>
-      expectMatch('hard_break{2, 4}', repeatType(3, type.Break)));
+      expectMatch('hard_break{2, 4}', repeatType(3, Item.Break)));
 
    it('rejects a sequence with too few elements', () =>
-      expectMismatch('hard_break{2, 4}', type.Break));
+      expectMismatch('hard_break{2, 4}', Item.Break));
 
    it('rejects a sequence with too many elements', () =>
-      expectMismatch('hard_break{2, 4}', repeatType(5, type.Break)));
+      expectMismatch('hard_break{2, 4}', repeatType(5, Item.Break)));
 
    it('rejects a sequence with a bad element after it', () =>
       expectMismatch(
          'hard_break{2, 4} text*',
-         typeSequence(type.Break, type.Break, type.Image)
+         typeSequence(Item.Break, Item.Break, Item.Image)
       ));
 
    it('accepts a sequence with a matching element after it', () =>
       expectMatch(
          'hard_break{2, 4} image?',
-         typeSequence(type.Break, type.Break, type.Image)
+         typeSequence(Item.Break, Item.Break, Item.Image)
       ));
 
    it('accepts an open range', () =>
-      expectMatch('hard_break{2,}', repeatType(2, type.Break)));
+      expectMatch('hard_break{2,}', repeatType(2, Item.Break)));
 
    it('accepts an open range matching many', () =>
-      expectMatch('hard_break{2,}', repeatType(4, type.Break)));
+      expectMatch('hard_break{2,}', repeatType(4, Item.Break)));
 
    it('rejects an open range with too few elements', () =>
-      expectMismatch('hard_break{2,}', type.Break));
+      expectMismatch('hard_break{2,}', Item.Break));
 });
 
 describe('duplicate ProseMirror functionality', () => {
@@ -221,7 +223,7 @@ describe('duplicate ProseMirror functionality', () => {
     * Created a parsed `Match` for Toba and ProseMirror.
     */
    function makeParseMatch(
-      pattern = typeSequence(type.Paragraph, type.Line, type.Paragraph)
+      pattern = typeSequence(Item.Paragraph, Item.Line, Item.Paragraph)
    ): [ContentMatch | undefined, any] {
       const match: ContentMatch | undefined = ContentMatch.parse(
          pattern,
@@ -341,38 +343,38 @@ describe('fillBefore', () => {
    }
    it('returns the empty fragment when things match', () =>
       expectFill(
-         typeSequence(type.Paragraph, type.Line, type.Paragraph),
+         typeSequence(Item.Paragraph, Item.Line, Item.Paragraph),
          doc(p(), hr),
          doc(p())
       ).toBe(doc()));
 
    it('adds a node when necessary', () =>
       expectFill(
-         typeSequence(type.Paragraph, type.Line, type.Paragraph),
+         typeSequence(Item.Paragraph, Item.Line, Item.Paragraph),
          doc(p()),
          doc(p())
       ).toBe(doc(hr)));
 
    it('accepts an asterisk across the bound', () =>
-      expectFill('hard_break*', p(br), p(br)).toBe(p()));
+      expectFill(`${Item.Break}*`, p(br), p(br)).toBe(p()));
 
    it('accepts an asterisk only on the left', () =>
-      expectFill('hard_break*', p(br), p()).toBe(p()));
+      expectFill(`${Item.Break}*`, p(br), p()).toBe(p()));
 
    it('accepts an asterisk only on the right', () =>
-      expectFill('hard_break*', p(), p(br)).toBe(p()));
+      expectFill(`${Item.Break}*`, p(), p(br)).toBe(p()));
 
    it('accepts an asterisk with no elements', () =>
-      expectFill('hard_break*', p(), p()).toBe(p()));
+      expectFill(`${Item.Break}*`, p(), p()).toBe(p()));
 
    it('accepts a plus across the bound', () =>
-      expectFill('hard_break+', p(br), p(br)).toBe(p()));
+      expectFill(`${Item.Break}+`, p(br), p(br)).toBe(p()));
 
    it('adds an element for a content-less plus', () =>
-      expectFill('hard_break+', p(), p()).toBe(p(br)));
+      expectFill(`${Item.Break}+`, p(), p()).toBe(p(br)));
 
    it('fails for a mismatched plus', () =>
-      expectFill('hard_break+', p(), p(img)).toBeUndefined());
+      expectFill(`${Item.Break}+`, p(), p(img)).toBeUndefined());
 
    it('accepts asterisk with content on both sides', () =>
       expectFill('heading* paragraph*', doc(h1()), doc(p())).toBe(doc()));
@@ -405,11 +407,11 @@ describe('fillBefore', () => {
    it('completes a sequence', () =>
       expectDoubleFill(
          typeSequence(
-            type.Paragraph,
-            type.Line,
-            type.Paragraph,
-            type.Line,
-            type.Paragraph
+            Item.Paragraph,
+            Item.Line,
+            Item.Paragraph,
+            Item.Line,
+            Item.Paragraph
          ),
          doc(p()),
          doc(p()),

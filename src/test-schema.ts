@@ -1,6 +1,5 @@
 import { is } from '@toba/tools';
 import { Schema } from './schema';
-import { ElementSpec } from './to-dom';
 import { NodeSpec } from './node-type';
 import { MarkSpec } from './mark-type';
 import { SimpleMap } from './types';
@@ -10,7 +9,7 @@ import { SimpleMap } from './types';
 /**
  * `NodeType` and `MarkType` names.
  */
-export const enum TestTypeName {
+export const enum Item {
    Document = 'doc',
    Paragraph = 'paragraph',
    BlockQuote = 'blockquote',
@@ -23,70 +22,65 @@ export const enum TestTypeName {
    Link = 'link',
    Emphasis = 'em',
    Strong = 'strong',
-   Code = 'code'
+   Code = 'code',
+   OrderedList = 'ordered_list',
+   ListItem = 'list_item',
+   BulletList = 'bullet_list'
+}
+
+export const enum Group {
+   Block = 'block',
+   Inline = 'inline'
 }
 
 /**
  * Combine `NodeType` names into space-delimited string.
  */
-export const typeSequence = (...types: TestTypeName[]): string =>
-   types.join(' ');
+export const typeSequence = (...types: Item[]): string => types.join(' ');
 
-export const repeatType = (times: number, type: TestTypeName): string =>
+export const repeatType = (times: number, type: Item): string =>
    (type + ' ').repeat(times).trimRight();
-
-// no reason why these need the same keys as TestTypeName
-const elSpec: SimpleMap<ElementSpec> = {
-   [TestTypeName.Paragraph]: ['p', 0],
-   [TestTypeName.BlockQuote]: ['blockquote', 0],
-   line: ['hr'],
-   pre: ['pre', ['code', 0]],
-   break: ['br'],
-   emphasis: ['em', 0],
-   [TestTypeName.Strong]: ['strong', 0],
-   [TestTypeName.Code]: ['code', 0]
-};
 
 export const nodes: SimpleMap<NodeSpec> = {
    /** Top level document node. */
-   [TestTypeName.Document]: {
-      content: 'block+'
+   [Item.Document]: {
+      content: `${Group.Block}+`
    },
 
    /**
     * A plain paragraph textblock. Represented in the DOM as a `<p>` element.
     */
-   [TestTypeName.Paragraph]: {
-      content: 'inline*',
-      group: 'block',
+   [Item.Paragraph]: {
+      content: `${Group.Inline}*`,
+      group: Group.Block,
       parseDOM: [{ tag: 'p' }],
-      toDOM: () => elSpec.paragraph
+      toDOM: () => ['p', 0]
    },
 
    /** A blockquote (`<blockquote>`) wrapping one or more blocks. */
-   [TestTypeName.BlockQuote]: {
-      content: 'block+',
-      group: 'block',
+   [Item.BlockQuote]: {
+      content: `${Group.Block}+`,
+      group: Group.Block,
       defining: true,
       parseDOM: [{ tag: 'blockquote' }],
-      toDOM: () => elSpec.blockquote
+      toDOM: () => ['blockquote', 0]
    },
 
    /** A horizontal rule (`<hr>`). */
-   [TestTypeName.Line]: {
-      group: 'block',
+   [Item.Line]: {
+      group: Group.Block,
       parseDOM: [{ tag: 'hr' }],
-      toDOM: () => elSpec.line
+      toDOM: () => ['hr']
    },
 
    /**
     * A heading textblock, with a `level` attribute that should hold the number
     * 1 to 6. Parsed and serialized as `<h1>` to `<h6>` elements.
     */
-   [TestTypeName.Heading]: {
+   [Item.Heading]: {
       attrs: { level: { default: 1 } },
-      content: 'inline*',
-      group: 'block',
+      content: `${Group.Inline}*`,
+      group: Group.Block,
       defining: true,
       parseDOM: [
          { tag: 'h1', attrs: { level: 1 } },
@@ -103,33 +97,33 @@ export const nodes: SimpleMap<NodeSpec> = {
     * A code listing. Disallows marks or non-text inline nodes by default.
     * Represented as a `<pre>` element with a `<code>` element inside of it.
     */
-   [TestTypeName.CodeBlock]: {
-      content: 'text*',
+   [Item.CodeBlock]: {
+      content: `${Item.Text}*`,
       marks: '',
-      group: 'block',
+      group: Group.Block,
       code: true,
       defining: true,
       parseDOM: [{ tag: 'pre', preserveWhitespace: 'full' }],
-      toDOM: () => elSpec.pre
+      toDOM: () => ['pre', ['code', 0]]
    },
 
    /** The text node */
-   [TestTypeName.Text]: {
-      group: 'inline'
+   [Item.Text]: {
+      group: Group.Inline
    },
 
    /**
     * An inline image (`<img>`) node. Supports `src`, `alt`, and `href`
     * attributes. The latter two default to the empty string.
     */
-   [TestTypeName.Image]: {
+   [Item.Image]: {
       inline: true,
       attrs: {
          src: {},
          alt: { default: null },
          title: { default: null }
       },
-      group: 'inline',
+      group: Group.Inline,
       draggable: true,
       parseDOM: [
          {
@@ -145,18 +139,61 @@ export const nodes: SimpleMap<NodeSpec> = {
          }
       ],
       toDOM(node) {
-         let { src, alt, title } = node.attrs;
+         const { src, alt, title } = node.attrs;
          return ['img', { src, alt, title }];
       }
    },
 
    /** A hard line break, represented in the DOM as `<br>`. */
-   [TestTypeName.Break]: {
+   [Item.Break]: {
       inline: true,
-      group: 'inline',
+      group: Group.Inline,
       selectable: false,
       parseDOM: [{ tag: 'br' }],
-      toDOM: () => elSpec.break
+      toDOM: () => ['br']
+   },
+
+   /**
+    * An ordered list `NodeSpec`. Has a single attribute, `order`, which
+    * determines the number at which the list starts counting, and defaults to
+    * 1. Represented as an `<ol>` element.
+    */
+   [Item.OrderedList]: {
+      attrs: { order: { default: 1 } },
+      content: `${Item.ListItem}+`,
+      group: Group.Block,
+      parseDOM: [
+         {
+            tag: 'ol',
+            getAttrs: el =>
+               is.text(el)
+                  ? undefined
+                  : {
+                       order: el.hasAttribute('start')
+                          ? +el.getAttribute('start')!
+                          : 1
+                    }
+         }
+      ],
+      toDOM(node) {
+         return node.attrs.order == 1
+            ? ['ol', 0]
+            : ['ol', { start: node.attrs.order }, 0];
+      }
+   },
+
+   [Item.BulletList]: {
+      content: 'list_item+',
+      group: Group.Block,
+      parseDOM: [{ tag: 'ul' }],
+      toDOM: () => ['ul', 0]
+   },
+
+   [Item.ListItem]: {
+      content: `${Item.Paragraph} (${Item.OrderedList} | ${Item.BulletList})*`,
+      parseDOM: [{ tag: 'li' }],
+      toDOM: () => ['li', 0],
+      defining: true
    }
 };
 
@@ -165,7 +202,7 @@ export const marks: SimpleMap<MarkSpec> = {
     * A link. Has `href` and `title` attributes. `title` defaults to the empty
     * string. Rendered and parsed as an `<a>` element.
     */
-   [TestTypeName.Link]: {
+   [Item.Link]: {
       attrs: {
          href: {},
          title: { default: null }
@@ -193,16 +230,16 @@ export const marks: SimpleMap<MarkSpec> = {
     * An emphasis mark. Rendered as an `<em>` element. Has parse rules that also
     * match `<i>` and `font-style: italic`.
     */
-   [TestTypeName.Emphasis]: {
+   [Item.Emphasis]: {
       parseDOM: [{ tag: 'i' }, { tag: 'em' }, { style: 'font-style=italic' }],
-      toDOM: () => elSpec.emphasis
+      toDOM: () => ['em', 0]
    },
 
    /**
     * A strong mark. Rendered as `<strong>`, parse rules also match `<b>` and
     * `font-weight: bold`.
     */
-   [TestTypeName.Strong]: {
+   [Item.Strong]: {
       parseDOM: [
          { tag: 'strong' },
          // This works around a Google Docs misbehavior where
@@ -223,15 +260,13 @@ export const marks: SimpleMap<MarkSpec> = {
                   : undefined
          }
       ],
-      toDOM() {
-         return elSpec.strong;
-      }
+      toDOM: () => ['strong', 0]
    },
 
    /** Code font mark. Represented as a `<code>` element. */
-   [TestTypeName.Code]: {
+   [Item.Code]: {
       parseDOM: [{ tag: 'code' }],
-      toDOM: () => elSpec.code
+      toDOM: () => ['code', 0]
    }
 };
 

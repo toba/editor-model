@@ -6,7 +6,7 @@ import { Attributes } from './attribute';
 import { Mark } from './mark';
 import { NodeType } from './node-type';
 import { SimpleMap } from './types';
-import { TestTypeName } from './test-schema';
+import { Item } from './test-schema';
 
 const noTags = Object.create(null);
 
@@ -14,7 +14,7 @@ const noTags = Object.create(null);
  * Specification to create a node or mark.
  */
 export interface TestItemSpec {
-   type: TestTypeName;
+   type: Item;
    attrs?: Attributes;
    /** Whether spec is for a `Mark` rather than an `EditorNode` */
    isMark?: boolean;
@@ -33,13 +33,16 @@ export interface TestMark {
 }
 
 export type TestChild = string | TestNode | TestMark;
-export type MarkMaker = (...args: TestChild[]) => TestMark;
+export type MarkMaker = (
+   attr?: Attributes | TestChild,
+   ...args: TestChild[]
+) => TestMark;
 /**
  * A `NodeMaker` may pose directly as a `MockNode` with `flat` values when it
  * is for a leaf Node that cant't have children.
  */
 export interface NodeMaker {
-   (...args: TestChild[]): TestNode;
+   (attr?: Attributes | TestChild, ...args: TestChild[]): TestNode;
    flat?: EditorNode[];
 }
 
@@ -174,7 +177,7 @@ function nodeMaker(type: NodeType, attrs?: Attributes): NodeMaker {
    };
 
    if (type.isLeaf) {
-      // NodeMaker may be used directly as a MockNode since it can have no
+      // NodeMaker may be used directly as a MockNode since it may have no
       // children
       try {
          result.flat = [type.create(attrs)];

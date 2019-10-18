@@ -1,11 +1,11 @@
 import '@toba/test';
 import pm from '@toba/test-prosemirror-tester';
-import { testSchema, TestTypeName } from './test-schema';
+import { testSchema, Item } from './test-schema';
 import { makeTestItems, NodeMaker } from './test-maker';
 
 const items = makeTestItems(testSchema, {
-   p: { type: TestTypeName.Paragraph },
-   hr: { type: TestTypeName.Line }
+   p: { type: Item.Paragraph },
+   hr: { type: Item.Line }
 });
 
 const doc = items.node['doc'];

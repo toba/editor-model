@@ -15,7 +15,7 @@ export class NodeContext {
    activeMarks: Mark[];
    content: EditorNode[];
    options: number;
-   match: ContentMatch | null;
+   match: ContentMatch | undefined;
    solid: boolean;
 
    private attrs: Attributes | undefined;
@@ -35,7 +35,7 @@ export class NodeContext {
       this.match =
          match ||
          (options & Whitespace.OpenLeft || type === null
-            ? null
+            ? undefined
             : type.contentMatch);
       this.options = options;
       this.content = [];
@@ -43,12 +43,13 @@ export class NodeContext {
       this.activeMarks = Mark.empty;
    }
 
-   findWrapping(node: EditorNode): NodeType[] | null {
-      if (this.match === null) {
-         if (!this.type || this.type.contentMatch === null) {
+   findWrapping(node: EditorNode): NodeType[] | undefined {
+      if (this.match === undefined) {
+         if (!this.type || this.type.contentMatch === undefined) {
             return [];
          }
          let fill = this.type.contentMatch.fillBefore(Fragment.from(node));
+
          if (fill) {
             this.match = this.type.contentMatch.matchFragment(fill);
          } else {
@@ -58,11 +59,13 @@ export class NodeContext {
                this.match = start;
                return wrap;
             } else {
-               return null;
+               return undefined;
             }
          }
       }
-      return this.match === null ? null : this.match.findWrapping(node.type);
+      return this.match === undefined
+         ? undefined
+         : this.match.findWrapping(node.type);
    }
 
    finish(openEnd: boolean): EditorNode | Fragment {
@@ -92,7 +95,7 @@ export class NodeContext {
       }
       let content: Fragment = Fragment.from(this.content);
 
-      if (!openEnd && this.match !== null) {
+      if (!openEnd && this.match !== undefined) {
          content = content.append(this.match.fillBefore(Fragment.empty, true));
       }
 

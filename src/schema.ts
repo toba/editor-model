@@ -24,7 +24,7 @@ export interface SchemaSpec {
     * take precedence by default, and which nodes come first in a given
     * [group](http://prosemirror.net/docs/ref/#model.NodeSpec.group).
     */
-   nodes?: SimpleMap<NodeSpec> | OrderedMap<NodeSpec>;
+   nodes?: OrderedMap<NodeSpec>; //SimpleMap<NodeSpec>;
 
    /**
     * The mark types that exist in this schema. The order in which they are
@@ -32,7 +32,7 @@ export interface SchemaSpec {
     * [mark sets](http://prosemirror.net/docs/ref/#model.Mark.addToSet)
     * are sorted and in which [parse rules](#model.MarkSpec.parseDOM) are tried.
     */
-   marks?: SimpleMap<MarkSpec> | OrderedMap<MarkSpec>;
+   marks?: OrderedMap<MarkSpec>; //SimpleMap<MarkSpec> |
 
    /**
     * The name of the default top-level node for the schema. Defaults to
