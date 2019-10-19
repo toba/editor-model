@@ -1,9 +1,9 @@
 import '@toba/test';
-import { testSchema } from '../test/';
+import { basicSchema } from '../schema/';
 import { p, strong, em, code } from '../test/mocks';
 import { DOMSerializer } from './to-dom';
 
-const serializer = DOMSerializer.fromSchema(testSchema);
+const serializer = DOMSerializer.fromSchema(basicSchema);
 const noEm = new DOMSerializer(
    serializer.nodes,
    Object.assign({}, serializer.marks, { em: null })

@@ -1,24 +1,16 @@
 import '@toba/test';
 import { is } from '@toba/tools';
 import { ContentMatch } from './match';
+import { basicSchema, Item, Group } from '../schema/';
 import { doc, p, hr, br, img, h1, pre } from '../test/mocks';
-import {
-   testSchema,
-   Item,
-   typeSequence,
-   repeatType,
-   Group,
-   TestNode,
-   compare,
-   pm
-} from '../test/';
+import { typeSequence, repeatType, expectSame, pm, compare } from '../test/';
 import { NodeType, EditorNode, Fragment } from '../node/';
 
 /**
  * Match nodes in the test schema.
  */
 const matchNodes = (pattern: string): ContentMatch =>
-   ContentMatch.parse(pattern, testSchema.nodes);
+   ContentMatch.parse(pattern, basicSchema.nodes);
 
 // https://github.com/ProseMirror/prosemirror-model/blob/master/test/test-content.js
 
@@ -29,7 +21,7 @@ describe('matchType', () => {
    function match(pattern: string, typeNames?: string): boolean {
       const types: NodeType[] = is.empty(typeNames)
          ? []
-         : typeNames.split(' ').map(t => testSchema.nodes[t]);
+         : typeNames.split(' ').map(t => basicSchema.nodes[t]);
 
       let m: ContentMatch | undefined = matchNodes(pattern);
 
@@ -217,36 +209,9 @@ describe('matchType', () => {
 });
 
 describe('duplicate ProseMirror functionality', () => {
-   /**
-    * Created a parsed `Match` for Toba and ProseMirror.
-    */
-   function makeParseMatch(
-      pattern = typeSequence(Item.Paragraph, Item.Line, Item.Paragraph)
-   ): [ContentMatch | undefined, any] {
-      const match: ContentMatch | undefined = ContentMatch.parse(
-         pattern,
-         testSchema.nodes
-      );
-      const pm_match = pm.ContentMatch.parse(pattern, pm.testSchema.nodes);
-
-      return [match, pm_match];
-   }
-
-   function makeFragMatch(
-      node: TestNode = doc(p()),
-      pm_node: any = pm.mock.doc(pm.mock.p()),
-      pattern?: string
-   ): [ContentMatch | undefined, any] {
-      const [match, pm_match] = makeParseMatch(pattern);
-      const fragMatch = match!.matchFragment(node.content);
-      const pm_fragMatch = pm_match.matchFragment(pm_node.content);
-
-      return [fragMatch, pm_fragMatch];
-   }
-
    it('parses pattern the same', () => {
-      const [match, pm_match] = makeParseMatch();
-      compare.expectSameMatch(match, pm_match);
+      const [match, pm_match] = compare.parseMatch();
+      expectSame.match(match, pm_match);
    });
 
    it('parses optional pattern the same', () => {
@@ -255,10 +220,10 @@ describe('duplicate ProseMirror functionality', () => {
       //    pm.doc(pm.h1()),
       //    'heading paragraph? horizontal_rule'
       // );
-      const [match, pm_match] = makeParseMatch(
+      const [match, pm_match] = compare.parseMatch(
          'heading paragraph? horizontal_rule'
       );
-      compare.expectSameMatch(match, pm_match);
+      expectSame.match(match, pm_match);
       //doc(h1()), doc()).toBe(doc(hr)
 
       //const patternMatch = matchNodes(pattern);
@@ -266,14 +231,14 @@ describe('duplicate ProseMirror functionality', () => {
    });
 
    it('matches fragment the same', () => {
-      const [match, pm_match] = makeFragMatch();
-      compare.expectSameMatch(match, pm_match);
+      const [match, pm_match] = compare.fragMatch();
+      expectSame.match(match, pm_match);
    });
 
    it('fills-before the same', () => {
       const after = doc(p());
       const pm_after = pm.mock.doc(pm.mock.p());
-      const [match, pm_match] = makeFragMatch();
+      const [match, pm_match] = compare.fragMatch();
       const filled = match!.fillBefore(after.content, true);
       const pm_filled = pm_match.fillBefore(pm_after.content, true);
 

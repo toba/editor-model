@@ -34,7 +34,7 @@ export class Mark {
     * [exclusive](#model.MarkSpec.excludes) with this mark are present, those
     * are replaced by this one.
     */
-   addToSet(target: Mark[]): Mark[] {
+   addTo(target: Mark[]): Mark[] {
       /** New set of marks with current instance added */
       let out: Mark[] | null = null;
       /** Whether mark has already been added to the output */
@@ -79,7 +79,7 @@ export class Mark {
     * Remove this mark from the given set, returning a new set. If this mark is
     * not in the set, the set itself is returned.
     */
-   removeFromSet(set: Mark[]): Mark[] {
+   removeFrom(set: Mark[]): Mark[] {
       for (let i = 0; i < set.length; i++) {
          if (this.equals(set[i])) {
             return set.slice(0, i).concat(set.slice(i + 1));
@@ -91,7 +91,7 @@ export class Mark {
    /**
     * Test whether this mark is in the given set of marks.
     */
-   isInSet(set: Mark[]): boolean {
+   isIn(set: Mark[]): boolean {
       for (let i = 0; i < set.length; i++) {
          if (this.equals(set[i])) {
             return true;

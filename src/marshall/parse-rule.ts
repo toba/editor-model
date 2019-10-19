@@ -1,6 +1,6 @@
-import { Attributes, Fragment } from "../node";
-import { Schema } from "../schema";
-import { PreserveWhitespace } from "./parse-context";
+import { Attributes, Fragment } from '../node';
+import { Schema } from '../schema';
+import { PreserveSpace } from './parse-context';
 
 /**
  * Properties that describes how to parse a DOM node or inline style as an
@@ -60,12 +60,12 @@ export interface ParseRule {
     * in which case the `node` or `mark` property will be derived from its
     * position).
     */
-   node?: string;
+   nodeType?: string;
 
    /**
     * The name of the mark type to wrap the matched content in.
     */
-   mark?: string;
+   markType?: string;
 
    /**
     * When `true`, ignore content that matches this rule.
@@ -118,5 +118,5 @@ export interface ParseRule {
     * `true` means that whitespace should be preserved but newlines normalized
     * to spaces, and `"full"` means that newlines should also be preserved.
     */
-   preserveWhitespace?: PreserveWhitespace;
+   preserveSpace?: PreserveSpace;
 }

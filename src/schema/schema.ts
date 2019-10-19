@@ -39,7 +39,7 @@ export class Schema {
    /** `MarkType`s keyed to their names */
    marks: SimpleMap<MarkType>;
    /** Type of the default top node (usually a "doc") for this schema */
-   topNodeType: NodeType | undefined;
+   topNodeType?: NodeType;
    /**
     * An object for storing whatever values modules may want to compute and
     * cache per schema.
@@ -143,7 +143,7 @@ export class Schema {
    /**
     * Create a text node in the schema. Empty text nodes are not allowed.
     */
-   text(text: string, marks?: Mark[] | null): TextNode {
+   text(text: string, marks?: Mark[]): TextNode {
       const type: NodeType | undefined = this.nodes['text'];
       if (type === undefined) {
          throw new Error(`MarkType ${type} not found`);

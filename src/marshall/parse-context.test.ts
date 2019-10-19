@@ -1,17 +1,49 @@
 import '@toba/test';
-import { testSchema, pm } from '../test/';
-import { ParseContext } from './parse-context';
-import { DOMParser } from './parse-dom';
+import { compare, expectSame } from '../test/';
 
 describe('duplicate ProseMirror functionality', () => {
-   const parser = DOMParser.fromSchema(testSchema);
-   const pm_parser = pm.DOMParser.fromSchema(pm.testSchema);
+   it('adds elements with rules', () => {
+      const [context, pm_context] = compare.parseContext();
+      const ol = document.createElement('ol');
 
-   it('fills in missing stuff', () => {
-      const context = new ParseContext(parser);
-      const pm_context = new pm.ParseContext(pm_parser, {});
+      context.addElement(ol);
+      pm_context.addElement(ol);
 
-      expect(pm_context).toBeDefined();
-      expect(context).toBeDefined();
+      expectSame.parseContext(context, pm_context);
+   });
+
+   it.skip('adds DOM Element', () => {
+      const [context, pm_context] = compare.parseContext();
+      const div = document.createElement('div');
+
+      div.innerHTML = '<ol><p>Oh no</p></ol>';
+
+      context.addElement(div);
+      pm_context.addElement(div);
+
+      expectSame.parseContext(context, pm_context);
+   });
+
+   it.skip('adds content of a DOM node', () => {
+      const [context, pm_context] = compare.parseContext();
+      const div = document.createElement('div');
+      const pm_div = document.createElement('div');
+
+      div.innerHTML = '<ol><p>Oh no</p></ol>';
+
+      expectSame.parseContext(context, pm_context);
+
+      context.addAll(div);
+      pm_context.addAll(pm_div);
+
+      expectSame.parseContext(context, pm_context);
+   });
+
+   it.skip('fills in missing stuff', () => {
+      const [context, pm_context] = compare.parseContext(
+         '<ol><p>Oh no</p></ol>'
+      );
+
+      expectSame.parseContext(context, pm_context);
    });
 });

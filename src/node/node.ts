@@ -221,10 +221,10 @@ export class EditorNode {
          : (new EditorNode(this.type, this.attrs, content, this.marks) as this);
 
    /**
-    * Create a copy of this node, with the given set of marks instead of the
-    * node's own marks.
+    * Create a copy of this node with the given set of marks instead of the
+    * current marks.
     */
-   mark = (marks: Mark[]): this =>
+   withMarks = (marks: Mark[]): this =>
       marks === this.marks
          ? this
          : (new EditorNode(this.type, this.attrs, this.content, marks) as this);
@@ -365,8 +365,8 @@ export class EditorNode {
    }
 
    /**
-    * True when this is an inline node (a text node or a node that can appear
-    * among text).
+    * Whether this is an inline node (a text node or node that can appear
+    * within text).
     */
    get isInline(): boolean {
       return this.type.isInline;
@@ -413,7 +413,7 @@ export class EditorNode {
    }
 
    /**
-    * Get the content match in this node at the given index.
+    * Content match in this node at the given index.
     */
    contentMatchAt(index: number): ContentMatch {
       const match =

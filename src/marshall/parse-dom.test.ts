@@ -1,6 +1,6 @@
 import '@toba/test';
-import { Schema } from '../schema/schema';
-import { testSchema, makeTestItems, TestNode } from '../test/';
+import { Schema, basicSchema } from '../schema/';
+import { makeTestItems, TestNode } from '../test/';
 import {
    a,
    doc,
@@ -157,8 +157,8 @@ describe('parses HTML to Schema items', () => {
    );
 
    it('can parse marks on block nodes', () => {
-      const nodes = testSchema.spec.nodes!;
-      const marks = testSchema.spec.marks!;
+      const nodes = basicSchema.spec.nodes!;
+      const marks = basicSchema.spec.marks!;
       const commentSchema = new Schema({
          nodes: nodes!.update(
             'doc',
@@ -185,8 +185,8 @@ describe('parses HTML to Schema items', () => {
    });
 
    it('parses unique, non-exclusive, same-typed marks', () => {
-      const nodes = testSchema.spec.nodes!;
-      const marks = testSchema.spec.marks!;
+      const nodes = basicSchema.spec.nodes!;
+      const marks = basicSchema.spec.marks!;
       const commentSchema = new Schema({
          nodes: nodes,
          marks: marks.update('comment', {
@@ -225,8 +225,8 @@ describe('parses HTML to Schema items', () => {
    });
 
    it('serializes non-spanning marks correctly', () => {
-      const nodes = testSchema.spec.nodes!;
-      const marks = testSchema.spec.marks!;
+      const nodes = basicSchema.spec.nodes!;
+      const marks = basicSchema.spec.marks!;
       const markSchema = new Schema({
          nodes: nodes,
          marks: marks.update('test', {
@@ -247,7 +247,7 @@ describe('parses HTML to Schema items', () => {
 });
 
 describe.skip('handles malformed HTML', () => {
-   const parser = DOMParser.fromSchema(testSchema);
+   const parser = DOMParser.fromSchema(basicSchema);
    const expectDoc = (
       html: string,
       doc: TestNode,

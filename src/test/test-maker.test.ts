@@ -1,9 +1,9 @@
 import '@toba/test';
-import pm, { takeAttrs as pm_takeAttrs } from '@toba/test-prosemirror-tester';
-import { testSchema, Item } from './test-schema';
+import { pm } from './proxy';
+import { basicSchema, Item } from '../schema/';
 import { makeTestItems, TestItemMaker, takeAttrs } from './test-maker';
 
-const items = makeTestItems(testSchema, {
+const items = makeTestItems(basicSchema, {
    p: { type: Item.Paragraph },
    hr: { type: Item.Line }
 });
@@ -20,8 +20,8 @@ describe('duplicate ProseMirror functionality', () => {
     * TODO: consider using same schema or write schema converter
     */
    const getItemMakers = (): [TestItemMaker, any] => [
-      makeTestItems(testSchema, { p: { type: Item.Paragraph } }),
-      pm.builders(testSchema, { p: { nodeType: Item.Paragraph } })
+      makeTestItems(basicSchema, { p: { type: Item.Paragraph } }),
+      pm.mock.builders(basicSchema, { p: { nodeType: Item.Paragraph } })
    ];
 
    it('creates the same maker collections from schema', () => {
@@ -35,9 +35,9 @@ describe('duplicate ProseMirror functionality', () => {
 
    it('hoists the same test item attributes', () => {
       const children = [p()];
-      const pm_children = [pm.p()];
+      const pm_children = [pm.mock.p()];
       const attrs = takeAttrs(undefined, children);
-      const pm_attrs = pm_takeAttrs(undefined, pm_children);
+      const pm_attrs = pm.takeAttrs(undefined, pm_children);
 
       expect(attrs).toBeUndefined();
       expect(pm_attrs).toBeUndefined();
@@ -46,7 +46,7 @@ describe('duplicate ProseMirror functionality', () => {
 
    it('item makers produce the same output', () => {
       const node = doc(p());
-      const pm_node = pm.doc(pm.p());
+      const pm_node = pm.mock.doc(pm.mock.p());
 
       expect(node.childCount).toBe(pm_node.childCount);
       expect(node.isText).toBe(pm_node.isText);

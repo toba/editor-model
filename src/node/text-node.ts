@@ -37,7 +37,7 @@ export class TextNode extends EditorNode {
       return this.text.length;
    }
 
-   mark = (marks: Mark[]): this =>
+   withMarks = (marks: Mark[]): this =>
       marks === this.marks
          ? this
          : (new TextNode(this.type, this.attrs, this.text, marks) as this);

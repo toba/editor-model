@@ -1,10 +1,11 @@
 import '@toba/test';
-import { testSchema, Item, makeTestItems } from './';
+import { makeTestItems } from './';
+import { basicSchema, Item } from '../schema/';
 
 /**
  * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/index.js
  */
-export const items = makeTestItems(testSchema, {
+export const items = makeTestItems(basicSchema, {
    p: { type: Item.Paragraph },
    pre: { type: Item.CodeBlock },
    h1: { type: Item.Heading, attrs: { level: 1 } },

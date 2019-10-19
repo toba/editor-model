@@ -1,4 +1,4 @@
-import mock, { testSchema } from '@toba/test-prosemirror-tester';
+import mock, { testSchema, takeAttrs } from '@toba/test-prosemirror-tester';
 import {
    nfa,
    dfa,
@@ -19,11 +19,12 @@ export const pm = {
    DOMParser,
    nfaToDFA: dfa,
    mock,
-   nfa,
+   parseNFA: nfa,
    NodeType,
    nullFrom,
    ParseContext,
    parseExpr,
+   takeAttrs,
    testSchema,
    TokenStream
 };

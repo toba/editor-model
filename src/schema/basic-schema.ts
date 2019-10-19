@@ -1,7 +1,7 @@
 import { is } from '@toba/tools';
-import { Schema } from '../schema/';
-import { NodeSpec } from '../node/';
-import { MarkSpec } from '../mark/';
+import { Schema } from './schema';
+import { NodeSpec } from '../node';
+import { MarkSpec } from '../mark';
 import { SimpleMap } from '../types';
 import { OrderedMap } from '../ordered-map';
 
@@ -33,14 +33,6 @@ export const enum Group {
    Block = 'block',
    Inline = 'inline'
 }
-
-/**
- * Combine `NodeType` names into space-delimited string.
- */
-export const typeSequence = (...types: Item[]): string => types.join(' ');
-
-export const repeatType = (times: number, type: Item): string =>
-   (type + ' ').repeat(times).trimRight();
 
 export const nodes: SimpleMap<NodeSpec> = {
    /** Top level document node. */
@@ -104,7 +96,7 @@ export const nodes: SimpleMap<NodeSpec> = {
       group: Group.Block,
       code: true,
       defining: true,
-      parseDOM: [{ tag: 'pre', preserveWhitespace: 'full' }],
+      parseDOM: [{ tag: 'pre', preserveSpace: 'full' }],
       toDOM: () => ['pre', ['code', 0]]
    },
 
@@ -278,7 +270,7 @@ export const marks: SimpleMap<MarkSpec> = {
  * To reuse elements from this schema, extend or read from its `spec.nodes` and
  * `spec.marks`.
  */
-export const testSchema = new Schema({
+export const basicSchema = new Schema({
    nodes: OrderedMap.from(nodes),
    marks: OrderedMap.from(marks)
 });

@@ -22,17 +22,17 @@ export interface Edge {
 export type NFA = Edge[][];
 
 /**
- * Construct an NFA from an expression as returned by the parser. The NFA is
- * represented as an array of states, which are themselves arrays of edges,
- * which are `{term, to}` objects. The first state is the entry state and the
- * last node is the success state.
+ * Construct non-deterministic finiate automota (state machine) from an
+ * expression as returned by the parser. The NFA is represented as an array of
+ * states, which are themselves arrays of edges, which are `{term, to}` objects.
+ * The first state is the entry state and the last node is the success state.
  *
  * Note that unlike typical NFAs, the edge ordering in this one is significant,
  * in that it is used to construct filler content when necessary.
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/content.js#L270
  */
-export function nfa(expr: Expression): NFA {
+export function parseNFA(expr: Expression): NFA {
    const nfa: NFA = [[]];
    /** Add new `Edges` array tp `NFA` and return its index */
    const node = (): number => nfa.push([]) - 1;

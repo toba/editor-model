@@ -19,24 +19,24 @@ import {
 } from '../constants';
 import { Position } from '../position';
 
-export type PreserveWhitespace = boolean | 'full';
+export type PreserveSpace = boolean | 'full';
 
 /**
- * @see https://github.com/ProseMirror/prosemirror-model/blob/07ee26e64d6f0c345d8912d894edf9ff113a5446/src/from_dom.js#L276
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/from_dom.js#L276
  */
-const wsOptionsFor = (ws?: PreserveWhitespace) =>
+const wsOptionsFor = (ws?: PreserveSpace) =>
    (ws ? Whitespace.Preserve : 0) | (ws === 'full' ? Whitespace.Full : 0);
 
 /**
  * Tokenize a style attribute into key/value pairs.
- * @see https://github.com/ProseMirror/prosemirror-model/blob/07ee26e64d6f0c345d8912d894edf9ff113a5446/src/from_dom.js#L726
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/from_dom.js#L726
  */
 function parseStyles(style: string): string[] {
    const re = /\s*([\w-]+)\s*:\s*([^;]+)/g;
    const result: string[] = [];
-   let m;
+   let m: RegExpExecArray | null;
 
-   while ((m = re.exec(style))) {
+   while ((m = re.exec(style)) !== null) {
       result.push(m[1], m[2].trim());
    }
    return result;
@@ -80,12 +80,12 @@ export class ParseContext {
    private parser: DOMParser;
    private options: ParseOptions;
    /** Whether this is an open element */
-   private isOpen: boolean;
+   isOpen: boolean;
    private pendingMarks: Mark[];
    private nodes: NodeContext[];
    private openElementCount: number;
    private find: NodesToFind[] | undefined;
-   private needsBlock: boolean;
+   needsBlock: boolean;
 
    constructor(
       parser: DOMParser,
@@ -148,7 +148,7 @@ export class ParseContext {
     * the node is passed to `addElement` or, if it has a `style` attribute, to
     * `addElementWithStyles`.
     */
-   addDOM(node: Node): void {
+   addDOM(node: Node): this {
       if (node.nodeType == HtmlNodeType.Text) {
          this.addTextNode(node);
       } else if (node.nodeType == HtmlNodeType.Element) {
@@ -166,9 +166,10 @@ export class ParseContext {
             forEach(marks, this.removePendingMark);
          }
       }
+      return this;
    }
 
-   addTextNode(node: Node) {
+   addTextNode(node: Node): this {
       let value = node.nodeValue;
 
       const top: NodeContext = this.top;
@@ -190,15 +191,15 @@ export class ParseContext {
                /^\s/.test(value) &&
                this.openElementCount == this.nodes.length - 1
             ) {
-               const nodeBefore: EditorNode | undefined =
+               const editorNodeBefore: EditorNode | undefined =
                   top.content[top.content.length - 1];
                const domNodeBefore: Node | null = node.previousSibling;
 
                if (
-                  nodeBefore === undefined ||
+                  editorNodeBefore === undefined ||
                   (domNodeBefore !== null && domNodeBefore.nodeName == 'BR') ||
-                  (nodeBefore.isText &&
-                     /\s$/.test((nodeBefore as TextNode).text))
+                  (editorNodeBefore.isText &&
+                     /\s$/.test((editorNodeBefore as TextNode).text))
                ) {
                   value = value.slice(1);
                }
@@ -209,17 +210,19 @@ export class ParseContext {
          if (value !== null) {
             this.insertNode(this.parser.schema.text(value));
          }
-         this.findInText(node);
+         return this.findInText(node);
       } else {
-         this.findInside(node);
+         return this.findInside(node);
       }
    }
 
    /**
     * Try to find a handler for the given tag and use that to parse. If none is
     * found, the element's content nodes are added directly.
+    *
+    * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/from_dom.js#L401
     */
-   addElement(el: HTMLElement) {
+   addElement(el: HTMLElement): this {
       let name = el.nodeName.toLowerCase();
 
       if (listTags.hasOwnProperty(name)) {
@@ -232,7 +235,7 @@ export class ParseContext {
             : this.parser.matchTag(el, this);
 
       if (rule !== undefined ? rule.ignore : ignoreTags.hasOwnProperty(name)) {
-         this.findInside(el);
+         return this.findInside(el);
       } else if (rule === undefined || rule.skip !== undefined) {
          if (rule !== undefined && rule.skip !== undefined) {
             el = rule.skip as HTMLElement;
@@ -248,7 +251,7 @@ export class ParseContext {
             }
          } else if (el.firstChild === null) {
             this.leafFallback(el);
-            return;
+            return this;
          }
          this.addAll(el);
 
@@ -256,15 +259,16 @@ export class ParseContext {
             this.sync(top);
          }
          this.needsBlock = didNeedBlock;
+         return this;
       } else {
-         this.addElementByRule(el, rule);
+         return this.addElementByRule(el, rule);
       }
    }
 
    /**
     * Called for leaf DOM nodes that would otherwise be ignored.
     */
-   leafFallback(node: Node): void {
+   leafFallback(node: Node): this {
       if (
          node.nodeName == 'BR' &&
          node.ownerDocument !== null &&
@@ -273,6 +277,7 @@ export class ParseContext {
       ) {
          this.addTextNode(node.ownerDocument.createTextNode('\n'));
       }
+      return this;
    }
 
    /**
@@ -293,13 +298,13 @@ export class ParseContext {
             return null;
          }
          const type: MarkType | undefined =
-            rule.mark === undefined
+            rule.markType === undefined
                ? undefined
-               : this.parser.schema.marks[rule.mark];
+               : this.parser.schema.marks[rule.markType];
 
          if (type !== undefined) {
             const mark = type.create(rule.attrs);
-            marks = mark.addToSet(marks);
+            marks = mark.addTo(marks);
          }
       }
       return marks;
@@ -310,24 +315,24 @@ export class ParseContext {
     * Otherwise, apply it, use its return value to drive the way the node's
     * content is wrapped, and return `true`.
     */
-   addElementByRule(el: Element, rule: ParseRule): void {
+   addElementByRule(el: Element, rule: ParseRule): this {
       let sync: boolean = false;
       let nodeType: NodeType | undefined;
       let markType: MarkType | undefined;
       let mark: Mark | undefined = undefined;
 
-      if (rule.node !== undefined) {
-         nodeType = this.parser.schema.nodes[rule.node];
+      if (rule.nodeType !== undefined) {
+         nodeType = this.parser.schema.nodes[rule.nodeType];
 
          if (nodeType !== undefined) {
             if (!nodeType.isLeaf) {
-               sync = this.enter(nodeType, rule.attrs, rule.preserveWhitespace);
+               sync = this.enter(nodeType, rule.attrs, rule.preserveSpace);
             } else if (!this.insertNode(nodeType.create(rule.attrs))) {
                this.leafFallback(el);
             }
          }
-      } else if (rule.mark !== undefined) {
-         markType = this.parser.schema.marks[rule.mark];
+      } else if (rule.markType !== undefined) {
+         markType = this.parser.schema.marks[rule.markType];
 
          if (markType !== undefined) {
             mark = markType.create(rule.attrs);
@@ -365,34 +370,34 @@ export class ParseContext {
          this.sync(startIn);
          this.openElementCount--;
       }
-      if (mark !== undefined) {
-         this.removePendingMark(mark);
-      }
+
+      return mark !== undefined ? this.removePendingMark(mark) : this;
    }
 
    /**
     * Add all child nodes between `startIndex` and `endIndex` (or the whole
     * node, if not given). If `sync` is passed, use it to synchronize after
     * every block element.
+    *
+    * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/from_dom.js#L486
     */
    addAll(
       parent: Node,
       sync?: NodeContext,
-      startIndex?: number,
+      startIndex: number = 0,
       endIndex?: number
-   ) {
-      let index = startIndex || 0;
+   ): this {
+      let index = startIndex;
+      let dom: ChildNode | null;
+      let end: ChildNode | null;
 
       for (
-         let dom = startIndex
-               ? parent.childNodes[startIndex]
-               : parent.firstChild,
-            end = endIndex == null ? null : parent.childNodes[endIndex];
+         dom = parent.childNodes[startIndex],
+            end = endIndex === undefined ? null : parent.childNodes[endIndex];
          dom !== null && dom !== end;
          dom = dom.nextSibling, ++index
       ) {
-         this.findAtPoint(parent, index);
-         this.addDOM(dom);
+         this.findAtPoint(parent, index).addDOM(dom);
 
          if (
             sync !== undefined &&
@@ -401,7 +406,7 @@ export class ParseContext {
             this.sync(sync);
          }
       }
-      this.findAtPoint(parent, index);
+      return this.findAtPoint(parent, index);
    }
 
    /**
@@ -459,49 +464,55 @@ export class ParseContext {
          let top: NodeContext = this.top;
          this.applyPendingMarks(top);
 
-         if (top.match) {
+         if (top.match !== undefined) {
             top.match = top.match.matchType(node.type);
          }
          let marks = top.activeMarks;
 
-         for (let i = 0; i < node.marks.length; i++) {
-            if (
-               top.type === null ||
-               top.type.allowsMarkType(node.marks[i].type)
-            ) {
-               marks = node.marks[i].addToSet(marks);
-            }
-         }
-         top.content.push(node.mark(marks));
+         filterEach(
+            node.marks,
+            mark => top.type === null || top.type.allowsMarkType(mark.type),
+            mark => (marks = mark.addTo(marks))
+         );
+         top.content.push(node.withMarks(marks));
 
          return true;
       }
       return false;
    }
 
-   applyPendingMarks(top: NodeContext) {
+   applyPendingMarks(top: NodeContext): this {
       for (let i = 0; i < this.pendingMarks.length; i++) {
          let mark = this.pendingMarks[i];
          if (
             (top.type === null || top.type.allowsMarkType(mark.type)) &&
-            !mark.isInSet(top.activeMarks)
+            !mark.isIn(top.activeMarks)
          ) {
-            top.activeMarks = mark.addToSet(top.activeMarks);
+            top.activeMarks = mark.addTo(top.activeMarks);
             this.pendingMarks.splice(i--, 1);
          }
       }
+      return this;
    }
 
    /**
     * Try to start a node of the given type, adjusting the context when
     * necessary.
     */
-   enter(type: NodeType, attrs?: Attributes, preserveWS?: PreserveWhitespace) {
+   enter(
+      type: NodeType,
+      attrs?: Attributes,
+      preserveSpace?: PreserveSpace
+   ): boolean {
       const ok = this.findPlace(type.create(attrs));
 
       if (ok) {
-         this.applyPendingMarks(this.top);
-         this.enterInner(type, attrs, true, preserveWS);
+         this.applyPendingMarks(this.top).enterInner(
+            type,
+            attrs,
+            true,
+            preserveSpace
+         );
       }
       return ok;
    }
@@ -513,8 +524,8 @@ export class ParseContext {
       type: NodeType,
       attrs?: Attributes,
       solid = false,
-      preserveWS?: PreserveWhitespace
-   ) {
+      preserveWS?: PreserveSpace
+   ): this {
       const top: NodeContext = this.top;
       this.closeExtra();
 
@@ -534,13 +545,15 @@ export class ParseContext {
          new NodeContext(type, attrs, top.activeMarks, solid, null, options)
       );
       this.openElementCount++;
+
+      return this;
    }
 
    /**
     * Make sure all nodes above `this.open` are finished and added to their
     * parents.
     */
-   closeExtra(openEnd: boolean = false) {
+   closeExtra(openEnd: boolean = false): this {
       let i = this.nodes.length - 1;
 
       if (i > this.openElementCount) {
@@ -551,6 +564,7 @@ export class ParseContext {
          }
          this.nodes.length = this.openElementCount + 1;
       }
+      return this;
    }
 
    finish() {
@@ -560,28 +574,31 @@ export class ParseContext {
       return this.nodes[0].finish(this.isOpen || this.options.topOpen);
    }
 
-   sync(to: NodeContext) {
+   sync(to: NodeContext): this {
       for (let i = this.openElementCount; i >= 0; i--) {
          if (this.nodes[i] === to) {
             this.openElementCount = i;
-            return;
+            return this;
          }
       }
+      return this;
    }
 
-   addPendingMark(mark: Mark): void {
+   addPendingMark(mark: Mark): this {
       this.pendingMarks.push(mark);
+      return this;
    }
 
-   removePendingMark(mark: Mark): void {
+   removePendingMark(mark: Mark): this {
       const found = this.pendingMarks.lastIndexOf(mark);
 
       if (found > -1) {
          this.pendingMarks.splice(found, 1);
       } else {
          const top: NodeContext = this.top;
-         top.activeMarks = mark.removeFromSet(top.activeMarks);
+         top.activeMarks = mark.removeFrom(top.activeMarks);
       }
+      return this;
    }
 
    get currentPos(): number {
@@ -596,9 +613,9 @@ export class ParseContext {
       return pos;
    }
 
-   findAtPoint(parent: Node, offset: number) {
+   findAtPoint(parent: Node, offset: number): this {
       if (this.find === undefined) {
-         return;
+         return this;
       }
       filterEach(
          this.find,
@@ -607,11 +624,12 @@ export class ParseContext {
             f.pos = this.currentPos;
          }
       );
+      return this;
    }
 
-   findInside(parent: Node) {
+   findInside(parent: Node): this {
       if (this.find === undefined) {
-         return;
+         return this;
       }
       filterEach(
          this.find,
@@ -623,11 +641,12 @@ export class ParseContext {
             f.pos = this.currentPos;
          }
       );
+      return this;
    }
 
-   findAround(parent: Node, content: Element, before: boolean) {
+   findAround(parent: Node, content: Element, before: boolean): this {
       if (this.find === undefined || parent === content) {
-         return;
+         return this;
       }
       filterEach(
          this.find,
@@ -642,11 +661,12 @@ export class ParseContext {
             }
          }
       );
+      return this;
    }
 
-   findInText(textNode: Node) {
+   findInText(textNode: Node): this {
       if (this.find === undefined) {
-         return;
+         return this;
       }
 
       const text = textNode.nodeValue;
@@ -659,6 +679,7 @@ export class ParseContext {
             f.pos = this.currentPos - textLength - f.offset;
          }
       );
+      return this;
    }
 
    /**

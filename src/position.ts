@@ -71,7 +71,7 @@ export class Position {
 
    /**
     * The ancestor node at the given level. `p.node(p.depth)` is the same as
-    * `p.parent`.
+    * `p.parent`. An exception is thrown if the depth is out or range.
     */
    node = (depth: number = this.depth): EditorNode => {
       const d = this.resolveDepth(depth);
@@ -115,8 +115,8 @@ export class Position {
     */
    end(depth?: number): number {
       const d = this.resolveDepth(depth);
-      const node = this.node(d); // TODO: this check doesn't exist in ProseMirror
-      return this.start(d) + (node === undefined ? 0 : node.content.size);
+      const node = this.node(d);
+      return this.start(d) + node.content.size;
    }
 
    /**
@@ -226,7 +226,7 @@ export class Position {
 
       // If the `after` flag is true of there is no node before, make the node
       // after this position the main reference.
-      if (!main) {
+      if (main === undefined) {
          let tmp = main;
          main = other;
          other = tmp;
@@ -239,9 +239,9 @@ export class Position {
       for (var i = 0; i < marks.length; i++)
          if (
             marks[i].type.spec.inclusive === false &&
-            (!other || !marks[i].isInSet(other.marks))
+            (!other || !marks[i].isIn(other.marks))
          )
-            marks = marks[i--].removeFromSet(marks);
+            marks = marks[i--].removeFrom(marks);
 
       return marks;
    }
@@ -265,9 +265,9 @@ export class Position {
       for (let i = 0; i < marks.length; i++) {
          if (
             marks[i].type.spec.inclusive === false &&
-            (!next || !marks[i].isInSet(next.marks))
+            (!next || !marks[i].isIn(next.marks))
          ) {
-            marks = marks[i--].removeFromSet(marks);
+            marks = marks[i--].removeFrom(marks);
          }
       }
       return marks;
@@ -327,12 +327,12 @@ export class Position {
       this.pos - this.parentOffset == other.pos - other.parentOffset;
 
    /**
-    * Return the greater of this and the given position.
+    * Return the greater of this and another position.
     */
    max = (other: Position): Position => (other.pos > this.pos ? other : this);
 
    /**
-    * Return the smaller of this and the given position.
+    * Return the smaller of this and another position.
     */
    min = (other: Position): Position => (other.pos < this.pos ? other : this);
 

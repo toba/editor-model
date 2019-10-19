@@ -1,6 +1,6 @@
 import { DuoList, makeDuoList } from '@toba/tools';
 import { EditorNode, NodeType, Fragment } from '../node/';
-import { nfa, nfaToDFA } from './finite-automata';
+import { parseNFA, nfaToDFA } from './finite-automata';
 import { TokenStream, parseExpr, Expression } from './token-stream';
 import { SimpleMap } from '../types';
 
@@ -52,7 +52,7 @@ export class ContentMatch {
          // expression parser should have consumed all stream tokens
          stream.throw('Unexpected trailing text');
       }
-      const match: ContentMatch = nfaToDFA(nfa(expr));
+      const match: ContentMatch = nfaToDFA(parseNFA(expr));
 
       checkForDeadEnds(match, stream);
 

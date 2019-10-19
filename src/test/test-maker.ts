@@ -3,7 +3,7 @@ import { Attributes, EditorNode, NodeType } from '../node';
 import { Schema } from '../schema/schema';
 import { Mark, MarkType } from '../mark/';
 import { SimpleMap } from '../types';
-import { Item } from './test-schema';
+import { Item } from '../schema/basic-schema';
 
 const noTags = Object.create(null);
 
@@ -192,7 +192,7 @@ const markMaker = (type: MarkType, attrs?: Attributes): MarkMaker =>
    function(...children: TestChild[]) {
       const mark: Mark = type.create(takeAttrs(attrs, children));
       const { nodes, tags } = flatten(type.schema, children, (n: EditorNode) =>
-         mark.type.find(n.marks) ? n : n.mark(mark.addToSet(n.marks))
+         mark.type.find(n.marks) ? n : n.withMarks(mark.addTo(n.marks))
       );
       return { flat: nodes, tag: tags };
    };
@@ -234,3 +234,11 @@ export function makeTestItems(
    }
    return result;
 }
+
+/**
+ * Combine `NodeType` names into space-delimited string.
+ */
+export const typeSequence = (...types: Item[]): string => types.join(' ');
+
+export const repeatType = (times: number, type: Item): string =>
+   (type + ' ').repeat(times).trimRight();

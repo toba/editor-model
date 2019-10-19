@@ -1,2 +1,3 @@
-export { nfa, nfaToDFA, NFA } from './finite-automata';
+export { parseNFA, nfaToDFA, NFA, Edge } from './finite-automata';
 export { ContentMatch } from './match';
+export { TokenStream, parseExpr, Expression } from './token-stream';

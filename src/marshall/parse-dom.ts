@@ -61,9 +61,8 @@ export class DOMParser {
       node: Node,
       options: ParseOptions = Object.create(null)
    ): EditorNode | Fragment {
-      const context = new ParseContext(this, options, false);
-      context.addAll(node, undefined, options.from, options.to);
-      return context.finish();
+      const context = new ParseContext(this, options);
+      return context.addAll(node, undefined, options.from, options.to).finish();
    }
 
    /**
@@ -83,7 +82,7 @@ export class DOMParser {
    /**
     * Retrieve standard parsing rule for the given HTML Element.
     */
-   matchTag(el: HTMLElement, context: ParseContext) {
+   matchTag(el: HTMLElement, context: ParseContext): ParseRule | undefined {
       for (let i = 0; i < this.tags.length; i++) {
          const rule: ParseRule = this.tags[i];
          if (
@@ -165,11 +164,11 @@ export class DOMParser {
       }
 
       for (let name in schema.marks) {
-         updateRule(r => (r.mark = name), schema.marks[name].spec.parseDOM);
+         updateRule(r => (r.markType = name), schema.marks[name].spec.parseDOM);
       }
 
       for (let name in schema.nodes) {
-         updateRule(r => (r.node = name), schema.nodes[name].spec.parseDOM);
+         updateRule(r => (r.nodeType = name), schema.nodes[name].spec.parseDOM);
       }
 
       return result;

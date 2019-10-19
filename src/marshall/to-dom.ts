@@ -1,5 +1,5 @@
 import { is, DuoList, makeDuoList } from '@toba/tools';
-import { Schema } from '../schema/schema';
+import { Schema } from '../schema/';
 import { Mark, MarkType } from '../mark/';
 import {
    Attributes,
