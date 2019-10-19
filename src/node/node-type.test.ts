@@ -1,5 +1,5 @@
 import '@toba/test';
-import { compare } from '../test/';
+import { compare } from '../test-tools';
 
 describe('duplicate ProseMirror functionality', () => {
    it('determines if type has required attributes', () => {

@@ -1,11 +1,11 @@
 import '@toba/test';
 import { pm } from './proxy';
-import { basicSchema, Item } from '../schema/';
+import { basicSchema, SchemaTag as tag } from '../schema';
 import { makeTestItems, TestItemMaker, takeAttrs } from './test-maker';
 
 const items = makeTestItems(basicSchema, {
-   p: { type: Item.Paragraph },
-   hr: { type: Item.Line }
+   p: { type: tag.Paragraph },
+   hr: { type: tag.Line }
 });
 
 const doc = items.node['doc'];
@@ -20,8 +20,8 @@ describe('duplicate ProseMirror functionality', () => {
     * TODO: consider using same schema or write schema converter
     */
    const getItemMakers = (): [TestItemMaker, any] => [
-      makeTestItems(basicSchema, { p: { type: Item.Paragraph } }),
-      pm.mock.builders(basicSchema, { p: { nodeType: Item.Paragraph } })
+      makeTestItems(basicSchema, { p: { type: tag.Paragraph } }),
+      pm.mock.builders(basicSchema, { p: { nodeType: tag.Paragraph } })
    ];
 
    it('creates the same maker collections from schema', () => {

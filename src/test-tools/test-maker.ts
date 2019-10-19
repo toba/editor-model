@@ -1,9 +1,9 @@
 import { is, forEach } from '@toba/tools';
 import { Attributes, EditorNode, NodeType } from '../node';
 import { Schema } from '../schema/schema';
-import { Mark, MarkType } from '../mark/';
+import { Mark, MarkType } from '../mark';
 import { SimpleMap } from '../types';
-import { Item } from '../schema/basic-schema';
+import { SchemaTag } from '../schema/basic-schema';
 
 const noTags = Object.create(null);
 
@@ -11,7 +11,7 @@ const noTags = Object.create(null);
  * Specification to create a node or mark.
  */
 export interface TestItemSpec {
-   type: Item;
+   type: SchemaTag;
    attrs?: Attributes;
    /** Whether spec is for a `Mark` rather than an `EditorNode` */
    isMark?: boolean;
@@ -238,7 +238,7 @@ export function makeTestItems(
 /**
  * Combine `NodeType` names into space-delimited string.
  */
-export const typeSequence = (...types: Item[]): string => types.join(' ');
+export const typeSequence = (...types: SchemaTag[]): string => types.join(' ');
 
-export const repeatType = (times: number, type: Item): string =>
+export const repeatType = (times: number, type: SchemaTag): string =>
    (type + ' ').repeat(times).trimRight();

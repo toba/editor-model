@@ -10,7 +10,7 @@ import { OrderedMap } from '../ordered-map';
 /**
  * `NodeType` and `MarkType` names.
  */
-export const enum Item {
+export const enum SchemaTag {
    Document = 'doc',
    Paragraph = 'paragraph',
    BlockQuote = 'blockquote',
@@ -29,6 +29,24 @@ export const enum Item {
    BulletList = 'bullet_list'
 }
 
+export const enum DOMTag {
+   BlockQuote = 'blockquote',
+   Break = 'br',
+   Bold = 'b',
+   BulletList = 'ul',
+   Code = 'code',
+   CodeBlock = 'pre',
+   Emphasis = 'em',
+   Image = 'img',
+   Italic = 'i',
+   Line = 'hr',
+   Link = 'a',
+   ListItem = 'li',
+   OrderedList = 'ol',
+   Paragraph = 'p',
+   Strong = 'strong'
+}
+
 export const enum Group {
    Block = 'block',
    Inline = 'inline'
@@ -36,41 +54,41 @@ export const enum Group {
 
 export const nodes: SimpleMap<NodeSpec> = {
    /** Top level document node. */
-   [Item.Document]: {
+   [SchemaTag.Document]: {
       content: `${Group.Block}+`
    },
 
    /**
     * A plain paragraph textblock. Represented in the DOM as a `<p>` element.
     */
-   [Item.Paragraph]: {
+   [SchemaTag.Paragraph]: {
       content: `${Group.Inline}*`,
       group: Group.Block,
-      parseDOM: [{ tag: 'p' }],
-      toDOM: () => ['p', 0]
+      parseDOM: [{ tag: DOMTag.Paragraph }],
+      toDOM: () => [DOMTag.Paragraph, 0]
    },
 
    /** A blockquote (`<blockquote>`) wrapping one or more blocks. */
-   [Item.BlockQuote]: {
+   [SchemaTag.BlockQuote]: {
       content: `${Group.Block}+`,
       group: Group.Block,
       defining: true,
-      parseDOM: [{ tag: 'blockquote' }],
-      toDOM: () => ['blockquote', 0]
+      parseDOM: [{ tag: DOMTag.BlockQuote }],
+      toDOM: () => [DOMTag.BlockQuote, 0]
    },
 
    /** A horizontal rule (`<hr>`). */
-   [Item.Line]: {
+   [SchemaTag.Line]: {
       group: Group.Block,
-      parseDOM: [{ tag: 'hr' }],
-      toDOM: () => ['hr']
+      parseDOM: [{ tag: DOMTag.Line }],
+      toDOM: () => [DOMTag.Line]
    },
 
    /**
     * A heading textblock, with a `level` attribute that should hold the number
     * 1 to 6. Parsed and serialized as `<h1>` to `<h6>` elements.
     */
-   [Item.Heading]: {
+   [SchemaTag.Heading]: {
       attrs: { level: { default: 1 } },
       content: `${Group.Inline}*`,
       group: Group.Block,
@@ -90,18 +108,18 @@ export const nodes: SimpleMap<NodeSpec> = {
     * A code listing. Disallows marks or non-text inline nodes by default.
     * Represented as a `<pre>` element with a `<code>` element inside of it.
     */
-   [Item.CodeBlock]: {
-      content: `${Item.Text}*`,
+   [SchemaTag.CodeBlock]: {
+      content: `${SchemaTag.Text}*`,
       marks: '',
       group: Group.Block,
       code: true,
       defining: true,
-      parseDOM: [{ tag: 'pre', preserveSpace: 'full' }],
-      toDOM: () => ['pre', ['code', 0]]
+      parseDOM: [{ tag: DOMTag.CodeBlock, preserveSpace: 'full' }],
+      toDOM: () => [DOMTag.CodeBlock, [DOMTag.Code, 0]]
    },
 
    /** The text node */
-   [Item.Text]: {
+   [SchemaTag.Text]: {
       group: Group.Inline
    },
 
@@ -109,7 +127,7 @@ export const nodes: SimpleMap<NodeSpec> = {
     * An inline image (`<img>`) node. Supports `src`, `alt`, and `href`
     * attributes. The latter two default to the empty string.
     */
-   [Item.Image]: {
+   [SchemaTag.Image]: {
       inline: true,
       attrs: {
          src: {},
@@ -120,7 +138,7 @@ export const nodes: SimpleMap<NodeSpec> = {
       draggable: true,
       parseDOM: [
          {
-            tag: 'img[src]',
+            tag: `${DOMTag.Image}[src]`,
             getAttrs: (el: HTMLElement | string) =>
                is.text(el)
                   ? undefined
@@ -133,17 +151,17 @@ export const nodes: SimpleMap<NodeSpec> = {
       ],
       toDOM(node) {
          const { src, alt, title } = node.attrs;
-         return ['img', { src, alt, title }];
+         return [DOMTag.Image, { src, alt, title }];
       }
    },
 
    /** A hard line break, represented in the DOM as `<br>`. */
-   [Item.Break]: {
+   [SchemaTag.Break]: {
       inline: true,
       group: Group.Inline,
       selectable: false,
-      parseDOM: [{ tag: 'br' }],
-      toDOM: () => ['br']
+      parseDOM: [{ tag: DOMTag.Break }],
+      toDOM: () => [DOMTag.Break]
    },
 
    /**
@@ -151,13 +169,13 @@ export const nodes: SimpleMap<NodeSpec> = {
     * determines the number at which the list starts counting, and defaults to
     * 1. Represented as an `<ol>` element.
     */
-   [Item.OrderedList]: {
+   [SchemaTag.OrderedList]: {
       attrs: { order: { default: 1 } },
-      content: `${Item.ListItem}+`,
+      content: `${SchemaTag.ListItem}+`,
       group: Group.Block,
       parseDOM: [
          {
-            tag: 'ol',
+            tag: DOMTag.OrderedList,
             getAttrs: el =>
                is.text(el)
                   ? undefined
@@ -170,22 +188,22 @@ export const nodes: SimpleMap<NodeSpec> = {
       ],
       toDOM(node) {
          return node.attrs.order == 1
-            ? ['ol', 0]
-            : ['ol', { start: node.attrs.order }, 0];
+            ? [DOMTag.OrderedList, 0]
+            : [DOMTag.OrderedList, { start: node.attrs.order }, 0];
       }
    },
 
-   [Item.BulletList]: {
-      content: 'list_item+',
+   [SchemaTag.BulletList]: {
+      content: `${SchemaTag.ListItem}+`,
       group: Group.Block,
-      parseDOM: [{ tag: 'ul' }],
-      toDOM: () => ['ul', 0]
+      parseDOM: [{ tag: DOMTag.BulletList }],
+      toDOM: () => [DOMTag.BulletList, 0]
    },
 
-   [Item.ListItem]: {
-      content: `${Item.Paragraph} (${Item.OrderedList} | ${Item.BulletList})*`,
-      parseDOM: [{ tag: 'li' }],
-      toDOM: () => ['li', 0],
+   [SchemaTag.ListItem]: {
+      content: `${SchemaTag.Paragraph} (${SchemaTag.OrderedList} | ${SchemaTag.BulletList})*`,
+      parseDOM: [{ tag: DOMTag.ListItem }],
+      toDOM: () => [DOMTag.ListItem, 0],
       defining: true
    }
 };
@@ -195,7 +213,7 @@ export const marks: SimpleMap<MarkSpec> = {
     * A link. Has `href` and `title` attributes. `title` defaults to the empty
     * string. Rendered and parsed as an `<a>` element.
     */
-   [Item.Link]: {
+   [SchemaTag.Link]: {
       attrs: {
          href: {},
          title: { default: null }
@@ -203,7 +221,7 @@ export const marks: SimpleMap<MarkSpec> = {
       inclusive: false,
       parseDOM: [
          {
-            tag: 'a[href]',
+            tag: `${DOMTag.Link}[href]`,
             getAttrs: el =>
                is.text(el)
                   ? undefined
@@ -215,7 +233,7 @@ export const marks: SimpleMap<MarkSpec> = {
       ],
       toDOM(node) {
          const { href, title } = node.attrs;
-         return ['a', { href, title }, 0];
+         return [DOMTag.Link, { href, title }, 0];
       }
    },
 
@@ -223,27 +241,27 @@ export const marks: SimpleMap<MarkSpec> = {
     * An emphasis mark. Rendered as an `<em>` element. Has parse rules that also
     * match `<i>` and `font-style: italic`.
     */
-   [Item.Emphasis]: {
-      parseDOM: [{ tag: 'i' }, { tag: 'em' }, { style: 'font-style=italic' }],
-      toDOM: () => ['em', 0]
+   [SchemaTag.Emphasis]: {
+      parseDOM: [
+         { tag: DOMTag.Italic },
+         { tag: DOMTag.Emphasis },
+         { style: 'font-style=italic' }
+      ],
+      toDOM: () => [DOMTag.Emphasis, 0]
    },
 
    /**
     * A strong mark. Rendered as `<strong>`, parse rules also match `<b>` and
     * `font-weight: bold`.
     */
-   [Item.Strong]: {
+   [SchemaTag.Strong]: {
       parseDOM: [
-         { tag: 'strong' },
-         // This works around a Google Docs misbehavior where
-         // pasted content will be inexplicably wrapped in `<b>`
-         // tags with a font-weight normal.
+         { tag: DOMTag.Strong },
+         { tag: DOMTag.Bold },
          {
-            tag: 'b'
-            // getAttrs: el =>
-            //    is.text(el) ? undefined : el.style.fontWeight != 'normal' && null
-         },
-         {
+            // This works around a Google Docs misbehavior where
+            // pasted content will be inexplicably wrapped in `<b>`
+            // tags with a font-weight normal.
             style: 'font-weight',
             getAttrs: value =>
                is.text(value)
@@ -253,13 +271,13 @@ export const marks: SimpleMap<MarkSpec> = {
                   : undefined
          }
       ],
-      toDOM: () => ['strong', 0]
+      toDOM: () => [DOMTag.Strong, 0]
    },
 
    /** Code font mark. Represented as a `<code>` element. */
-   [Item.Code]: {
-      parseDOM: [{ tag: 'code' }],
-      toDOM: () => ['code', 0]
+   [SchemaTag.Code]: {
+      parseDOM: [{ tag: DOMTag.Code }],
+      toDOM: () => [DOMTag.Code, 0]
    }
 };
 

@@ -1,6 +1,6 @@
 import '@toba/test';
 import { Schema, basicSchema } from '../schema/';
-import { makeTestItems, TestNode } from '../test/';
+import { makeTestItems, TestNode } from '../test-tools';
 import {
    a,
    doc,
@@ -17,7 +17,7 @@ import {
    ul,
    li,
    ol
-} from '../test/mocks';
+} from '../test-tools/mocks';
 import { DOMParser } from './parse-dom';
 import { ParseOptions } from './parse-options';
 import { DOMSerializer } from './to-dom';

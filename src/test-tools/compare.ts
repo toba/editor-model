@@ -5,12 +5,12 @@ import {
    parseNFA,
    NFA,
    ContentMatch
-} from '../match/';
-import { NodeType } from '../node/';
+} from '../match';
+import { NodeType } from '../node';
 import { pm } from './proxy';
 import { doc, p } from './mocks';
 import { typeSequence, TestNode } from './test-maker';
-import { basicSchema, Item } from '../schema/';
+import { basicSchema, SchemaTag as tag } from '../schema';
 import { ParseContext, DOMParser } from '../marshall';
 
 // Methods to create parallel instances of ProseMirror and Toba entities
@@ -20,7 +20,7 @@ import { ParseContext, DOMParser } from '../marshall';
  * Create token streams with internal methods and original ProseMirror source.
  */
 export const makeStreams = (
-   pattern = typeSequence(Item.Paragraph, Item.Line, Item.Paragraph)
+   pattern = typeSequence(tag.Paragraph, tag.Line, tag.Paragraph)
 ): [TokenStream, any] => [
    new TokenStream(pattern, basicSchema.nodes),
    new pm.TokenStream(pattern, pm.testSchema.nodes)
@@ -46,7 +46,7 @@ export const makeNFA = (pattern?: string): [NFA, any] => {
 /**
  * Create `NodeType` with Toba methods and original ProseMirror source.
  */
-export const makeNodeTypes = (name = Item.Paragraph): [NodeType, any] => {
+export const makeNodeTypes = (name = tag.Paragraph): [NodeType, any] => {
    const spec = basicSchema.nodes[name].spec;
    const pm_spec = pm.testSchema.nodes[name].spec;
    return [
@@ -78,7 +78,7 @@ export const makeParseContext = (html?: string): [ParseContext, any] => {
  * Created a parsed `Match` for Toba and ProseMirror.
  */
 export function makeParseMatch(
-   pattern = typeSequence(Item.Paragraph, Item.Line, Item.Paragraph)
+   pattern = typeSequence(tag.Paragraph, tag.Line, tag.Paragraph)
 ): [ContentMatch | undefined, any] {
    const match: ContentMatch | undefined = ContentMatch.parse(
       pattern,

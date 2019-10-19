@@ -1,11 +1,12 @@
 import '@toba/test';
 import { nfaToDFA, nullFrom } from './finite-automata';
 import { ContentMatch } from './match';
-import { typeSequence, Item, compare, pm, expectSame } from '../test/';
+import { SchemaTag as tag } from '../schema';
+import { typeSequence, compare, pm, expectSame } from '../test-tools';
 
 describe('duplicate ProseMirror functionality', () => {
    it('creates basic finite automata', () => {
-      expectSame.NFA(typeSequence(Item.Paragraph, Item.Line, Item.Paragraph));
+      expectSame.NFA(typeSequence(tag.Paragraph, tag.Line, tag.Paragraph));
    });
 
    it('creates NFA with options', () => {

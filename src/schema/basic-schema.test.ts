@@ -1,10 +1,10 @@
 import '@toba/test';
-import { basicSchema, Item } from './basic-schema';
-import { makeTestItems, NodeMaker, pm } from '../test/';
+import { basicSchema, SchemaTag as tag } from './basic-schema';
+import { makeTestItems, NodeMaker, pm } from '../test-tools/';
 
 const items = makeTestItems(basicSchema, {
-   p: { type: Item.Paragraph },
-   hr: { type: Item.Line }
+   p: { type: tag.Paragraph },
+   hr: { type: tag.Line }
 });
 
 const doc = items.node['doc'];

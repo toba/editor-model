@@ -1,5 +1,6 @@
 import '@toba/test';
-import { typeSequence, Item, compare } from '../test';
+import { SchemaTag as tag } from '../schema/';
+import { typeSequence, compare } from '../test-tools';
 
 describe('duplicate ProseMirror functionality', () => {
    function expectSameExpression(pattern: string) {
@@ -31,11 +32,11 @@ describe('duplicate ProseMirror functionality', () => {
 
    it('parses basic expressions the same', () => {
       expectSameExpression(
-         typeSequence(Item.Paragraph, Item.Line, Item.Paragraph)
+         typeSequence(tag.Paragraph, tag.Line, tag.Paragraph)
       );
    });
 
    it('parses optional expressions the same', () => {
-      expectSameExpression(`${Item.Heading} ${Item.Paragraph}? ${Item.Line}`);
+      expectSameExpression(`${tag.Heading} ${tag.Paragraph}? ${tag.Line}`);
    });
 });

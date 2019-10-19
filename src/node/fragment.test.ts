@@ -1,6 +1,6 @@
 import '@toba/test';
-import { doc, p, h1, h2, strong, em, blockquote } from '../test/mocks';
-import { TestNode } from '../test/test-maker';
+import { doc, p, h1, h2, strong, em, blockquote } from '../test-tools/mocks';
+import { TestNode } from '../test-tools/test-maker';
 
 describe('findDiffStart', () => {
    function expectStart(a: TestNode, b: TestNode) {

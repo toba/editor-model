@@ -1,5 +1,5 @@
 import '@toba/test';
-import { compare, expectSame } from '../test/';
+import { compare, expectSame } from '../test-tools';
 
 describe('duplicate ProseMirror functionality', () => {
    it('adds elements with rules', () => {

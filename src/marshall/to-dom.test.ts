@@ -1,6 +1,6 @@
 import '@toba/test';
 import { basicSchema } from '../schema/';
-import { p, strong, em, code } from '../test/mocks';
+import { p, strong, em, code } from '../test-tools/mocks';
 import { DOMSerializer } from './to-dom';
 
 const serializer = DOMSerializer.fromSchema(basicSchema);
