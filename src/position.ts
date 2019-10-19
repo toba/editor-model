@@ -1,7 +1,6 @@
 import { TrioList, makeTrioList } from '@toba/tools';
-import { Mark } from './mark';
-import { EditorNode } from './node';
-import { NodeRange } from './node-range';
+import { Mark } from './mark/';
+import { EditorNode, NodeRange } from './node/';
 
 /** Node, index and offset */
 //type PathItem = [EditorNode, number, number];
@@ -143,7 +142,7 @@ export class Position {
       }
       return d == this.depth + 1
          ? this.pos
-         : this.path.item(d - 1)![2] + this.path.item(d)![0].nodeSize;
+         : this.path.item(d - 1)![2] + this.path.item(d)![0].size;
    }
 
    /**

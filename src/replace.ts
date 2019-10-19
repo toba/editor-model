@@ -1,8 +1,8 @@
-import { Fragment } from './fragment';
-import { Slice } from './slice';
+import { Fragment } from './node/fragment';
+import { Slice } from './node/slice';
 import { Position } from './position';
 import { EditorNode } from './node';
-import { TextNode } from './text-node';
+import { TextNode } from './node/text-node';
 
 /**
  * Error type raised by [`Node.replace`](#model.Node.replace) when given an

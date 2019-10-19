@@ -1,8 +1,6 @@
-import { ParseRule } from './parse-dom';
-import { AttributeSpec } from './attribute';
-import { Mark } from './mark';
-import { EditorNode } from './node';
-import { DOMOutputSpec } from './to-dom';
+import { ParseRule, DOMOutputSpec } from './marshall/';
+import { AttributeSpec, EditorNode } from './node/';
+import { Mark } from './mark/';
 
 export type SimpleMap<T> = { [key: string]: T };
 
@@ -43,8 +41,8 @@ export interface ItemSpec<T extends Mark | EditorNode> {
     * is not supported inside the editor, so you shouldn't override that in your
     * text node spec.
     *
-    * @param inline Whether a mark's content is block or inline content (for
-    * typical use, it will always be inline)
+    * @param inline For marks, whether content is block or inline (for typical
+    * use, it will always be inline)
     */
    toDOM?: (item: T, inline?: boolean) => DOMOutputSpec;
 }
