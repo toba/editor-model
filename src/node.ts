@@ -420,11 +420,11 @@ export class EditorNode {
     */
    contentMatchAt(index: number): ContentMatch {
       const match =
-         this.type.contentMatch === null
-            ? null
+         this.type.contentMatch === undefined
+            ? undefined
             : this.type.contentMatch.matchFragment(this.content, 0, index);
 
-      if (!match) {
+      if (match === undefined) {
          throw new Error(
             'Called contentMatchAt on a node with invalid content'
          );
@@ -505,7 +505,7 @@ export class EditorNode {
     * raise error when they do not.
     */
    check() {
-      if (!this.type.validContent(this.content)) {
+      if (!this.type.allowsContent(this.content)) {
          throw new RangeError(
             `Invalid content for node ${
                this.type.name

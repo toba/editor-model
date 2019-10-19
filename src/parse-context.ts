@@ -76,30 +76,32 @@ function normalizeList(node: Node) {
 export class ParseContext {
    private parser: DOMParser;
    private options: ParseOptions;
+   /** Whether this is an open element */
    private isOpen: boolean;
    private pendingMarks: Mark[];
    private nodes: NodeContext[];
-   /**
-    * [Mark] The current set of marks
-    * TODO: this comment seems wrong
-    */
-   private open: number;
+   private openElementCount: number;
    private find: NodesToFind[] | undefined;
    private needsBlock: boolean;
 
-   constructor(parser: DOMParser, options: ParseOptions, open: boolean) {
+   constructor(
+      parser: DOMParser,
+      options: ParseOptions = {},
+      open: boolean = false
+   ) {
       this.parser = parser;
       this.options = options;
       this.isOpen = open;
       this.pendingMarks = [];
 
       let topNode = options.topNode;
+      /** Context of root node */
       let topContext: NodeContext;
       /** Options bitmask */
       let topOptions =
          wsOptionsFor(options.preserveSpace) | (open ? Whitespace.OpenLeft : 0);
 
-      if (topNode) {
+      if (topNode !== undefined) {
          topContext = new NodeContext(
             topNode.type,
             topNode.attrs,
@@ -129,18 +131,18 @@ export class ParseContext {
          );
       }
       this.nodes = [topContext];
-      this.open = 0;
+      this.openElementCount = 0;
       this.find = options.findPositions;
       this.needsBlock = false;
    }
 
    get top() {
-      return this.nodes[this.open];
+      return this.nodes[this.openElementCount];
    }
 
    /**
-    * Add a DOM node to the content. Text is inserted as text node, otherwise,
-    * the node is passed to `addElement` or, if it has a `style` attribute,
+    * Add a DOM node to the content. Text is inserted as a text node, otherwise,
+    * the node is passed to `addElement` or, if it has a `style` attribute, to
     * `addElementWithStyles`.
     */
    addDOM(node: Node): void {
@@ -164,7 +166,7 @@ export class ParseContext {
    }
 
    addTextNode(node: Node) {
-      let value: string | null = node.nodeValue;
+      let value = node.nodeValue;
 
       const top: NodeContext = this.top;
       const isInline: boolean =
@@ -183,7 +185,7 @@ export class ParseContext {
             if (
                value !== null &&
                /^\s/.test(value) &&
-               this.open == this.nodes.length - 1
+               this.openElementCount == this.nodes.length - 1
             ) {
                const nodeBefore: EditorNode | undefined =
                   top.content[top.content.length - 1];
@@ -232,16 +234,16 @@ export class ParseContext {
          if (rule !== undefined && rule.skip !== undefined) {
             el = rule.skip as HTMLElement;
          }
-         const oldNeedsBlock: boolean = this.needsBlock;
+         const didNeedBlock: boolean = this.needsBlock;
          const top: NodeContext = this.top;
-         let sync;
+         let sync = false;
 
          if (blockTags.hasOwnProperty(name)) {
             sync = true;
-            if (!top.type) {
+            if (top.type === null) {
                this.needsBlock = true;
             }
-         } else if (!el.firstChild) {
+         } else if (el.firstChild === null) {
             this.leafFallback(el);
             return;
          }
@@ -250,7 +252,7 @@ export class ParseContext {
          if (sync) {
             this.sync(top);
          }
-         this.needsBlock = oldNeedsBlock;
+         this.needsBlock = didNeedBlock;
       } else {
          this.addElementByRule(el, rule);
       }
@@ -358,7 +360,7 @@ export class ParseContext {
       }
       if (sync) {
          this.sync(startIn);
-         this.open--;
+         this.openElementCount--;
       }
       if (mark !== undefined) {
          this.removePendingMark(mark);
@@ -407,7 +409,7 @@ export class ParseContext {
       let route: NodeType[] | null = null;
       let syncTo: NodeContext | null = null;
 
-      for (let depth = this.open; depth >= 0; depth--) {
+      for (let depth = this.openElementCount; depth >= 0; depth--) {
          const context: NodeContext = this.nodes[depth];
          const found = context.findWrapping(node);
 
@@ -439,13 +441,13 @@ export class ParseContext {
    }
 
    /**
-    * Try to insert the given node, adjusting the context when needed. Return
-    * `false` if the node could not be inserted.
+    * Try to insert the given node, adjusting the context when needed.
+    * @returns Whether node could be inserted
     */
    insertNode(node: EditorNode): boolean {
       if (node.isInline && this.needsBlock && this.top.type === null) {
          const block = this.textblockFromContext();
-         if (block) {
+         if (block !== null) {
             this.enterInner(block);
          }
       }
@@ -528,7 +530,7 @@ export class ParseContext {
       this.nodes.push(
          new NodeContext(type, attrs, top.activeMarks, solid, null, options)
       );
-      this.open++;
+      this.openElementCount++;
    }
 
    /**
@@ -538,27 +540,27 @@ export class ParseContext {
    closeExtra(openEnd: boolean = false) {
       let i = this.nodes.length - 1;
 
-      if (i > this.open) {
-         for (; i > this.open; i--) {
+      if (i > this.openElementCount) {
+         for (; i > this.openElementCount; i--) {
             // TODO: shouldn't have to force EditorNode -- what is original doing?
             const node = this.nodes[i].finish(openEnd) as EditorNode;
             this.nodes[i - 1].content.push(node);
          }
-         this.nodes.length = this.open + 1;
+         this.nodes.length = this.openElementCount + 1;
       }
    }
 
    finish() {
-      this.open = 0;
+      this.openElementCount = 0;
       this.closeExtra(this.isOpen);
 
       return this.nodes[0].finish(this.isOpen || this.options.topOpen);
    }
 
    sync(to: NodeContext) {
-      for (let i = this.open; i >= 0; i--) {
+      for (let i = this.openElementCount; i >= 0; i--) {
          if (this.nodes[i] === to) {
-            this.open = i;
+            this.openElementCount = i;
             return;
          }
       }
@@ -583,7 +585,7 @@ export class ParseContext {
       this.closeExtra();
 
       let pos = 0;
-      for (let i = this.open; i >= 0; i--) {
+      for (let i = this.openElementCount; i >= 0; i--) {
          let content = this.nodes[i].content;
          for (let j = content.length - 1; j >= 0; j--)
             pos += content[j].nodeSize;
@@ -706,7 +708,7 @@ export class ParseContext {
          }
          return true;
       };
-      return match(parts.length - 1, this.open);
+      return match(parts.length - 1, this.openElementCount);
    }
 
    /** Method name retained for ProseMirror compatibility */

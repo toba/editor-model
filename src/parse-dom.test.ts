@@ -247,7 +247,7 @@ describe('parses HTML to Schema items', () => {
    });
 });
 
-describe('handles malformed HTML', () => {
+describe.skip('handles malformed HTML', () => {
    const parser = DOMParser.fromSchema(testSchema);
    const expectDoc = (
       html: string,

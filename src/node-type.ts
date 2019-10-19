@@ -1,8 +1,6 @@
 import { is } from '@toba/tools';
 import { MarkType } from './mark-type';
 import { Schema } from './schema';
-import { NodeSerializer } from './to-dom';
-import { ParseRule } from './parse-dom';
 import { OrderedMap } from './ordered-map';
 import { EditorNode } from './node';
 import {
@@ -10,20 +8,19 @@ import {
    initAttrs,
    defaultAttrs,
    computeAttrs,
-   Attributes,
-   AttributeSpec
+   Attributes
 } from './attribute';
 import { ContentMatch } from './match';
 import { Fragment } from './fragment';
 import { Mark } from './mark';
-import { SimpleMap } from './types';
+import { SimpleMap, ItemSpec } from './types';
 
 /**
  * Specifications for an `EditorNode`.
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L319
  */
-export interface NodeSpec {
+export interface NodeSpec extends ItemSpec<EditorNode> {
    /**
     * Pattern indicating allowed content based on `NodeType` or group name. If
     * not given then no content will be allowed.
@@ -40,27 +37,16 @@ export interface NodeSpec {
    marks?: string;
 
    /**
-    * The group or space-separated groups to which this node belongs, which can
-    * be referred to in the content expressions for the schema.
-    */
-   group?: string;
-
-   /**
     * Should be set to true for inline nodes. (Implied for text nodes.)
     */
    inline?: boolean;
 
    /**
-    * Can be set to true to indicate that, though this isn't a
-    * [leaf node](#model.NodeType.isLeaf), it doesn't have directly editable
-    * content and should be treated as a single unit in the view.
+    * Set `true` to indicate nodes do not have directly editable content, and
+    * should be treated as a single unit in the view, even though they may not
+    * be leaf nodes (`isLeaf`).
     */
    atom?: boolean;
-
-   /**
-    * The attributes that nodes of this type get.
-    */
-   attrs?: SimpleMap<AttributeSpec<any>>;
 
    /**
     * Controls whether nodes of this type can be selected as a
@@ -101,29 +87,6 @@ export interface NodeSpec {
    isolating?: boolean;
 
    /**
-    * Defines the default way a node of this type should be serialized to
-    * DOM/HTML (as used by [`DOMSerializer.fromSchema`](#model.DOMSerializer^fromSchema)).
-    * Should return a DOM node or an [array structure](#model.DOMOutputSpec)
-    * that describes one, with an optional number zero (“hole”) in it to
-    * indicate where the node's content should be inserted.
-    *
-    * For text nodes, the default is to create a text DOM node. Though it is
-    * possible to create a serializer where text is rendered differently, this
-    * is not supported inside the editor, so you shouldn't override that in your
-    * text node spec.
-    */
-   toDOM?: NodeSerializer;
-
-   /**
-    * Associates DOM parser information with this node, which can be used
-    * by [`DOMParser.fromSchema`](#model.DOMParser^fromSchema) to automatically
-    * derive a parser. The `node` field in the rules is implied (the name of
-    * this node will be filled in automatically). If you supply your own parser,
-    * you do not need to also specify parsing rules in your schema.
-    */
-   parseDOM?: ParseRule[];
-
-   /**
     * Defines the default way a node of this type should be serialized to a
     * string representation for debugging (e.g. in error messages).
     */
@@ -138,22 +101,27 @@ export interface NodeSpec {
  */
 export class NodeType {
    name: string;
-   /** Link back to the `Schema` the node type belongs to */
+   /** `Schema` the node type is part of */
    schema: Schema;
-   /** Specification this type is based on */
+   /** Specification the type is based on */
    spec: NodeSpec;
    attrs: AttributeMap;
+   /**
+    * List of group names the type belongs to. Groups are used to create
+    * expression patterns to control allowed child content.
+    */
    groups: string[];
+   /** Attribute key/values added to every created `EditorNode` */
    defaultAttrs: Attributes | null;
    /** Starting match of the node type's content expression */
    contentMatch?: ContentMatch;
-   /** Set of marks allowed in this node. `null` means all marks are allowed. */
-   markSet: MarkType[] | null;
-   /** True if this node type has inline content */
+   /** Marks allowed on this `NodeType` or `null` if all are allowed */
+   allowedMarks: MarkType[] | null;
+   /** Whether node has inline content */
    inlineContent: boolean | null;
-   /** True if this is a block type */
+   /** Whether a block type */
    isBlock: boolean;
-   /** True if this is the text node type */
+   /** Whether a text node type */
    isText: boolean;
 
    constructor(name: string, schema: Schema, spec: NodeSpec) {
@@ -164,7 +132,7 @@ export class NodeType {
       this.attrs = initAttrs(spec.attrs);
       this.defaultAttrs = defaultAttrs(this.attrs);
       this.contentMatch = undefined;
-      this.markSet = null;
+      this.allowedMarks = null;
       this.inlineContent = null;
       this.isBlock = !(spec.inline || name == 'text');
       this.isText = name == 'text';
@@ -218,6 +186,10 @@ export class NodeType {
       (this.contentMatch !== undefined &&
          this.contentMatch.compatible(other.contentMatch));
 
+   /**
+    * Compute attribute key/values from an `AttributeMap` and merge with optional
+    * given attributes.
+    */
    computeAttrs = (attrs?: Attributes): Attributes =>
       !is.value<Attributes>(attrs) && this.defaultAttrs !== null
          ? this.defaultAttrs
@@ -247,24 +219,23 @@ export class NodeType {
    }
 
    /**
-    * Like [`create`](#model.NodeType.create), but check the given content
-    * against the node type's content restrictions, and throw an error if it
-    * doesn't match.
+    * Create `EditorNode` and throw an error if its content violates the
+    * `content` pattern.
     */
-   createChecked(
+   createAndValidate(
       attrs?: Attributes,
       content?: Fragment | EditorNode | EditorNode[],
       marks?: Mark[]
    ): EditorNode {
-      content = Fragment.from(content);
+      const fragment = Fragment.from(content);
 
-      if (!this.validContent(content)) {
+      if (!this.allowsContent(fragment)) {
          throw new RangeError('Invalid content for node ' + this.name);
       }
       return new EditorNode(
          this,
          this.computeAttrs(attrs),
-         content,
+         fragment,
          Mark.setFrom(marks)
       );
    }
@@ -315,10 +286,9 @@ export class NodeType {
    }
 
    /**
-    * Returns `true` if the given fragment is valid content for this node type
-    * with the given attributes.
+    * Whether a fragment is valid content for this node type.
     */
-   validContent(content: Fragment): boolean {
+   allowsContent(content: Fragment): boolean {
       const result =
          this.contentMatch !== undefined &&
          this.contentMatch.matchFragment(content);
@@ -335,16 +305,16 @@ export class NodeType {
    }
 
    /**
-    * Check whether the given mark type is allowed in this node.
+    * Whether the given mark type is allowed in this node type.
     */
    allowsMarkType = (markType: MarkType): boolean =>
-      this.markSet == null || this.markSet.includes(markType);
+      this.allowedMarks === null || this.allowedMarks.includes(markType);
 
    /**
-    * Test whether the given set of marks are allowed in this node.
+    * Whether all given marks are allowed in this node type.
     */
    allowsMarks(marks: Mark[]): boolean {
-      if (this.markSet == null) {
+      if (this.allowedMarks === null) {
          return true;
       }
       for (let i = 0; i < marks.length; i++) {
@@ -356,24 +326,28 @@ export class NodeType {
    }
 
    /**
-    * Removes the marks that are not allowed in this node from the given set.
+    * Remove the marks that are not allowed in this node from the given list.
     */
-   allowedMarks(marks: Mark[]): Mark[] {
-      if (this.markSet == null) {
+   removeDisallowedMarks(marks: Mark[]): Mark[] {
+      if (this.allowedMarks == null) {
          return marks;
       }
-      let copy;
+      let filtered: Mark[] | undefined;
 
       for (let i = 0; i < marks.length; i++) {
-         if (!this.allowsMarkType(marks[i].type)) {
-            if (!copy) {
-               copy = marks.slice(0, i);
+         if (!this.allowedMarks.includes(marks[i].type)) {
+            if (filtered === undefined) {
+               filtered = marks.slice(0, i);
             }
-         } else if (copy) {
-            copy.push(marks[i]);
+         } else if (filtered !== undefined) {
+            filtered.push(marks[i]);
          }
       }
-      return !copy ? marks : copy.length ? copy : Mark.empty;
+      return filtered === undefined
+         ? marks
+         : filtered.length
+         ? filtered
+         : Mark.empty;
    }
 
    /**

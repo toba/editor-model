@@ -24,7 +24,7 @@ export interface SchemaSpec {
     * take precedence by default, and which nodes come first in a given
     * [group](http://prosemirror.net/docs/ref/#model.NodeSpec.group).
     */
-   nodes?: OrderedMap<NodeSpec>; //SimpleMap<NodeSpec>;
+   nodes?: OrderedMap<NodeSpec>;
 
    /**
     * The mark types that exist in this schema. The order in which they are
@@ -32,11 +32,10 @@ export interface SchemaSpec {
     * [mark sets](http://prosemirror.net/docs/ref/#model.Mark.addToSet)
     * are sorted and in which [parse rules](#model.MarkSpec.parseDOM) are tried.
     */
-   marks?: OrderedMap<MarkSpec>; //SimpleMap<MarkSpec> |
+   marks?: OrderedMap<MarkSpec>;
 
    /**
-    * The name of the default top-level node for the schema. Defaults to
-    * `"doc"`.
+    * Name of the default top-level node for the schema. The default is `"doc"`.
     */
    topNode?: string;
 }
@@ -59,19 +58,14 @@ export interface SchemaSpec {
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L462
  */
 export class Schema {
-   /**
-    * The `SchemaSpec` on which the schema is based, with the added guarantee
-    * that its `nodes` and `marks` properties are `OrderedMap` instances (not
-    * raw objects).
-    */
+   /** The `SchemaSpec` on which the schema is based */
    spec: SchemaSpec;
-   /** An object mapping the schema's node names to node type objects */
+   /** `NodeType`s keyed to their names */
    nodes: SimpleMap<NodeType>;
-   /** Mark types keyed to their names */
+   /** `MarkType`s keyed to their names */
    marks: SimpleMap<MarkType>;
    /** Type of the default top node (usually a "doc") for this schema */
    topNodeType: NodeType | undefined;
-
    /**
     * An object for storing whatever values modules may want to compute and
     * cache per schema.
@@ -100,45 +94,47 @@ export class Schema {
          this.marks = new Object(null) as SimpleMap<MarkType>;
       }
 
-      /** Cache of matches keyed to expression */
-      const contentExprCache: SimpleMap<ContentMatch> = Object.create(null);
+      /** Cache of matches keyed to patterns */
+      const matchCache: SimpleMap<ContentMatch> = Object.create(null);
 
-      for (let key in this.nodes) {
-         if (key in this.marks) {
-            throw new RangeError(key + ' can not be both a node and a mark');
+      for (let typeName in this.nodes) {
+         if (typeName in this.marks) {
+            throw new RangeError(
+               typeName + ' cannot be both a node and a mark'
+            );
          }
-         const type: NodeType = this.nodes[key];
-         const contentExpr: string = type.spec.content || '';
+         const type: NodeType = this.nodes[typeName];
+         const pattern: string = type.spec.content || '';
          const markExpr: string | undefined = type.spec.marks;
 
-         let match = contentExprCache[contentExpr];
+         let match = matchCache[pattern];
 
          if (match === undefined) {
-            match = ContentMatch.parse(contentExpr, this.nodes);
-            contentExprCache[contentExpr] = match;
+            match = ContentMatch.parse(pattern, this.nodes);
+            matchCache[pattern] = match;
          }
          type.contentMatch = match;
          type.inlineContent = match.inlineContent;
-         type.markSet =
+         type.allowedMarks =
             markExpr == '_'
                ? null
                : markExpr
-               ? gatherMarks(this, markExpr.split(' '))
+               ? marksWithTypeNames(this, markExpr.split(' '))
                : markExpr == '' || !type.inlineContent
                ? []
                : null;
       }
 
-      for (let key in this.marks) {
-         const type: MarkType = this.marks[key];
-         const excl = type.spec.excludes;
+      for (let typeName in this.marks) {
+         const type: MarkType = this.marks[typeName];
+         const exclude = type.spec.excludes;
 
          type.excluded =
-            excl == null
+            exclude === undefined
                ? [type]
-               : excl == ''
+               : exclude == ''
                ? []
-               : gatherMarks(this, excl.split(' '));
+               : marksWithTypeNames(this, exclude.split(' '));
       }
 
       this.topNodeType = this.nodes[this.spec.topNode || 'doc'];
@@ -150,7 +146,7 @@ export class Schema {
    /**
     * Create a node in this schema. The `type` may be a string or a `NodeType`
     * instance. Attributes will be extended with defaults, `content` may be a
-    * `Fragment`, `null`, a `Node`, or an array of nodes.
+    * `Fragment`, `undefined`, a `Node`, or an array of nodes.
     */
    node(
       type: string | NodeType,
@@ -167,7 +163,7 @@ export class Schema {
             'Node type from different schema used (' + type.name + ')'
          );
       }
-      return type.createChecked(attrs, content, marks);
+      return type.createAndValidate(attrs, content, marks);
    }
 
    /**
@@ -207,6 +203,9 @@ export class Schema {
     */
    markFromJSON = (json: MarkJSON): Mark => Mark.fromJSON(this, json);
 
+   /**
+    * `NodeType` with the given name. If not found, an exception is raised.
+    */
    nodeType(name: string): NodeType {
       const found = this.nodes[name];
 
@@ -218,9 +217,9 @@ export class Schema {
 }
 
 /**
- * Mark types in schema matching names.
+ * Mark types in a schema that have one of the given `MarkType` names.
  */
-function gatherMarks(schema: Schema, names: string[]): MarkType[] {
+function marksWithTypeNames(schema: Schema, names: string[]): MarkType[] {
    const matches: MarkType[] = [];
 
    forEach(names, name => {
@@ -230,8 +229,8 @@ function gatherMarks(schema: Schema, names: string[]): MarkType[] {
       if (found) {
          matches.push(mark);
       } else {
-         for (let key in schema.marks) {
-            const mark = schema.marks[key];
+         for (let typeName in schema.marks) {
+            const mark = schema.marks[typeName];
             if (name == '_' || mark.isInGroup(name)) {
                found = true;
                matches.push(mark);

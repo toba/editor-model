@@ -3,6 +3,7 @@ import { Schema } from './schema';
 import { NodeSpec } from './node-type';
 import { MarkSpec } from './mark-type';
 import { SimpleMap } from './types';
+import { OrderedMap } from './ordered-map';
 
 // https://github.com/ProseMirror/prosemirror-schema-basic/blob/master/src/schema-basic.js
 
@@ -272,9 +273,12 @@ export const marks: SimpleMap<MarkSpec> = {
 
 /**
  * This schema rougly corresponds to the document schema used by
- * [CommonMark](http://commonmark.org/), minus the list elements.
+ * [CommonMark](http://commonmark.org/).
  *
  * To reuse elements from this schema, extend or read from its `spec.nodes` and
- * `spec.marks` [properties](#model.Schema.spec).
+ * `spec.marks`.
  */
-export const testSchema = new Schema({ nodes, marks });
+export const testSchema = new Schema({
+   nodes: OrderedMap.from(nodes),
+   marks: OrderedMap.from(marks)
+});

@@ -1,38 +1,30 @@
 import { is } from '@toba/tools';
 import { Schema } from './schema';
 import { Mark } from './mark';
-import { MarkSerializer } from './to-dom';
 import { OrderedMap } from './ordered-map';
-import { ParseRule } from './parse-dom';
 import {
    AttributeMap,
-   AttributeSpec,
    initAttrs,
    defaultAttrs,
    computeAttrs,
    Attributes
 } from './attribute';
-import { SimpleMap } from './types';
+import { ItemSpec } from './types';
 
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js#L404
  */
-export interface MarkSpec {
-   /**
-    * The attributes that marks of this type get.
-    */
-   attrs?: SimpleMap<AttributeSpec<any>>;
-
+export interface MarkSpec extends ItemSpec<Mark> {
    /**
     * Whether this mark should be active when the cursor is positioned at its
     * end (or at its start when that is also the start of the parent node).
-    * Defaults to `true`.
+    * The default is `true`.
     */
    inclusive?: boolean;
 
    /**
     * Determines which other marks this mark can coexist with. Should be a
-    * space-separated strings naming other marks or groups of marks. When a mark
+    * space-separated string naming other marks or groups of marks. When a mark
     * is [added](#model.Mark.addToSet) to a set, all marks that it excludes are
     * removed in the process. If the set contains any mark that excludes the
     * new mark but is not, itself, excluded by the new mark, the mark can not be
@@ -47,29 +39,10 @@ export interface MarkSpec {
    excludes?: string;
 
    /**
-    * The group or space-separated groups to which this mark belongs.
-    */
-   group?: string;
-
-   /**
     * Determines whether marks of this type can span multiple adjacent nodes
-    * when serialized to DOM/HTML. Defaults to `true`.
+    * when serialized to DOM/HTML. The default is `true`.
     */
    spanning?: boolean;
-
-   /**
-    * Defines the default way marks of this type should be serialized to
-    * DOM/HTML. When the resulting spec contains a hole, that is where the
-    * marked content is placed. Otherwise, it is appended to the top node.
-    */
-   toDOM?: MarkSerializer;
-
-   /**
-    * Associates DOM parser information with this mark (see the corresponding
-    * [node spec field](#model.NodeSpec.parseDOM)). The `mark` field in the
-    * rules is implied.
-    */
-   parseDOM?: ParseRule[];
 }
 
 /**

@@ -62,7 +62,7 @@ export class ContentMatch {
    }
 
    /**
-    * Match a node type, returning a match after that node if successful.
+    * Match a `NodeType`.
     */
    matchType(type: NodeType): ContentMatch | undefined {
       const found = this.next.find(t => t === type);
@@ -70,7 +70,7 @@ export class ContentMatch {
    }
 
    /**
-    * Try to match a fragment. Returns the resulting match when successful.
+    * Match fragment or return `undefined`.
     */
    matchFragment(
       frag: Fragment,
@@ -132,14 +132,12 @@ export class ContentMatch {
          searchMatch: ContentMatch,
          types: NodeType[]
       ): Fragment | undefined {
-         let finished: ContentMatch | undefined = searchMatch.matchFragment(
-            after,
-            startIndex
-         );
+         const finished = searchMatch.matchFragment(after, startIndex);
+
          if (finished !== undefined && (!toEnd || finished.validEnd)) {
             const nodes = types
                .map(t => t.createAndFill())
-               .filter(n => n !== null) as EditorNode[];
+               .filter(n => n !== undefined) as EditorNode[];
 
             return Fragment.from(nodes);
          }
@@ -166,7 +164,9 @@ export class ContentMatch {
    /**
     * Find a set of wrapping node types that would allow a node of the given
     * type to appear at this position. The result may be empty (when it fits
-    * directly) and will be null when no such wrapping exists.
+    * directly) and will be `undefined` when no such wrapping exists.
+    *
+    * For example, a `p` directly in an `ol` should be wrapped with `li`.
     */
    findWrapping(target: NodeType): NodeType[] | undefined {
       for (let i = 0; i < this.wrapCache.size(); i++) {

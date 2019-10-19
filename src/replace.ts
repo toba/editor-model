@@ -150,7 +150,7 @@ function addRange(
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L181
  */
 function close(node: EditorNode, content: Fragment): EditorNode {
-   if (!node.type.validContent(content)) {
+   if (!node.type.allowsContent(content)) {
       throw new ReplaceError('Invalid content for node ' + node.type.name);
    }
    return node.copy(content);

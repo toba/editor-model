@@ -45,7 +45,7 @@ export class NodeContext {
 
    findWrapping(node: EditorNode): NodeType[] | undefined {
       if (this.match === undefined) {
-         if (!this.type || this.type.contentMatch === undefined) {
+         if (this.type === null || this.type.contentMatch === undefined) {
             return [];
          }
          let fill = this.type.contentMatch.fillBefore(Fragment.from(node));

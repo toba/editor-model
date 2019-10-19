@@ -68,12 +68,15 @@ export interface ParseOptions {
     */
    context?: Position;
 
+   /**
+    * Custom method to return a parsing rule for a specific DOM node.
+    */
    ruleFromNode?: (n: Node) => ParseRule;
 }
 
 /**
- * A value that describes how to parse a given DOM node or inline style as a
- * node or mark.
+ * Properties that describes how to parse a DOM node or inline style as an
+ * `EditorNode` or `Mark`.
  */
 export interface ParseRule {
    /**
@@ -84,13 +87,13 @@ export interface ParseRule {
 
    /**
     * The namespace to match. This should be used with `tag`. Nodes are only
-    * matched when the namespace matches or this property is `null`.
+    * matched when the namespace matches or this property is left `undefined`.
     */
-   namespace?: string | null;
+   namespace?: string;
 
    /**
     * A CSS property name to match. When given, this rule matches inline styles
-    * that list that property. May also have the form `"property=value"`, in
+    * that list that property. It may also have the form `"property=value"`, in
     * which case the rule only matches if the propery's value exactly matches
     * the given value. (For more complicated filters,
     * use [`getAttrs`](#model.ParseRule.getAttrs) and return `false` to indicate
@@ -108,13 +111,13 @@ export interface ParseRule {
    priority?: number;
 
    /**
-    * When given, restricts this rule to only match when the current context—the
-    * parent nodes into which the content is being parsed—matches this
-    * expression. Should contain one or more node names or node group names
+    * When given, restricts this rule to only match when the current context —
+    * the parent nodes into which the content is being parsed — matches this
+    * expression. It should contain one or more node names or node group names
     * followed by single or double slashes. For example `"paragraph/"` means the
     * rule only matches when the parent node is a paragraph,
     * `"blockquote/paragraph/"` restricts it to be in a paragraph that is inside
-    * a blockquote, and `"section//"` matches any position inside a section—a
+    * a blockquote, and `"section//"` matches any position inside a section — a
     * double slash matches any sequence of ancestor nodes. To allow multiple
     * different contexts, they can be separated by a pipe (`|`) character, as in
     * `"blockquote/|list_item/"`.
@@ -265,6 +268,9 @@ export class DOMParser {
       return Slice.maxOpen(context.finish() as Fragment);
    }
 
+   /**
+    * Retrieve standard parsing rule for the given HTML Element.
+    */
    matchTag(el: HTMLElement, context: ParseContext) {
       for (let i = 0; i < this.tags.length; i++) {
          const rule: ParseRule = this.tags[i];
@@ -310,16 +316,25 @@ export class DOMParser {
       }
    }
 
+   /**
+    * Infer parsing rules from schema marks and nodes.
+    */
    static schemaRules(schema: Schema): ParseRule[] {
+      const defaultPriority = 50;
       const result: ParseRule[] = [];
 
+      /**
+       * Insert rule positioned according to its priority.
+       */
       function insert(rule: ParseRule): void {
-         const priority = rule.priority == null ? 50 : rule.priority;
+         const priority =
+            rule.priority === undefined ? defaultPriority : rule.priority;
          let i = 0;
 
          for (; i < result.length; i++) {
             const next: ParseRule = result[i];
-            const nextPriority = next.priority == null ? 50 : next.priority;
+            const nextPriority =
+               next.priority === undefined ? defaultPriority : next.priority;
 
             if (nextPriority < priority) {
                break;
@@ -349,12 +364,11 @@ export class DOMParser {
    }
 
    /**
-    * Construct a DOM parser using the parsing rules listed in a schema's
-    * [node specs](#model.NodeSpec.parseDOM), reordered by
-    * [priority](#model.ParseRule.priority).
+    * Build a `DOMParser` using schema `EditorNode` and `Mark` specs sorted by
+    * `ParseRule.priority`.
     */
    static fromSchema(schema: Schema): DOMParser {
-      let parser = schema.cached.domParser;
+      let parser: DOMParser = schema.cached.domParser;
 
       if (parser === undefined) {
          parser = new DOMParser(schema, DOMParser.schemaRules(schema));
