@@ -47,14 +47,18 @@ export function expectSameNodeType(type: NodeType, pm_type: any): void {
    expect(type).toBeDefined();
    expect(pm_type).toBeDefined();
    expect(type.isInline).toBe(pm_type.isInline);
-   expect(type.allowedMarks).toEqual(pm_type.allowedMarks);
+   expect(type.allowedMarks).toEqual(pm_type.markSet);
 }
 
 export function expectSameNode(node: EditorNode, pm_node: any): void {
    expect(node).toBeDefined();
    expect(pm_node).toBeDefined();
 
-   expect(node.isAtom).toBe(pm_node.isAtom);
+   if (pm_node.isAtom === undefined) {
+      expect(node.isAtom).toBe(false);
+   } else {
+      expect(node.isAtom).toBe(pm_node.isAtom);
+   }
    expect(node.isBlock).toBe(pm_node.isBlock);
    expect(node.isInline).toBe(pm_node.isInline);
    expect(node.isLeaf).toBe(pm_node.isLeaf);
@@ -82,6 +86,7 @@ export function expectSameParseContext(
    expect(pm_context).toBeDefined();
 
    expect(context.currentPos).toBe(pm_context.currentPos);
+   expect(context.openElementCount).toBe(pm_context.open);
    expect(context.needsBlock).toBe(pm_context.needsBlock);
    expect(context.currentPos).toBe(pm_context.currentPos);
 

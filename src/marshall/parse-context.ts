@@ -79,12 +79,12 @@ function normalizeList(node: Node) {
 export class ParseContext {
    private parser: DOMParser;
    private options: ParseOptions;
-   /** Whether this is an open element */
-   isOpen: boolean;
    private pendingMarks: Mark[];
    private nodes: NodeContext[];
-   private openElementCount: number;
    private find: NodesToFind[] | undefined;
+   /** Whether this is an open element */
+   isOpen: boolean;
+   openElementCount: number;
    needsBlock: boolean;
 
    constructor(
@@ -388,15 +388,11 @@ export class ParseContext {
       endIndex?: number
    ): this {
       let index = startIndex;
-      let dom: ChildNode | null;
-      let end: ChildNode | null;
+      let dom: ChildNode | undefined = parent.childNodes[startIndex];
+      let end: ChildNode | undefined =
+         endIndex === undefined ? undefined : parent.childNodes[endIndex];
 
-      for (
-         dom = parent.childNodes[startIndex],
-            end = endIndex === undefined ? null : parent.childNodes[endIndex];
-         dom !== null && dom !== end;
-         dom = dom.nextSibling, ++index
-      ) {
+      while (dom !== undefined && dom !== end) {
          this.findAtPoint(parent, index).addDOM(dom);
 
          if (
@@ -405,6 +401,9 @@ export class ParseContext {
          ) {
             this.sync(sync);
          }
+
+         dom = dom.nextSibling !== null ? dom.nextSibling : undefined;
+         index++;
       }
       return this.findAtPoint(parent, index);
    }
