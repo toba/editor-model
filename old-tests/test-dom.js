@@ -13,65 +13,6 @@ describe("DOMParser", () => {
 
 
 
-
-
-
-    it("can turn divs into paragraphs",
-       recover("<div>hi</div><div>bye</div>",
-               doc(p("hi"), p("bye"))))
-
-    it("interprets <i> and <b> as emphasis and strong",
-       recover("<p><i>hello <b>there</b></i></p>",
-               doc(p(em("hello ", strong("there"))))))
-
-    it("wraps stray text in a paragraph",
-       recover("hi",
-               doc(p("hi"))))
-
-    it("ignores an extra wrapping <div>",
-       recover("<div><p>one</p><p>two</p></div>",
-               doc(p("one"), p("two"))))
-
-    it("ignores meaningless whitespace",
-       recover(" <blockquote> <p>woo  \n  <em> hooo</em></p> </blockquote> ",
-               doc(blockquote(p("woo ", em("hooo"))))))
-
-    it("removes whitespace after a hard break",
-       recover("<p>hello<br>\n  world</p>",
-               doc(p("hello", br, "world"))))
-
-    it("converts br nodes to newlines when they would otherwise be ignored",
-       recover("<pre>foo<br>bar</pre>",
-               doc(pre("foo\nbar"))))
-
-    it("finds a valid place for invalid content",
-       recover("<ul><li>hi</li><p>whoah</p><li>again</li></ul>",
-               doc(ul(li(p("hi")), li(p("whoah")), li(p("again"))))))
-
-    it("moves nodes up when they don't fit the current context",
-       recover("<div>hello<hr/>bye</div>",
-               doc(p("hello"), hr, p("bye"))))
-
-    it("doesn't ignore whitespace-only text nodes",
-       recover("<p><em>one</em> <strong>two</strong></p>",
-               doc(p(em("one"), " ", strong("two")))))
-
-    it("can handle stray tab characters",
-       recover("<p> <b>&#09;</b></p>",
-               doc(p())))
-
-    it("normalizes random spaces",
-       recover("<p><b>1 </b>  </p>",
-               doc(p(strong("1")))))
-
-    it("can parse an empty code block",
-       recover("<pre></pre>",
-               doc(pre())))
-
-    it("preserves trailing space in a code block",
-       recover("<pre>foo\n</pre>",
-               doc(pre("foo\n"))))
-
     it("normalizes newlines when preserving whitespace",
        recover("<p>foo  bar\nbaz</p>",
               doc(p("foo  bar baz")), {preserveWhitespace: true}))

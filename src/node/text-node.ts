@@ -2,8 +2,11 @@ import { is } from '@toba/tools';
 import { EditorNode, wrapMarks, NodeJSON } from './node';
 import { NodeType } from './node-type';
 import { Attributes } from './attribute';
-import { Mark } from '../mark/mark';
+import { Mark } from '../mark/';
 
+/**
+ * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/node.js#L371
+ */
 export class TextNode extends EditorNode {
    text: string;
 

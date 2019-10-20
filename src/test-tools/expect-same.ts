@@ -88,9 +88,12 @@ export function expectSameParseContext(
    expect(context.currentPos).toBe(pm_context.currentPos);
    expect(context.openElementCount).toBe(pm_context.open);
    expect(context.needsBlock).toBe(pm_context.needsBlock);
-   expect(context.currentPos).toBe(pm_context.currentPos);
+   expect(context.find).toEqual(pm_context.find);
+   expect(context.nodes.length).toBe(pm_context.nodes.length);
 
-   expectSameNodeContext(context.top, pm_context.top);
+   context.nodes.forEach((ctx, i) => {
+      expectSameNodeContext(ctx, pm_context.nodes[i]);
+   });
 }
 
 export function expectSameNFA(pattern: string): [NFA, any] {

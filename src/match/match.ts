@@ -191,7 +191,7 @@ export class ContentMatch {
          const current: ActiveMatch = active.shift()!;
          const match: ContentMatch = current.match;
 
-         if (match.matchType(target) !== null) {
+         if (match.matchType(target) !== undefined) {
             const result: NodeType[] = [];
 
             for (let obj = current; obj.type; obj = obj.via!) {

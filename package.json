@@ -41,7 +41,7 @@
       "@toba/develop": "^6.7.3",
       "@toba/editor-test": "^2.0.4",
       "@toba/test": "^4.1.16",
-      "@toba/test-prosemirror-model": "^1.7.4-test.2",
-      "@toba/test-prosemirror-tester": "^1.0.1-test.4"
+      "@toba/test-prosemirror-model": "^1.7.4-test.3",
+      "@toba/test-prosemirror-tester": "^1.0.1-test.5"
    }
 }

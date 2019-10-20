@@ -8,6 +8,7 @@ import {
    h2,
    p,
    br,
+   hr,
    img,
    strong,
    em,
@@ -25,7 +26,7 @@ import { Mark } from '../mark/';
 
 // const serializer = DOMSerializer.fromSchema(testSchema);
 
-describe('parses HTML to Schema items', () => {
+describe('Parses HTML to Schema items', () => {
    function stringToDOM(html: string): HTMLDivElement {
       const dom = document.createElement('div');
       dom.innerHTML = html;
@@ -246,7 +247,7 @@ describe('parses HTML to Schema items', () => {
    });
 });
 
-describe.skip('handles malformed HTML', () => {
+describe('Handles malformed HTML', () => {
    const parser = DOMParser.fromSchema(basicSchema);
    const expectDoc = (
       html: string,
@@ -266,5 +267,81 @@ describe.skip('handles malformed HTML', () => {
    it(
       'wraps a list item in a list',
       expectDoc('<li>hey</li>', doc(ol(li(p('hey')))))
+   );
+
+   it(
+      'can turn divs into paragraphs',
+      expectDoc('<div>hi</div><div>bye</div>', doc(p('hi'), p('bye')))
+   );
+
+   it(
+      'interprets <i> and <b> as emphasis and strong',
+      expectDoc(
+         '<p><i>hello <b>there</b></i></p>',
+         doc(p(em('hello ', strong('there'))))
+      )
+   );
+
+   it('wraps stray text in a paragraph', expectDoc('hi', doc(p('hi'))));
+
+   it(
+      'ignores an extra wrapping <div>',
+      expectDoc('<div><p>one</p><p>two</p></div>', doc(p('one'), p('two')))
+   );
+
+   it(
+      'ignores meaningless whitespace',
+      expectDoc(
+         ' <blockquote> <p>woo  \n  <em> hooo</em></p> </blockquote> ',
+         doc(blockquote(p('woo ', em('hooo'))))
+      )
+   );
+
+   it(
+      'removes whitespace after a hard break',
+      expectDoc('<p>hello<br>\n  world</p>', doc(p('hello', br, 'world')))
+   );
+
+   it(
+      'converts br nodes to newlines when they would otherwise be ignored',
+      expectDoc('<pre>foo<br>bar</pre>', doc(pre('foo\nbar')))
+   );
+
+   it(
+      'finds a valid place for invalid content',
+      expectDoc(
+         '<ul><li>hi</li><p>whoah</p><li>again</li></ul>',
+         doc(ul(li(p('hi')), li(p('whoah')), li(p('again'))))
+      )
+   );
+
+   it(
+      "moves nodes up when they don't fit the current context",
+      expectDoc('<div>hello<hr/>bye</div>', doc(p('hello'), hr, p('bye')))
+   );
+
+   it(
+      "doesn't ignore whitespace-only text nodes",
+      expectDoc(
+         '<p><em>one</em> <strong>two</strong></p>',
+         doc(p(em('one'), ' ', strong('two')))
+      )
+   );
+
+   it(
+      'can handle stray tab characters',
+      expectDoc('<p> <b>&#09;</b></p>', doc(p()))
+   );
+
+   it(
+      'normalizes random spaces',
+      expectDoc('<p><b>1 </b>  </p>', doc(p(strong('1'))))
+   );
+
+   it('can parse an empty code block', expectDoc('<pre></pre>', doc(pre())));
+
+   it(
+      'preserves trailing space in a code block',
+      expectDoc('<pre>foo\n</pre>', doc(pre('foo\n')))
    );
 });

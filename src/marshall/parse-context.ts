@@ -77,11 +77,11 @@ function normalizeList(node: Node) {
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/from_dom.js
  */
 export class ParseContext {
-   private parser: DOMParser;
    private options: ParseOptions;
    private pendingMarks: Mark[];
-   private nodes: NodeContext[];
-   private find: NodesToFind[] | undefined;
+   parser: DOMParser;
+   nodes: NodeContext[];
+   find: NodesToFind[] | undefined;
    /** Whether this is an open element */
    isOpen: boolean;
    openElementCount: number;
@@ -506,12 +506,8 @@ export class ParseContext {
       const ok = this.findPlace(type.create(attrs));
 
       if (ok) {
-         this.applyPendingMarks(this.top).enterInner(
-            type,
-            attrs,
-            true,
-            preserveSpace
-         );
+         this.applyPendingMarks(this.top);
+         this.enterInner(type, attrs, true, preserveSpace);
       }
       return ok;
    }
@@ -619,9 +615,7 @@ export class ParseContext {
       filterEach(
          this.find,
          f => f.node === parent && f.offset == offset,
-         f => {
-            f.pos = this.currentPos;
-         }
+         f => (f.pos = this.currentPos)
       );
       return this;
    }
@@ -636,9 +630,7 @@ export class ParseContext {
             f.pos === undefined &&
             parent.nodeType == HtmlNodeType.Element &&
             parent.contains(f.node),
-         f => {
-            f.pos = this.currentPos;
-         }
+         f => (f.pos = this.currentPos)
       );
       return this;
    }
