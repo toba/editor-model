@@ -1,5 +1,5 @@
 import { Fragment } from './fragment';
-import { Schema } from '../schema/schema';
+import { Schema } from '../schema/';
 import { NodeJSON, EditorNode } from './node';
 
 export interface SliceJSON {

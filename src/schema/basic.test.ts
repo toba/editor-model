@@ -1,6 +1,6 @@
 import '@toba/test';
-import { basicSchema, SchemaTag as tag } from './basic-schema';
-import { makeTestItems, NodeMaker, pm } from '../test-tools/';
+import { basicSchema, SchemaTag as tag } from './basic';
+import { makeTestItems, NodeMaker, pm } from '../test-tools';
 
 const items = makeTestItems(basicSchema, {
    p: { type: tag.Paragraph },

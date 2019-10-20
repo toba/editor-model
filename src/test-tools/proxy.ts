@@ -12,11 +12,12 @@ import {
 } from '@toba/test-prosemirror-model';
 
 /**
- * Original ProseMirror methods and types for comparison.
+ * Original ProseMirror methods and types for comparison, renamed to match
+ * Toba.
  */
 export const pm = {
    ContentMatch,
-   DOMParser,
+   Parser: DOMParser,
    nfaToDFA: dfa,
    mock,
    parseNFA: nfa,

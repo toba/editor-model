@@ -1,16 +1,14 @@
 import { is } from '@toba/tools';
 import { Fragment, FragmentJSON } from './fragment';
-import { Mark, MarkJSON } from '../mark/mark';
-import { NodeType } from './node-type';
+import { Mark, MarkJSON, MarkType } from '../mark';
+import { NodeType } from './type';
 import { Attributes } from './attribute';
 import { Slice } from './slice';
-import { replace } from '../replace';
-import { Position } from '../position';
+import { Position, replace } from '../position/';
 import { compareDeep } from '../compare-deep';
-import { MarkType } from '../mark/mark-type';
-import { ContentMatch } from '../match';
+import { ContentMatch } from '../match/content';
 import { Schema } from '../schema/schema';
-import { TextNode } from './text-node';
+import { TextNode } from './text';
 
 const emptyAttrs: Attributes = Object.create(null);
 

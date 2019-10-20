@@ -1,17 +1,8 @@
-export {
-   Attributes,
-   AttributeMap,
-   AttributeSpec,
-   computeAttrs,
-   defaultAttrs,
-   initAttrs,
-   AttributeDefault
-} from './attribute';
-export { Fragment } from './fragment';
-export { NodeContext } from './node-context';
-export { NodeRange } from './node-range';
-export { NodeType } from './node-type';
-export { NodeSpec } from './node-spec';
+// do not re-export every member in this folder because it can create circular
+// references
+export { NodeRange } from './range';
+export { NodeType } from './type';
+export { NodeSpec } from './spec';
 export { PerNodeCallback, NodeJSON, EditorNode } from './node';
-export { TextNode } from './text-node';
-export { Slice } from './slice';
+export { TextNode } from './text';
+export { NodeContext } from './context';

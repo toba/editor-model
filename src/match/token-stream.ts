@@ -1,4 +1,4 @@
-import { NodeType } from '../node/';
+import { NodeType } from '../node/type';
 import { SimpleMap } from '../types';
 
 export const enum TokenType {

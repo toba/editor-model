@@ -1,9 +1,10 @@
 import { is } from '@toba/tools';
 import { Schema } from './schema';
-import { NodeSpec } from '../node';
-import { MarkSpec } from '../mark';
+import { NodeSpec } from '../node/spec';
+import { MarkSpec } from '../mark/spec';
 import { SimpleMap } from '../types';
 import { OrderedMap } from '../ordered-map';
+import { DOMTag } from '../constants';
 
 // https://github.com/ProseMirror/prosemirror-schema-basic/blob/master/src/schema-basic.js
 
@@ -29,24 +30,6 @@ export const enum SchemaTag {
    BulletList = 'bullet_list'
 }
 
-export const enum DOMTag {
-   BlockQuote = 'blockquote',
-   Break = 'br',
-   Bold = 'b',
-   BulletList = 'ul',
-   Code = 'code',
-   CodeBlock = 'pre',
-   Emphasis = 'em',
-   Image = 'img',
-   Italic = 'i',
-   Line = 'hr',
-   Link = 'a',
-   ListItem = 'li',
-   OrderedList = 'ol',
-   Paragraph = 'p',
-   Strong = 'strong'
-}
-
 export const enum Group {
    Block = 'block',
    Inline = 'inline'
@@ -64,8 +47,8 @@ export const nodes: SimpleMap<NodeSpec> = {
    [SchemaTag.Paragraph]: {
       content: `${Group.Inline}*`,
       group: Group.Block,
-      parseDOM: [{ tag: DOMTag.Paragraph }],
-      toDOM: () => [DOMTag.Paragraph, 0]
+      parse: [{ tag: DOMTag.Paragraph }],
+      render: () => [DOMTag.Paragraph, 0]
    },
 
    /** A blockquote (`<blockquote>`) wrapping one or more blocks. */
@@ -73,15 +56,15 @@ export const nodes: SimpleMap<NodeSpec> = {
       content: `${Group.Block}+`,
       group: Group.Block,
       defining: true,
-      parseDOM: [{ tag: DOMTag.BlockQuote }],
-      toDOM: () => [DOMTag.BlockQuote, 0]
+      parse: [{ tag: DOMTag.BlockQuote }],
+      render: () => [DOMTag.BlockQuote, 0]
    },
 
    /** A horizontal rule (`<hr>`). */
    [SchemaTag.Line]: {
       group: Group.Block,
-      parseDOM: [{ tag: DOMTag.Line }],
-      toDOM: () => [DOMTag.Line]
+      parse: [{ tag: DOMTag.Line }],
+      render: () => [DOMTag.Line]
    },
 
    /**
@@ -93,7 +76,7 @@ export const nodes: SimpleMap<NodeSpec> = {
       content: `${Group.Inline}*`,
       group: Group.Block,
       defining: true,
-      parseDOM: [
+      parse: [
          { tag: 'h1', attrs: { level: 1 } },
          { tag: 'h2', attrs: { level: 2 } },
          { tag: 'h3', attrs: { level: 3 } },
@@ -101,7 +84,7 @@ export const nodes: SimpleMap<NodeSpec> = {
          { tag: 'h5', attrs: { level: 5 } },
          { tag: 'h6', attrs: { level: 6 } }
       ],
-      toDOM: node => ['h' + node.attrs.level, 0]
+      render: node => ['h' + node.attrs.level, 0]
    },
 
    /**
@@ -114,8 +97,8 @@ export const nodes: SimpleMap<NodeSpec> = {
       group: Group.Block,
       code: true,
       defining: true,
-      parseDOM: [{ tag: DOMTag.CodeBlock, preserveSpace: 'full' }],
-      toDOM: () => [DOMTag.CodeBlock, [DOMTag.Code, 0]]
+      parse: [{ tag: DOMTag.CodeBlock, preserveSpace: 'full' }],
+      render: () => [DOMTag.CodeBlock, [DOMTag.Code, 0]]
    },
 
    /** The text node */
@@ -136,7 +119,7 @@ export const nodes: SimpleMap<NodeSpec> = {
       },
       group: Group.Inline,
       draggable: true,
-      parseDOM: [
+      parse: [
          {
             tag: `${DOMTag.Image}[src]`,
             getAttrs: (el: HTMLElement | string) =>
@@ -149,7 +132,7 @@ export const nodes: SimpleMap<NodeSpec> = {
                     }
          }
       ],
-      toDOM(node) {
+      render(node) {
          const { src, alt, title } = node.attrs;
          return [DOMTag.Image, { src, alt, title }];
       }
@@ -160,8 +143,8 @@ export const nodes: SimpleMap<NodeSpec> = {
       inline: true,
       group: Group.Inline,
       selectable: false,
-      parseDOM: [{ tag: DOMTag.Break }],
-      toDOM: () => [DOMTag.Break]
+      parse: [{ tag: DOMTag.Break }],
+      render: () => [DOMTag.Break]
    },
 
    /**
@@ -173,7 +156,7 @@ export const nodes: SimpleMap<NodeSpec> = {
       attrs: { order: { default: 1 } },
       content: `${SchemaTag.ListItem}+`,
       group: Group.Block,
-      parseDOM: [
+      parse: [
          {
             tag: DOMTag.OrderedList,
             getAttrs: el =>
@@ -186,7 +169,7 @@ export const nodes: SimpleMap<NodeSpec> = {
                     }
          }
       ],
-      toDOM(node) {
+      render(node) {
          return node.attrs.order == 1
             ? [DOMTag.OrderedList, 0]
             : [DOMTag.OrderedList, { start: node.attrs.order }, 0];
@@ -196,14 +179,14 @@ export const nodes: SimpleMap<NodeSpec> = {
    [SchemaTag.BulletList]: {
       content: `${SchemaTag.ListItem}+`,
       group: Group.Block,
-      parseDOM: [{ tag: DOMTag.BulletList }],
-      toDOM: () => [DOMTag.BulletList, 0]
+      parse: [{ tag: DOMTag.BulletList }],
+      render: () => [DOMTag.BulletList, 0]
    },
 
    [SchemaTag.ListItem]: {
       content: `${SchemaTag.Paragraph} (${SchemaTag.OrderedList} | ${SchemaTag.BulletList})*`,
-      parseDOM: [{ tag: DOMTag.ListItem }],
-      toDOM: () => [DOMTag.ListItem, 0],
+      parse: [{ tag: DOMTag.ListItem }],
+      render: () => [DOMTag.ListItem, 0],
       defining: true
    }
 };
@@ -219,7 +202,7 @@ export const marks: SimpleMap<MarkSpec> = {
          title: { default: null }
       },
       inclusive: false,
-      parseDOM: [
+      parse: [
          {
             tag: `${DOMTag.Link}[href]`,
             getAttrs: el =>
@@ -231,7 +214,7 @@ export const marks: SimpleMap<MarkSpec> = {
                     }
          }
       ],
-      toDOM(node) {
+      render(node) {
          const { href, title } = node.attrs;
          return [DOMTag.Link, { href, title }, 0];
       }
@@ -242,12 +225,12 @@ export const marks: SimpleMap<MarkSpec> = {
     * match `<i>` and `font-style: italic`.
     */
    [SchemaTag.Emphasis]: {
-      parseDOM: [
+      parse: [
          { tag: DOMTag.Italic },
          { tag: DOMTag.Emphasis },
          { style: 'font-style=italic' }
       ],
-      toDOM: () => [DOMTag.Emphasis, 0]
+      render: () => [DOMTag.Emphasis, 0]
    },
 
    /**
@@ -255,7 +238,7 @@ export const marks: SimpleMap<MarkSpec> = {
     * `font-weight: bold`.
     */
    [SchemaTag.Strong]: {
-      parseDOM: [
+      parse: [
          { tag: DOMTag.Strong },
          { tag: DOMTag.Bold },
          {
@@ -271,13 +254,13 @@ export const marks: SimpleMap<MarkSpec> = {
                   : undefined
          }
       ],
-      toDOM: () => [DOMTag.Strong, 0]
+      render: () => [DOMTag.Strong, 0]
    },
 
    /** Code font mark. Represented as a `<code>` element. */
    [SchemaTag.Code]: {
-      parseDOM: [{ tag: DOMTag.Code }],
-      toDOM: () => [DOMTag.Code, 0]
+      parse: [{ tag: DOMTag.Code }],
+      render: () => [DOMTag.Code, 0]
    }
 };
 

@@ -1,7 +1,7 @@
 import '@toba/test';
 import { is } from '@toba/tools';
-import { ContentMatch } from './match';
-import { basicSchema, SchemaTag as tag, Group } from '../schema/';
+import { ContentMatch } from './content';
+import { basicSchema, SchemaTag as tag, Group } from '../schema/index';
 import { doc, p, hr, br, img, h1, pre } from '../test-tools/mocks';
 import {
    typeSequence,
@@ -10,7 +10,8 @@ import {
    pm,
    compare
 } from '../test-tools';
-import { NodeType, EditorNode, Fragment } from '../node/';
+import { NodeType, EditorNode } from '../node/index';
+import { Fragment } from '../node/fragment';
 
 /**
  * Match nodes in the test schema.

@@ -1,6 +1,6 @@
 import '@toba/test';
 import { nfaToDFA, nullFrom } from './finite-automata';
-import { ContentMatch } from './match';
+import { ContentMatch } from './content';
 import { SchemaTag as tag } from '../schema';
 import { typeSequence, compare, pm, expectSame } from '../test-tools';
 

@@ -1,9 +1,9 @@
 import { is } from '@toba/tools';
-import { MarkType } from '../mark/mark-type';
-import { Schema } from '../schema/schema';
+import { Mark, MarkType } from '../mark/index';
+import { Schema } from '../schema/index';
 import { OrderedMap } from '../ordered-map';
 import { EditorNode } from './node';
-import { NodeSpec } from './node-spec';
+import { NodeSpec } from './spec';
 import {
    AttributeMap,
    initAttrs,
@@ -11,9 +11,9 @@ import {
    computeAttrs,
    Attributes
 } from './attribute';
-import { ContentMatch } from '../match/match';
+// TODO: circular reference prevents import from ../match/index
+import { ContentMatch } from '../match/content';
 import { Fragment } from './fragment';
-import { Mark } from '../mark/mark';
 import { SimpleMap } from '../types';
 
 /**

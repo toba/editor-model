@@ -1,3 +1,3 @@
-export { SchemaSpec } from './schema-spec';
+export { SchemaSpec } from './spec';
 export { Schema } from './schema';
-export { basicSchema, Group, SchemaTag, DOMTag } from './basic-schema';
+export { basicSchema, Group, SchemaTag, DOMTag } from './basic';

@@ -1,9 +1,9 @@
 import { is, forEach } from '@toba/tools';
-import { Attributes, EditorNode, NodeType } from '../node';
-import { Schema } from '../schema/schema';
+import { EditorNode, NodeType } from '../node';
+import { Attributes } from '../node/attribute';
+import { Schema, SchemaTag } from '../schema';
 import { Mark, MarkType } from '../mark';
 import { SimpleMap } from '../types';
-import { SchemaTag } from '../schema/basic-schema';
 
 const noTags = Object.create(null);
 

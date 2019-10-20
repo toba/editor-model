@@ -1,5 +1,5 @@
 import '@toba/test';
-import { Schema, basicSchema } from '../schema/';
+import { Schema, basicSchema } from '../schema';
 import { makeTestItems, TestNode } from '../test-tools';
 import {
    a,
@@ -19,10 +19,10 @@ import {
    li,
    ol
 } from '../test-tools/mocks';
-import { DOMParser } from './parse-dom';
-import { ParseOptions } from './parse-options';
-import { DOMSerializer } from './to-dom';
-import { Mark } from '../mark/';
+import { Parser } from './parser';
+import { ParseOptions } from './options';
+import { Renderer } from '../render';
+import { Mark } from '../mark/mark';
 
 // const serializer = DOMSerializer.fromSchema(testSchema);
 
@@ -41,14 +41,14 @@ describe('Parses HTML to Schema items', () => {
       const schema = doc!.type.schema;
 
       derivedDOM.appendChild(
-         DOMSerializer.fromSchema(schema).serializeFragment(doc!.content, {
+         Renderer.fromSchema(schema).renderFragment(doc!.content, {
             document
          })
       );
 
       expect(derivedDOM.innerHTML).toBe(declaredDOM.innerHTML);
       expect(
-         DOMParser.fromSchema(schema)
+         Parser.fromSchema(schema)
             .parse(derivedDOM)
             .toJSON()
       ).toEqual(doc!.toJSON());
@@ -166,8 +166,8 @@ describe('Parses HTML to Schema items', () => {
             Object.assign({ marks: 'comment' }, nodes.get('doc'))
          ),
          marks: marks.update('comment', {
-            parseDOM: [{ tag: 'div.comment' }],
-            toDOM: () => ['div', { class: 'comment' }, 0]
+            parse: [{ tag: 'div.comment' }],
+            render: () => ['div', { class: 'comment' }, 0]
          })
       });
       const b = makeTestItems(commentSchema);
@@ -192,7 +192,7 @@ describe('Parses HTML to Schema items', () => {
          nodes: nodes,
          marks: marks.update('comment', {
             attrs: { id: { default: undefined } },
-            parseDOM: [
+            parse: [
                {
                   tag: 'span.comment',
                   getAttrs: (el: HTMLElement) => ({
@@ -201,7 +201,7 @@ describe('Parses HTML to Schema items', () => {
                }
             ],
             excludes: '',
-            toDOM: (mark: Mark) => [
+            render: (mark: Mark) => [
                'span',
                { class: 'comment', 'data-id': mark.attrs.id },
                0
@@ -231,8 +231,8 @@ describe('Parses HTML to Schema items', () => {
       const markSchema = new Schema({
          nodes: nodes,
          marks: marks.update('test', {
-            parseDOM: [{ tag: 'test' }],
-            toDOM: () => ['test', 0],
+            parse: [{ tag: 'test' }],
+            render: () => ['test', 0],
             spanning: false
          })
       });
@@ -248,7 +248,7 @@ describe('Parses HTML to Schema items', () => {
 });
 
 describe('Handles malformed HTML', () => {
-   const parser = DOMParser.fromSchema(basicSchema);
+   const parser = Parser.fromSchema(basicSchema);
    const expectDoc = (
       html: string,
       doc: TestNode,

@@ -1,9 +1,11 @@
 import { forEach } from '@toba/tools';
-import { Schema } from '../schema/';
-import { EditorNode, Fragment, Slice } from '../node/';
-import { ParseRule } from './parse-rule';
-import { ParseContext } from './parse-context';
-import { ParseOptions } from './parse-options';
+import { Schema } from '../schema';
+import { EditorNode } from '../node/node';
+import { Fragment } from '../node/fragment';
+import { Slice } from '../node/slice';
+import { ParseRule } from './rule';
+import { ParseContext } from './context';
+import { ParseOptions } from './options';
 
 function assignAttributes(
    rule: ParseRule,
@@ -24,7 +26,7 @@ function assignAttributes(
  * conforming to a given schema. Its behavior is defined by an array of
  * [rules](#model.ParseRule).
  */
-export class DOMParser {
+export class Parser {
    /** Schema into which the parser parses */
    schema: Schema;
    /**
@@ -164,11 +166,11 @@ export class DOMParser {
       }
 
       for (let name in schema.marks) {
-         updateRule(r => (r.markType = name), schema.marks[name].spec.parseDOM);
+         updateRule(r => (r.markType = name), schema.marks[name].spec.parse);
       }
 
       for (let name in schema.nodes) {
-         updateRule(r => (r.nodeType = name), schema.nodes[name].spec.parseDOM);
+         updateRule(r => (r.nodeType = name), schema.nodes[name].spec.parse);
       }
 
       return result;
@@ -178,11 +180,11 @@ export class DOMParser {
     * Build a `DOMParser` using schema `EditorNode` and `Mark` specs sorted by
     * `ParseRule.priority`.
     */
-   static fromSchema(schema: Schema): DOMParser {
-      let parser: DOMParser = schema.cached.domParser;
+   static fromSchema(schema: Schema): Parser {
+      let parser: Parser = schema.cached.domParser;
 
       if (parser === undefined) {
-         parser = new DOMParser(schema, DOMParser.schemaRules(schema));
+         parser = new Parser(schema, Parser.schemaRules(schema));
          schema.cached.domParser = parser;
       }
       return parser;

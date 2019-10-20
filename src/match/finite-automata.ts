@@ -1,7 +1,7 @@
 import { forEach, makeDuoList } from '@toba/tools';
-import { ContentMatch } from './match';
+import { ContentMatch } from './content';
 import { Expression, TokenType } from './token-stream';
-import { NodeType } from '../node/';
+import { NodeType } from '../node/type';
 import { SimpleMap } from '../types';
 
 // The code below helps compile a regular-expression-like language into a

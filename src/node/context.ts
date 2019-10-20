@@ -1,10 +1,10 @@
 import { Fragment } from './fragment';
-import { Mark } from '../mark/';
-import { NodeType } from './node-type';
+import { Mark } from '../mark';
+import { NodeType } from './type';
 import { EditorNode } from './node';
 import { Attributes } from './attribute';
-import { ContentMatch } from '../match/';
-import { TextNode } from './text-node';
+import { ContentMatch } from '../match/content';
+import { TextNode } from './text';
 import { Whitespace } from '../constants';
 
 /**

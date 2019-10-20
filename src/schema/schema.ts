@@ -1,18 +1,12 @@
 import { is, forEach } from '@toba/tools';
 import { OrderedMap } from '../ordered-map';
-import {
-   Attributes,
-   Fragment,
-   EditorNode,
-   NodeJSON,
-   TextNode,
-   NodeType,
-   NodeSpec
-} from '../node';
-import { Mark, MarkJSON, MarkType, MarkSpec } from '../mark';
-import { ContentMatch } from '../match';
+import { Attributes } from '../node/attribute';
+import { Fragment } from '../node/fragment';
+import { EditorNode, NodeType, NodeSpec, TextNode, NodeJSON } from '../node/';
+import { Mark, MarkJSON, MarkType, MarkSpec } from '../mark/';
+import { ContentMatch } from '../match/content';
 import { SimpleMap } from '../types';
-import { SchemaSpec } from './schema-spec';
+import { SchemaSpec } from './spec';
 
 /**
  * Each editor [document](http://prosemirror.net/docs/guide/#doc) has a schema

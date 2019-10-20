@@ -11,7 +11,7 @@ import { pm } from './proxy';
 import { doc, p } from './mocks';
 import { typeSequence, TestNode } from './test-maker';
 import { basicSchema, SchemaTag as tag } from '../schema';
-import { ParseContext, DOMParser } from '../marshall';
+import { ParseContext, Parser } from '../parse';
 
 // Methods to create parallel instances of ProseMirror and Toba entities
 // based on the basic schema
@@ -56,8 +56,8 @@ export const makeNodeTypes = (name = tag.Paragraph): [NodeType, any] => {
 };
 
 export const makeParseContext = (html?: string): [ParseContext, any] => {
-   const parser = DOMParser.fromSchema(basicSchema);
-   const pm_parser = pm.DOMParser.fromSchema(pm.testSchema);
+   const parser = Parser.fromSchema(basicSchema);
+   const pm_parser = pm.Parser.fromSchema(pm.testSchema);
    const context = new ParseContext(parser);
    const pm_context = new pm.ParseContext(pm_parser, {});
 

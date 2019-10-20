@@ -1,6 +1,6 @@
 import '@toba/test';
 import { ContentMatch, Edge, NFA } from '../match';
-import { ParseContext } from '../marshall';
+import { ParseContext } from '../parse';
 import { EditorNode, NodeType, NodeContext } from '../node';
 import { makeNFA } from './compare';
 

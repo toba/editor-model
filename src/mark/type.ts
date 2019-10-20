@@ -1,7 +1,7 @@
 import { is } from '@toba/tools';
-import { Schema } from '../schema/schema';
+import { Schema } from '../schema';
 import { Mark } from './mark';
-import { MarkSpec } from './mark-spec';
+import { MarkSpec } from './spec';
 import { OrderedMap } from '../ordered-map';
 import {
    AttributeMap,
@@ -9,7 +9,7 @@ import {
    defaultAttrs,
    computeAttrs,
    Attributes
-} from '../node/';
+} from '../node/attribute';
 
 /**
  * Like nodes, marks (which are associated with nodes to signify things like

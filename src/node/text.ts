@@ -1,8 +1,8 @@
 import { is } from '@toba/tools';
 import { EditorNode, wrapMarks, NodeJSON } from './node';
-import { NodeType } from './node-type';
+import { NodeType } from './type';
 import { Attributes } from './attribute';
-import { Mark } from '../mark/';
+import { Mark } from '../mark/index';
 
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/node.js#L371

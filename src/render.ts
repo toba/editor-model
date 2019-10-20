@@ -1,14 +1,10 @@
 import { is, DuoList, makeDuoList } from '@toba/tools';
-import { Schema } from '../schema/';
-import { Mark, MarkType } from '../mark/';
-import {
-   Attributes,
-   EditorNode,
-   NodeType,
-   TextNode,
-   Fragment as EditorFragment
-} from '../node/';
-import { SimpleMap } from '../types';
+import { Schema } from './schema';
+import { Mark, MarkType } from './mark';
+import { Attributes } from './node/attribute';
+import { Fragment as EditorFragment } from './node/fragment';
+import { EditorNode, NodeType, TextNode } from './node/';
+import { SimpleMap } from './types';
 
 /**
  * Array describing a DOM element. The first value in the array should be a
@@ -38,7 +34,7 @@ type TreeSpec<T> = [
 export interface ElementSpec extends TreeSpec<ElementSpec> {}
 
 /**
- * Represent `DOMOutputSpec` rendered to DOM.
+ * Represent `RenderSpec` rendered to DOM.
  */
 interface Rendered {
    /**
@@ -46,7 +42,7 @@ interface Rendered {
     */
    node: Node;
    /**
-    * If `DOMOutputSpec` has a hole (zero) in it then this will reference its
+    * If `RenderSpec` has a hole (zero) in it then this will reference its
     * content.
     */
    contentNode?: Node;
@@ -57,28 +53,28 @@ interface Rendered {
  * interpreted as a text node, a DOM node, which is interpreted as itself, or an
  * `ElementSpec`.
  */
-export type DOMOutputSpec = string | Node | ElementSpec;
+export type RenderSpec = string | Node | ElementSpec;
 
 /**
  * Convert an `EditorNode` to a description of its DOM implementation.
  */
-export type NodeSerializer = (node: EditorNode) => DOMOutputSpec;
+export type NodeRenderer = (node: EditorNode) => RenderSpec;
 
 /**
  * Convert a `Mark` to a description of its DOM implementation
  * @param inline Whether the mark's content is block or inline content (for
  * typical use, it will always be inline)
  */
-export type MarkSerializer = (mark: Mark, inline: boolean) => DOMOutputSpec;
+export type MarkRenderer = (mark: Mark, inline: boolean) => RenderSpec;
 
-interface SerializeOptions {
+interface RenderOptions {
    /**
     * Optional method to call when `RenderedSpec.contentNode` exists.
     */
    onContent?: (
       node: EditorNode,
       contentNode: Node,
-      options: SerializeOptions
+      options: RenderOptions
    ) => void;
    /**
     * When not in the browser, `document` should be passed so the serializer
@@ -88,38 +84,38 @@ interface SerializeOptions {
 }
 
 /**
- * A DOM serializer converts editor nodes and marks to DOM nodes.
+ * Converts editor nodes and marks to DOM nodes.
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/to_dom.js#L21
  */
-export class DOMSerializer {
-   /** Node serialization functions keyed to node type name */
-   nodes: SimpleMap<NodeSerializer>;
+export class Renderer {
+   /** Node render functions keyed to node type name */
+   nodes: SimpleMap<NodeRenderer>;
    /**
-    * Mark serialization functions keyed to mark type name. If the serializer
-    * for a key is `null` then those mark types should not be serizlied.
+    * Mark render functions keyed to mark type name. If the serializer for a key
+    * is `null` then those mark types should not be rendered.
     */
-   marks: SimpleMap<MarkSerializer | null>;
+   marks: SimpleMap<MarkRenderer | null>;
 
    /**
-    * @param nodes Node serializers keyed to node names
-    * @param marks Mark serializers keyed to mark names (value may be `null` to
-    * indicate that marks of that type should not be serialized)
+    * @param nodes Node renderers keyed to node names
+    * @param marks Mark renderers keyed to mark names (value may be `null` to
+    * indicate that marks of that type should not be rendered)
     */
    constructor(
-      nodes: SimpleMap<NodeSerializer> = Object.create(null),
-      marks: SimpleMap<MarkSerializer | null> = Object.create(null)
+      nodes: SimpleMap<NodeRenderer> = Object.create(null),
+      marks: SimpleMap<MarkRenderer | null> = Object.create(null)
    ) {
       this.nodes = nodes;
       this.marks = marks;
    }
 
    /**
-    * Serialize content of an editor fragment to the DOM.
+    * Render content of an editor fragment to the DOM.
     */
-   serializeFragment(
+   renderFragment(
       fragment: EditorFragment,
-      options: SerializeOptions = Object.create(null),
+      options: RenderOptions = Object.create(null),
       target?: Node
    ): Node {
       if (target === undefined) {
@@ -164,7 +160,7 @@ export class DOMSerializer {
                /** Mark to be rendered */
                const add: Mark = child.marks[rendered++];
                /** Rendered mark */
-               const markDOM = this.serializeMark(add, child.isInline, options);
+               const markDOM = this.renderMark(add, child.isInline, options);
 
                if (markDOM !== null) {
                   active.push(add, top);
@@ -173,26 +169,26 @@ export class DOMSerializer {
                }
             }
          }
-         top.appendChild(this.serializeNode(child, options));
+         top.appendChild(this.renderNode(child, options));
       });
 
       return target;
    }
 
    /**
-    * Serialize editor node to a DOM node. This can be useful when you need to
-    * serialize a part of a document, as opposed to the whole document. To
-    * serialize a whole document, use
-    * [`serializeFragment`](#model.DOMSerializer.serializeFragment) on its
+    * Render editor node to a DOM node. This can be useful when you need to
+    * render a part of a document, as opposed to the whole document. To
+    * render a whole document, use
+    * [`renderFragment`](#model.DOMSerializer.serializeFragment) on its
     * [content](#model.Node.content).
     */
-   serializeNode(
+   renderNode(
       node: EditorNode,
-      options: SerializeOptions = Object.create(null)
+      options: RenderOptions = Object.create(null)
    ): Node {
-      const serializer: NodeSerializer = this.nodes[node.type.name];
-      const spec: DOMOutputSpec = serializer(node);
-      const rendered = DOMSerializer.renderSpec(doc(options), spec);
+      const serializer: NodeRenderer = this.nodes[node.type.name];
+      const spec: RenderSpec = serializer(node);
+      const rendered = Renderer.renderSpec(doc(options), spec);
 
       if (rendered.contentNode !== undefined) {
          if (node.isLeaf) {
@@ -203,20 +199,20 @@ export class DOMSerializer {
          if (is.callable(options.onContent)) {
             options.onContent(node, rendered.contentNode, options);
          } else {
-            this.serializeFragment(node.content, options, rendered.contentNode);
+            this.renderFragment(node.content, options, rendered.contentNode);
          }
       }
       return rendered.node;
    }
 
-   serializeNodeAndMarks(
+   renderNodeAndMarks(
       node: EditorNode,
-      options: SerializeOptions = Object.create(null)
+      options: RenderOptions = Object.create(null)
    ): Node {
-      let dom: Node = this.serializeNode(node, options);
+      let dom: Node = this.renderNode(node, options);
 
       for (let i = node.marks.length - 1; i >= 0; i--) {
-         const wrap = this.serializeMark(node.marks[i], node.isInline, options);
+         const wrap = this.renderMark(node.marks[i], node.isInline, options);
 
          if (wrap !== null) {
             (wrap.contentNode || wrap.node).appendChild(dom);
@@ -226,22 +222,22 @@ export class DOMSerializer {
       return dom;
    }
 
-   serializeMark(
+   renderMark(
       mark: Mark,
       inline: boolean,
-      options: SerializeOptions = Object.create(null)
+      options: RenderOptions = Object.create(null)
    ) {
-      const toDOM: MarkSerializer | null = this.marks[mark.type.name];
+      const toDOM: MarkRenderer | null = this.marks[mark.type.name];
 
       return toDOM === null
          ? null
-         : DOMSerializer.renderSpec(doc(options), toDOM(mark, inline));
+         : Renderer.renderSpec(doc(options), toDOM(mark, inline));
    }
 
    /**
     * Render `DOMOutputSpec` to the DOM.
     */
-   static renderSpec(doc: Document, spec: DOMOutputSpec): Rendered {
+   static renderSpec(doc: Document, spec: RenderSpec): Rendered {
       if (is.text(spec)) {
          return { node: doc.createTextNode(spec) };
       }
@@ -261,7 +257,7 @@ export class DOMSerializer {
          attrs !== undefined &&
          is.object(attrs) &&
          //attrs.nodeType === undefined &&
-         !Array.isArray(attrs)
+         !is.array(attrs)
       ) {
          start = 2;
 
@@ -288,7 +284,7 @@ export class DOMSerializer {
             const {
                node: inner,
                contentNode: maybeContent
-            } = DOMSerializer.renderSpec(doc, child as ElementSpec);
+            } = Renderer.renderSpec(doc, child as ElementSpec);
 
             el.appendChild(inner);
 
@@ -304,13 +300,13 @@ export class DOMSerializer {
    }
 
    /**
-    * Build a serializer using the [`toDOM`](#model.NodeSpec.toDOM) properties
-    * in a schema's node and mark specs.
+    * Build a renderer using the `render` properties in a schema's node and mark
+    * specs.
     */
-   static fromSchema(schema: Schema): DOMSerializer {
+   static fromSchema(schema: Schema): Renderer {
       return (
-         schema.cached.domSerializer ||
-         (schema.cached.domSerializer = new DOMSerializer(
+         schema.cached.renderer ||
+         (schema.cached.renderer = new Renderer(
             this.nodesFromSchema(schema),
             this.marksFromSchema(schema)
          ))
@@ -321,8 +317,8 @@ export class DOMSerializer {
     * Gather the serializers in a schema's node specs into an object. This can
     * be useful as a base to build a custom serializer from.
     */
-   static nodesFromSchema(schema: Schema): SimpleMap<NodeSerializer> {
-      const result = gatherToDOM(schema.nodes);
+   static nodesFromSchema(schema: Schema): SimpleMap<NodeRenderer> {
+      const result = addRenderers(schema.nodes);
 
       if (!result.text) {
          result.text = node => (node as TextNode).text;
@@ -333,18 +329,18 @@ export class DOMSerializer {
    /**
     * Gather the serializers in a schema's mark specs into an object.
     */
-   static marksFromSchema = (schema: Schema): SimpleMap<MarkSerializer> =>
-      gatherToDOM(schema.marks);
+   static marksFromSchema = (schema: Schema): SimpleMap<MarkRenderer> =>
+      addRenderers(schema.marks);
 }
 
-function gatherToDOM<T extends MarkType | NodeType>(types: SimpleMap<T>) {
-   type S = T extends MarkType ? MarkSerializer : NodeSerializer;
+function addRenderers<T extends MarkType | NodeType>(types: SimpleMap<T>) {
+   type S = T extends MarkType ? MarkRenderer : NodeRenderer;
    const result: SimpleMap<S> = Object.create(null);
 
    for (let key in types) {
       const type: T = types[key];
-      if (type.spec.toDOM !== undefined) {
-         result[key] = type.spec.toDOM as S;
+      if (type.spec.render !== undefined) {
+         result[key] = type.spec.render as S;
       }
    }
    return result;
@@ -353,5 +349,5 @@ function gatherToDOM<T extends MarkType | NodeType>(types: SimpleMap<T>) {
 /**
  * DOM document from options or the global window.
  */
-const doc = (options: SerializeOptions): Document =>
+const doc = (options: RenderOptions): Document =>
    options.document || window.document;

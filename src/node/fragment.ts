@@ -1,7 +1,7 @@
 import { is, forEach } from '@toba/tools';
 import { EditorNode, NodeJSON, PerNodeCallback } from './node';
-import { Schema } from '../schema/';
-import { TextNode } from './text-node';
+import { Schema } from '../schema';
+import { TextNode } from './text';
 
 export type FragmentJSON = NodeJSON[];
 

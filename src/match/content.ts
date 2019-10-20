@@ -1,5 +1,6 @@
 import { DuoList, makeDuoList } from '@toba/tools';
-import { EditorNode, NodeType, Fragment } from '../node/';
+import { EditorNode, NodeType } from '../node';
+import { Fragment } from '../node/fragment';
 import { parseNFA, nfaToDFA } from './finite-automata';
 import { TokenStream, parseExpr, Expression } from './token-stream';
 import { SimpleMap } from '../types';

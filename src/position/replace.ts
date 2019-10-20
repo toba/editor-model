@@ -1,12 +1,10 @@
-import { Fragment } from './node/fragment';
-import { Slice } from './node/slice';
+import { TextNode, EditorNode } from '../node/';
+import { Fragment } from '../node/fragment';
+import { Slice } from '../node/slice';
 import { Position } from './position';
-import { EditorNode } from './node';
-import { TextNode } from './node/text-node';
 
 /**
- * Error type raised by [`Node.replace`](#model.Node.replace) when given an
- * invalid replacement.
+ * Error type raised by `EditorNode.replace` when given an invalid replacement.
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L7
  */

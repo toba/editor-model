@@ -1,5 +1,5 @@
 import '@toba/test';
-import { compare, expectSame } from '../test-tools';
+import { compare, expectSame } from '../test-tools/index';
 
 describe('duplicate ProseMirror functionality', () => {
    it('finds missing wrapping tags', () => {

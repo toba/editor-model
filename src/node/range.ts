@@ -1,4 +1,4 @@
-import { Position } from '../position';
+import { Position } from '../position/position';
 import { EditorNode } from './node';
 
 /**

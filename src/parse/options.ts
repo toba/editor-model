@@ -1,7 +1,7 @@
 import { EditorNode } from '../node';
 import { ContentMatch } from '../match';
-import { ParseRule } from './parse-rule';
-import { Position } from '../position';
+import { ParseRule } from './rule';
+import { Position } from '../position/position';
 
 export interface NodesToFind {
    node: Node;

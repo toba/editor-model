@@ -1,6 +1,8 @@
-import { ParseRule, DOMOutputSpec } from './marshall/';
-import { AttributeSpec, EditorNode } from './node/';
-import { Mark } from './mark/';
+import { RenderSpec } from './render';
+import { ParseRule } from './parse/rule';
+import { AttributeSpec } from './node/attribute';
+import { EditorNode } from './node/node';
+import { Mark } from './mark/mark';
 
 export type SimpleMap<T> = { [key: string]: T };
 
@@ -23,7 +25,7 @@ export interface ItemSpec<T extends Mark | EditorNode> {
     * you supply your own parser, you do not need to also specify parsing rules
     * in your schema.
     */
-   parseDOM?: ParseRule[];
+   parse?: ParseRule[];
 
    /**
     * Defines the default way items of this type should be serialized to
@@ -44,5 +46,5 @@ export interface ItemSpec<T extends Mark | EditorNode> {
     * @param inline For marks, whether content is block or inline (for typical
     * use, it will always be inline)
     */
-   toDOM?: (item: T, inline?: boolean) => DOMOutputSpec;
+   render?: (item: T, inline?: boolean) => RenderSpec;
 }

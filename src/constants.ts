@@ -33,13 +33,34 @@ export const enum Whitespace {
 }
 
 /**
+ * Tags used to render editor content to DOM.
+ */
+export const enum DOMTag {
+   BlockQuote = 'blockquote',
+   Break = 'br',
+   Bold = 'b',
+   BulletList = 'ul',
+   Code = 'code',
+   CodeBlock = 'pre',
+   Emphasis = 'em',
+   Image = 'img',
+   Italic = 'i',
+   Line = 'hr',
+   Link = 'a',
+   ListItem = 'li',
+   OrderedList = 'ol',
+   Paragraph = 'p',
+   Strong = 'strong'
+}
+
+/**
  * The block-level tags in HTML5.
  */
 export const blockTags: tagMap = {
    address: true,
    article: true,
    aside: true,
-   blockquote: true,
+   [DOMTag.BlockQuote]: true,
    canvas: true,
    dd: true,
    div: true,
@@ -57,17 +78,17 @@ export const blockTags: tagMap = {
    h6: true,
    header: true,
    hgroup: true,
-   hr: true,
-   li: true,
+   [DOMTag.Line]: true,
+   [DOMTag.ListItem]: true,
    noscript: true,
-   ol: true,
+   [DOMTag.OrderedList]: true,
    output: true,
-   p: true,
-   pre: true,
+   [DOMTag.Paragraph]: true,
+   [DOMTag.CodeBlock]: true,
    section: true,
    table: true,
    tfoot: true,
-   ul: true
+   [DOMTag.BulletList]: true
 };
 
 /**
@@ -85,4 +106,7 @@ export const ignoreTags: tagMap = {
 /**
  * List tags.
  */
-export const listTags: tagMap = { ol: true, ul: true };
+export const listTags: tagMap = {
+   [DOMTag.OrderedList]: true,
+   [DOMTag.BulletList]: true
+};

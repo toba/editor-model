@@ -1,15 +1,11 @@
 import { is, forEach, filterEach } from '@toba/tools';
-import { Mark, MarkType } from '../mark/';
-import {
-   EditorNode,
-   NodeContext,
-   TextNode,
-   NodeType,
-   Attributes
-} from '../node/';
-import { DOMParser } from './parse-dom';
-import { ParseOptions, NodesToFind } from './parse-options';
-import { ParseRule } from './parse-rule';
+import { Mark, MarkType } from '../mark/index';
+import { NodeContext } from '../node/context';
+import { EditorNode, TextNode, NodeType } from '../node/index';
+import { Attributes } from '../node/attribute';
+import { Parser } from './parser';
+import { ParseOptions, NodesToFind } from './options';
+import { ParseRule } from './rule';
 import {
    HtmlNodeType,
    Whitespace,
@@ -17,7 +13,7 @@ import {
    ignoreTags,
    blockTags
 } from '../constants';
-import { Position } from '../position';
+import { Position } from '../position/position';
 
 export type PreserveSpace = boolean | 'full';
 
@@ -79,7 +75,7 @@ function normalizeList(node: Node) {
 export class ParseContext {
    private options: ParseOptions;
    private pendingMarks: Mark[];
-   parser: DOMParser;
+   parser: Parser;
    nodes: NodeContext[];
    find: NodesToFind[] | undefined;
    /** Whether this is an open element */
@@ -88,7 +84,7 @@ export class ParseContext {
    needsBlock: boolean;
 
    constructor(
-      parser: DOMParser,
+      parser: Parser,
       options: ParseOptions = {},
       open: boolean = false
    ) {

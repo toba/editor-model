@@ -1,7 +1,7 @@
 import { is } from '@toba/tools';
 import { compareDeep } from '../compare-deep';
-import { MarkType } from './mark-type';
-import { Attributes } from '../node';
+import { MarkType } from './type';
+import { Attributes } from '../node/attribute';
 import { Schema } from '../schema/schema';
 
 export interface MarkJSON {

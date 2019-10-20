@@ -1,6 +1,7 @@
-import { Attributes, Fragment } from '../node';
+import { Attributes } from '../node/attribute';
+import { Fragment } from '../node/fragment';
 import { Schema } from '../schema';
-import { PreserveSpace } from './parse-context';
+import { PreserveSpace } from './context';
 
 /**
  * Properties that describes how to parse a DOM node or inline style as an

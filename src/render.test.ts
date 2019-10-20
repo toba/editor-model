@@ -1,17 +1,17 @@
 import '@toba/test';
-import { basicSchema } from '../schema/';
-import { p, strong, em, code } from '../test-tools/mocks';
-import { DOMSerializer } from './to-dom';
+import { basicSchema } from './schema';
+import { p, strong, em, code } from './test-tools/mocks';
+import { Renderer } from './render';
 
-const serializer = DOMSerializer.fromSchema(basicSchema);
-const noEm = new DOMSerializer(
-   serializer.nodes,
-   Object.assign({}, serializer.marks, { em: null })
+const renderer = Renderer.fromSchema(basicSchema);
+const noEm = new Renderer(
+   renderer.nodes,
+   Object.assign({}, renderer.marks, { em: null })
 );
 
 it('can omit a mark', () => {
    expect(
-      (noEm.serializeNode(p('foo', em('bar'), strong('baz')), {
+      (noEm.renderNode(p('foo', em('bar'), strong('baz')), {
          document
       }) as Element).innerHTML
    ).toBe('foobar<strong>baz</strong>');
@@ -19,7 +19,7 @@ it('can omit a mark', () => {
 
 it("doesn't split other marks for omitted marks", () => {
    expect(
-      (noEm.serializeNode(
+      (noEm.renderNode(
          p('foo', code('bar'), em(code('baz'), 'quux'), 'xyz'),
          { document }
       ) as Element).innerHTML
@@ -27,14 +27,14 @@ it("doesn't split other marks for omitted marks", () => {
 });
 
 it('can render marks with complex structure', () => {
-   let deepEm = new DOMSerializer(
-      serializer.nodes,
-      Object.assign({}, serializer.marks, {
+   let deepEm = new Renderer(
+      renderer.nodes,
+      Object.assign({}, renderer.marks, {
          em: () => ['em', ['i', { 'data-emphasis': true }, 0]]
       })
    );
    expect(
-      (deepEm.serializeNode(
+      (deepEm.renderNode(
          p(strong('foo', code('bar'), em(code('baz'))), em('quux'), 'xyz'),
          { document }
       ) as Element).innerHTML
