@@ -97,8 +97,11 @@ function joinable(
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L156
  */
-function addNode(child: EditorNode | null, target: (EditorNode | TextNode)[]) {
-   if (child === null) {
+function addNode(
+   child: EditorNode | undefined,
+   target: (EditorNode | TextNode)[]
+) {
+   if (child === undefined) {
       return;
    }
    const last = target.length - 1;

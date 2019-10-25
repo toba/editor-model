@@ -163,12 +163,12 @@ export class Position {
     * into a text node, only the part of that node after the position is
     * returned.
     */
-   get nodeAfter(): EditorNode | null {
+   get nodeAfter(): EditorNode | undefined {
       const parent = this.parent;
       const index = this.index(this.depth);
 
       if (index == parent.childCount) {
-         return null;
+         return undefined;
       }
       const pathEnd = this.path.lastItem();
 
@@ -186,7 +186,7 @@ export class Position {
     * into a text node, only the part of that node before the position is
     * returned.
     */
-   get nodeBefore(): EditorNode | null {
+   get nodeBefore(): EditorNode | undefined {
       const index = this.index(this.depth);
       const pathEnd = this.path.lastItem();
 
@@ -198,7 +198,7 @@ export class Position {
       if (dOff != 0) {
          return this.parent.child(index).cut(0, dOff);
       }
-      return index == 0 ? null : this.parent.child(index - 1);
+      return index == 0 ? undefined : this.parent.child(index - 1);
    }
 
    /**

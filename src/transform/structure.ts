@@ -1,9 +1,12 @@
-import { Transform } from './transform';
-import { ReplaceStep } from './replace-step';
 import { EditorNode, NodeRange, NodeType } from '../node';
 import { Attributes } from '../node/attribute';
 import { Slice } from '../node/slice';
 import { Fragment } from '../node/fragment';
+
+export interface Wrapping {
+   type: NodeType;
+   attrs?: Attributes;
+}
 
 function canCut(node: EditorNode, start: number, end: number) {
    return (
@@ -35,19 +38,19 @@ export function liftTarget(range: NodeRange): number | undefined {
    }
 }
 
-// :: (NodeRange, NodeType, ?Object, ?NodeRange) → ?[{type: NodeType, attrs: ?Object}]
-// Try to find a valid way to wrap the content in the given range in a
-// node of the given type. May introduce extra nodes around and inside
-// the wrapper node, if necessary. Returns null if no valid wrapping
-// could be found. When `innerRange` is given, that range's content is
-// used as the content to fit into the wrapping, instead of the
-// content of `range`.
+/**
+ * Try to find a valid way to wrap the content in the given range in a node of
+ * the given type. May introduce extra nodes around and inside the wrapper node,
+ * if necessary. Returns null if no valid wrapping could be found. When
+ * `innerRange` is given, that range's content is used as the content to fit
+ * into the wrapping, instead of the content of `range`.
+ */
 export function findWrapping(
    range: NodeRange,
    nodeType: NodeType,
    attrs: Attributes,
    innerRange: NodeRange = range
-) {
+): Wrapping[] | null {
    const around = findWrappingOutside(range, nodeType);
    const inner =
       around !== null ? findWrappingInside(innerRange, nodeType) : null;
@@ -62,9 +65,7 @@ export function findWrapping(
       .concat(inner.map(withAttrs));
 }
 
-function withAttrs(type: NodeType) {
-   return { type, attrs: null };
-}
+const withAttrs = (type: NodeType): Wrapping => ({ type, attrs: undefined });
 
 function findWrappingOutside(
    range: NodeRange,
@@ -111,117 +112,142 @@ function canChangeType(doc: EditorNode, pos: number, type: NodeType) {
    return $pos.parent.canReplaceWith(index, index + 1, type);
 }
 
-// :: (Node, number, number, ?[?{type: NodeType, attrs: ?Object}]) → bool
-// Check whether splitting at the given position is allowed.
-export function canSplit(doc: EditorNode, pos: number, depth = 1, typesAfter) {
-   let $pos = doc.resolve(pos),
-      base = $pos.depth - depth;
-   let innerType =
-      (typesAfter && typesAfter[typesAfter.length - 1]) || $pos.parent;
+/**
+ * Whether splitting at the given position is allowed.
+ */
+export function canSplit(
+   doc: EditorNode,
+   idx: number,
+   depth = 1,
+   typesAfter?: Wrapping[]
+): boolean {
+   let pos = doc.resolve(idx);
+   const base = pos.depth - depth;
+   const innerType =
+      (typesAfter && typesAfter[typesAfter.length - 1]) || pos.parent;
+
    if (
       base < 0 ||
-      $pos.parent.type.spec.isolating ||
-      !$pos.parent.canReplace($pos.index(), $pos.parent.childCount) ||
-      !innerType.type.validContent(
-         $pos.parent.content.cutByIndex($pos.index(), $pos.parent.childCount)
+      pos.parent.type.spec.isolating ||
+      !pos.parent.canReplace(pos.index(), pos.parent.childCount) ||
+      !innerType.type.allowsContent(
+         pos.parent.content.cutByIndex(pos.index(), pos.parent.childCount)
       )
-   )
+   ) {
       return false;
-   for (let d = $pos.depth - 1, i = depth - 2; d > base; d--, i--) {
-      let node = $pos.node(d),
-         index = $pos.index(d);
-      if (node.type.spec.isolating) return false;
+   }
+
+   for (let d = pos.depth - 1, i = depth - 2; d > base; d--, i--) {
+      const node = pos.node(d);
+      const index = pos.index(d);
+
+      if (node.type.spec.isolating) {
+         return false;
+      }
       let rest = node.content.cutByIndex(index, node.childCount);
-      let after = (typesAfter && typesAfter[i]) || node;
-      if (after != node)
+      const after = (typesAfter && typesAfter[i]) || node;
+
+      if (after != node) {
          rest = rest.replaceChild(0, after.type.create(after.attrs));
+      }
       if (
          !node.canReplace(index + 1, node.childCount) ||
-         !after.type.validContent(rest)
-      )
+         !after.type.allowsContent(rest)
+      ) {
          return false;
+      }
    }
-   let index = $pos.indexAfter(base);
-   let baseType = typesAfter && typesAfter[0];
-   return $pos
+   const index = pos.indexAfter(base);
+   const baseType = typesAfter && typesAfter[0];
+
+   return pos
       .node(base)
       .canReplaceWith(
          index,
          index,
-         baseType ? baseType.type : $pos.node(base + 1).type
+         baseType ? baseType.type : pos.node(base + 1).type
       );
 }
 
-// :: (Node, number) → bool
-// Test whether the blocks before and after a given position can be
-// joined.
-export function canJoin(doc: EditorNode, pos: number) {
-   let $pos = doc.resolve(pos);
-   let index = $pos.index();
+/**
+ * Test whether the blocks before and after a given position can be joined.
+ */
+export function canJoin(doc: EditorNode, idx: number) {
+   const pos = doc.resolve(idx);
+   const index = pos.index();
 
    return (
-      joinable($pos.nodeBefore, $pos.nodeAfter) &&
-      $pos.parent.canReplace(index, index + 1)
+      joinable(pos.nodeBefore, pos.nodeAfter) &&
+      pos.parent.canReplace(index, index + 1)
    );
 }
 
-function joinable(a, b) {
-   return a && b && !a.isLeaf && a.canAppend(b);
-}
+const joinable = (a?: EditorNode, b?: EditorNode) =>
+   a !== undefined && b !== undefined && !a.isLeaf && a.canAppend(b);
 
 // :: (Node, number, ?number) → ?number
 // Find an ancestor of the given position that can be joined to the
 // block before (or after if `dir` is positive). Returns the joinable
 // point, if any.
-export function joinPoint(doc: EditorNode, pos: number, dir = -1) {
-   let $pos = doc.resolve(pos);
-   for (let d = $pos.depth; ; d--) {
-      let before, after;
-      if (d == $pos.depth) {
-         before = $pos.nodeBefore;
-         after = $pos.nodeAfter;
+export function joinPoint(doc: EditorNode, idx: number, dir = -1) {
+   let pos = doc.resolve(idx);
+
+   for (let d = pos.depth; ; d--) {
+      let before;
+      let after;
+
+      if (d == pos.depth) {
+         before = pos.nodeBefore;
+         after = pos.nodeAfter;
       } else if (dir > 0) {
-         before = $pos.node(d + 1);
-         after = $pos.node(d).maybeChild($pos.index(d) + 1);
+         before = pos.node(d + 1);
+         after = pos.node(d).maybeChild(pos.index(d) + 1);
       } else {
-         before = $pos.node(d).maybeChild($pos.index(d) - 1);
-         after = $pos.node(d + 1);
+         before = pos.node(d).maybeChild(pos.index(d) - 1);
+         after = pos.node(d + 1);
       }
-      if (before && !before.isTextblock && joinable(before, after)) return pos;
-      if (d == 0) break;
-      pos = dir < 0 ? $pos.before(d) : $pos.after(d);
+      if (before && !before.isTextblock && joinable(before, after)) {
+         return idx;
+      }
+      if (d == 0) {
+         break;
+      }
+      idx = dir < 0 ? pos.before(d) : pos.after(d);
    }
 }
 
-// :: (Node, number, NodeType) → ?number
-// Try to find a point where a node of the given type can be inserted
-// near `pos`, by searching up the node hierarchy when `pos` itself
-// isn't a valid place but is at the start or end of a node. Return
-// null if no position was found.
-export function insertPoint(doc: EditorNode, pos: number, nodeType: NodeType) {
-   let $pos = doc.resolve(pos);
-   if ($pos.parent.canReplaceWith($pos.index(), $pos.index(), nodeType))
-      return pos;
+/**
+ * Try to find a point where a node of the given type can be inserted near
+ * `pos`, by searching up the node hierarchy when `pos` itself isn't a valid
+ * place but is at the start or end of a node. Return null if no position was
+ * found.
+ */
+export function insertPoint(doc: EditorNode, idx: number, nodeType: NodeType) {
+   const pos = doc.resolve(idx);
 
-   if ($pos.parentOffset == 0) {
-      for (let d = $pos.depth - 1; d >= 0; d--) {
-         let index = $pos.index(d);
+   if (pos.parent.canReplaceWith(pos.index(), pos.index(), nodeType))
+      return idx;
 
-         if ($pos.node(d).canReplaceWith(index, index, nodeType)) {
-            return $pos.before(d + 1);
+   if (pos.parentOffset == 0) {
+      for (let d = pos.depth - 1; d >= 0; d--) {
+         let index = pos.index(d);
+
+         if (pos.node(d).canReplaceWith(index, index, nodeType)) {
+            return pos.before(d + 1);
          }
          if (index > 0) {
             return null;
          }
       }
    }
-   if ($pos.parentOffset == $pos.parent.content.size)
-      for (let d = $pos.depth - 1; d >= 0; d--) {
-         let index = $pos.indexAfter(d);
-         if ($pos.node(d).canReplaceWith(index, index, nodeType)) {
-            return $pos.after(d + 1);
+   if (pos.parentOffset == pos.parent.content.size)
+      for (let d = pos.depth - 1; d >= 0; d--) {
+         const index = pos.indexAfter(d);
+
+         if (pos.node(d).canReplaceWith(index, index, nodeType)) {
+            return pos.after(d + 1);
          }
-         if (index < $pos.node(d).childCount) {
+         if (index < pos.node(d).childCount) {
             return null;
          }
       }
@@ -235,13 +261,13 @@ export function insertPoint(doc: EditorNode, pos: number, nodeType: NodeType) {
  */
 export function dropPoint(
    doc: EditorNode,
-   pos: number,
+   idx: number,
    slice: Slice
 ): number | null {
-   let $pos = doc.resolve(pos);
+   const pos = doc.resolve(idx);
 
    if (!slice.content.size) {
-      return pos;
+      return idx;
    }
    let content: Fragment = slice.content;
 
@@ -255,27 +281,27 @@ export function dropPoint(
       pass <= (slice.openStart == 0 && slice.size ? 2 : 1);
       pass++
    ) {
-      for (let d = $pos.depth; d >= 0; d--) {
-         let bias =
-            d == $pos.depth
+      for (let d = pos.depth; d >= 0; d--) {
+         const bias =
+            d == pos.depth
                ? 0
-               : $pos.pos <= ($pos.start(d + 1) + $pos.end(d + 1)) / 2
+               : pos.pos <= (pos.start(d + 1) + pos.end(d + 1)) / 2
                ? -1
                : 1;
-         let insertPos = $pos.index(d) + (bias > 0 ? 1 : 0);
+         const insertPos = pos.index(d) + (bias > 0 ? 1 : 0);
          if (
             pass == 1
-               ? $pos.node(d).canReplace(insertPos, insertPos, content)
-               : $pos
+               ? pos.node(d).canReplace(insertPos, insertPos, content)
+               : pos
                     .node(d)
                     .contentMatchAt(insertPos)
                     .findWrapping(content.firstChild.type)
          )
             return bias == 0
-               ? $pos.pos
+               ? pos.pos
                : bias < 0
-               ? $pos.before(d + 1)
-               : $pos.after(d + 1);
+               ? pos.before(d + 1)
+               : pos.after(d + 1);
       }
    }
    return null;

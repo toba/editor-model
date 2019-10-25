@@ -3,9 +3,13 @@ import { EditorNode } from '../node';
 import { Slice } from '../node/slice';
 import { ReplaceError } from '../position/replace';
 import { Schema } from '../schema';
+import { Mark, MarkJSON } from '../mark';
 
-function mustOverride() {
-   throw new Error('Override me');
+export interface StepJSON {
+   stepType: string;
+   mark: MarkJSON;
+   from: number;
+   to: number;
 }
 
 const stepsByID = Object.create(null);
@@ -21,6 +25,10 @@ const stepsByID = Object.create(null);
  * [`Step.jsonID`](#transform.Step^jsonID).
  */
 export abstract class Step {
+   from: number;
+   to: number;
+   mark: Mark;
+
    /**
     * Applies this step to the given document, returning a result object that
     * either indicates failure, if the step can not be applied to this document,
@@ -39,7 +47,7 @@ export abstract class Step {
     * Create an inverted version of this step. Needs the document as it was
     * before the step as argument.
     */
-   abstract invert(doc: EditorNode): Step;
+   abstract invert<S extends Step>(doc: EditorNode): S;
 
    /**
     * Map this step through a mappable thing, returning either a version of that
@@ -53,25 +61,28 @@ export abstract class Step {
     * Returns the merged step when possible, `null` if the steps can't be
     * merged.
     */
-   abstract merge(other: Step): Step | null;
+   abstract merge(other: this): this | null;
 
-   // :: () → Object
-   // Create a JSON-serializeable representation of this step. When
-   // defining this for a custom subclass, make sure the result object
-   // includes the step type's [JSON id](#transform.Step^jsonID) under
-   // the `stepType` property.
-   toJSON() {
-      return mustOverride();
-   }
+   /**
+    * Create a JSON-serializeable representation of this step. When defining
+    * this for a custom subclass, make sure the result object includes the step
+    * type's [JSON id](#transform.Step^jsonID) under the `stepType` property.
+    */
+   abstract toJSON(): StepJSON;
 
-   // :: (Schema, Object) → Step
-   // Deserialize a step from its JSON representation. Will call
-   // through to the step class' own implementation of this method.
-   static fromJSON(schema: Schema, json: Object) {
-      if (!json || !json.stepType)
+   /**
+    * Deserialize a step from its JSON representation. Will call through to the
+    * step class' own implementation of this method.
+    */
+   static fromJSON(schema: Schema, json: StepJSON): Step {
+      if (!json || !json.stepType) {
          throw new RangeError('Invalid input for Step.fromJSON');
+      }
       let type = stepsByID[json.stepType];
-      if (!type) throw new RangeError(`No step type ${json.stepType} defined`);
+
+      if (!type) {
+         throw new RangeError(`No step type ${json.stepType} defined`);
+      }
       return type.fromJSON(schema, json);
    }
 
