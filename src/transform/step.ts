@@ -41,7 +41,7 @@ export abstract class Step {
     * can be used to transform between positions in the old and the new
     * document.
     */
-   getMap = (): StepMap => StepMap.empty;
+   getMap = (): StepMap => StepMap.empty();
 
    /**
     * Create an inverted version of this step. Needs the document as it was

@@ -2,16 +2,25 @@ import { Mapping } from './map';
 import { EditorNode, NodeType, NodeRange } from '../node';
 import { Step, StepResult } from './step';
 import { Attributes } from '../node/attribute';
-import { Mark } from '../mark';
+import { Mark, MarkType } from '../mark';
 import { ReplaceAroundStep, ReplaceStep } from './replace-step';
 import { Fragment } from '../node/fragment';
 import { Slice } from '../node/slice';
+import { RemoveMarkStep, AddMarkStep } from './map-step';
+import { forEach } from '@toba/tools';
 
 export class TransformError extends Error {
    constructor(message: string) {
       super(message);
       this.name = 'TransformError';
    }
+}
+
+interface MarkMatch {
+   style: Mark;
+   from: number;
+   to: number;
+   step: number;
 }
 
 // ::- Abstraction to build up and track an array of
@@ -48,8 +57,8 @@ export class Transform {
     * Apply a new step in this transform, saving the result. Throws an error
     * when the step fails.
     */
-   step(object: Step): this {
-      let result = this.maybeStep(object);
+   step(s: Step): this {
+      const result = this.maybeStep(s);
       if (result.failed) {
          throw new TransformError(result.failed);
       }
@@ -162,7 +171,7 @@ export class Transform {
     * first siblings are also joined, and so on.
     */
    join(pos: number, depth = 1): this {
-      let step = new ReplaceStep(pos - depth, pos + depth, Slice.empty, true);
+      const step = new ReplaceStep(pos - depth, pos + depth, Slice.empty, true);
       return this.step(step);
    }
 
@@ -183,7 +192,7 @@ export class Transform {
       }
       let mapFrom = this.steps.length;
 
-      this.doc.nodesBetween(from, to, (node, pos) => {
+      this.doc.forEachNodeBetween(from, to, (node, pos) => {
          if (
             node.isTextblock &&
             !node.hasMarkup(type, attrs) &&
@@ -196,7 +205,7 @@ export class Transform {
             );
             let mapping = this.mapping.slice(mapFrom);
             let startM = mapping.map(pos, 1),
-               endM = mapping.map(pos + node.nodeSize, 1);
+               endM = mapping.map(pos + node.size, 1);
             this.step(
                new ReplaceAroundStep(
                   startM,
@@ -290,5 +299,169 @@ export class Transform {
             true
          )
       );
+   }
+
+   /**
+    * Add mark to inline content between `from` and `to`.
+    */
+   addMark(from: number, to: number, mark: Mark): this {
+      const removed: RemoveMarkStep[] = [];
+      const added: AddMarkStep[] = [];
+
+      let removing: RemoveMarkStep | null = null;
+      let adding: AddMarkStep | null = null;
+
+      this.doc.forEachNodeBetween(from, to, (node, pos, parent) => {
+         if (!node.isInline) {
+            return;
+         }
+         const marks: Mark[] = node.marks;
+
+         if (
+            !mark.isIn(marks) &&
+            parent !== undefined &&
+            parent.type.allowsMarkType(mark.type)
+         ) {
+            let start = Math.max(pos, from);
+            let end = Math.min(pos + node.size, to);
+            let newSet = mark.addTo(marks);
+
+            forEach(marks, m => {
+               //for (let i = 0; i < marks.length; i++) {
+               if (!m.isIn(newSet)) {
+                  if (removing && removing.to == start && removing.mark.eq(m)) {
+                     removing.to = end;
+                  } else {
+                     removing = new RemoveMarkStep(start, end, m);
+                     removed.push(removing);
+                  }
+               }
+            });
+
+            if (adding !== null && adding.to == start) {
+               adding.to = end;
+            } else {
+               adding = new AddMarkStep(start, end, mark);
+               added.push(adding);
+            }
+         }
+      });
+
+      removed.forEach(s => this.step(s));
+      added.forEach(s => this.step(s));
+
+      return this;
+   }
+
+   /**
+    * Remove marks from inline nodes between `from` and `to`. When `mark` is a
+    * single mark, remove precisely that mark. When it is a mark type, remove
+    * all marks of that type. When it is null, remove all marks of any type.
+    */
+   removeMark(from: number, to: number, mark: Mark | MarkType): this {
+      const matched: MarkMatch[] = [];
+      let step = 0;
+
+      this.doc.forEachNodeBetween(from, to, (node, pos) => {
+         if (!node.isInline) {
+            return;
+         }
+         step++;
+
+         let toRemove: Mark[] | null = null;
+
+         if (mark instanceof MarkType) {
+            const found = mark.find(node.marks);
+
+            if (found !== undefined) {
+               toRemove = [found];
+            }
+         } else if (mark !== undefined) {
+            if (mark.isIn(node.marks)) {
+               toRemove = [mark];
+            }
+         } else {
+            toRemove = node.marks;
+         }
+
+         if (toRemove !== null && toRemove.length > 0) {
+            const end = Math.min(pos + node.size, to);
+
+            forEach(toRemove, r => {
+               let found: MarkMatch | null = null;
+
+               forEach(matched, m => {
+                  if (m.step == step - 1 && r.equals(m.style)) {
+                     found = m;
+                  }
+               });
+
+               if (found !== null) {
+                  found.to = end;
+                  found.step = step;
+               } else {
+                  matched.push({
+                     style: r,
+                     from: Math.max(pos, from),
+                     to: end,
+                     step
+                  });
+               }
+            });
+         }
+      });
+
+      matched.forEach(m =>
+         this.step(new RemoveMarkStep(m.from, m.to, m.style))
+      );
+      return this;
+   }
+
+   /**
+    * Removes all marks and nodes from the content of the node at `pos` that
+    * don't match the given new parent node type. Accepts an optional starting
+    * [content match](#model.ContentMatch) as third argument.
+    */
+   clearIncompatible(
+      pos: number,
+      parentType: NodeType,
+      match = parentType.contentMatch
+   ): this {
+      let node = this.doc.nodeAt(pos);
+      let delSteps = [];
+      let cur = pos + 1;
+
+      if (node === null) {
+         return this;
+      }
+
+      for (let i = 0; i < node.childCount; i++) {
+         let child = node.child(i);
+         let end = cur + child.size;
+         let allowed = match.matchType(child.type, child.attrs);
+
+         if (!allowed) {
+            delSteps.push(new ReplaceStep(cur, end, Slice.empty));
+         } else {
+            match = allowed;
+            for (let j = 0; j < child.marks.length; j++) {
+               if (!parentType.allowsMarkType(child.marks[j].type)) {
+                  this.step(new RemoveMarkStep(cur, end, child.marks[j]));
+               }
+            }
+         }
+         cur = end;
+      }
+
+      if (!match.validEnd) {
+         let fill = match.fillBefore(Fragment.empty, true);
+         this.replace(cur, cur, new Slice(fill, 0, 0));
+      }
+
+      for (let i = delSteps.length - 1; i >= 0; i--) {
+         this.step(delSteps[i]);
+      }
+
+      return this;
    }
 }

@@ -42,7 +42,7 @@ export class AddMarkStep extends Step {
             oldSlice.content,
             (node, parent) => {
                if (!parent.type.allowsMarkType(this.mark.type)) return node;
-               return node.mark(this.mark.addToSet(node.marks));
+               return node.mark(this.mark.addTo(node.marks));
             },
             parent
          ),

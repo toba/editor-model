@@ -110,9 +110,6 @@ export class Mark {
       );
    }
 
-   /** Maintain old method name for ProseMirror compatibility */
-   eq = this.equals;
-
    /**
     * Convert this mark to a JSON-serializeable representation.
     */
