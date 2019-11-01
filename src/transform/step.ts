@@ -1,13 +1,18 @@
-import { StepMap } from './map';
+import { StepMap, Mappable } from './map';
 import { EditorNode } from '../node';
-import { Slice } from '../node/slice';
+import { Slice, SliceJSON } from '../node/slice';
 import { ReplaceError } from '../position/replace';
 import { Schema } from '../schema';
 import { Mark, MarkJSON } from '../mark';
 
 export interface StepJSON {
    stepType: string;
-   mark: MarkJSON;
+   mark?: MarkJSON;
+   slice?: SliceJSON;
+   structure?: boolean;
+   insert?: number;
+   gapFrom?: number;
+   gapTo?: number;
    from: number;
    to: number;
 }
@@ -41,7 +46,7 @@ export abstract class Step {
     * can be used to transform between positions in the old and the new
     * document.
     */
-   getMap = (): StepMap => StepMap.empty();
+   getMap = (): StepMap => StepMap.empty;
 
    /**
     * Create an inverted version of this step. Needs the document as it was
@@ -91,7 +96,7 @@ export abstract class Step {
    // ID to attach to its JSON representation. Use this method to
    // register an ID for your step classes. Try to pick something
    // that's unlikely to clash with steps from other modules.
-   static jsonID(id: string, stepClass) {
+   static jsonID(id: string, stepClass: constructor<Step>) {
       if (id in stepsByID) {
          throw new RangeError('Duplicate use of step JSON ID ' + id);
       }

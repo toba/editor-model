@@ -135,9 +135,9 @@ export class Slice {
    /**
     * Convert a slice to a JSON-serializable representation.
     */
-   toJSON(): SliceJSON | null {
+   toJSON(): SliceJSON | undefined {
       if (!this.content.size) {
-         return null;
+         return undefined;
       }
       const json: SliceJSON = { content: this.content.toJSON() };
 

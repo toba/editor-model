@@ -1,29 +1,38 @@
-import { Slice } from 'prosemirror-model';
+import { Step, StepResult, StepJSON } from './step';
+import { StepMap, Mappable } from './map';
+import { Slice } from '../node/slice';
+import { EditorNode } from '../node';
+import { Schema } from '../schema';
 
-import { Step, StepResult } from './step';
-import { StepMap } from './map';
-
-// ::- Replace a part of the document with a slice of new content.
+/**
+ * Replace a part of the document with a slice of new content.
+ */
 export class ReplaceStep extends Step {
-   // :: (number, number, Slice, ?bool)
-   // The given `slice` should fit the 'gap' between `from` and
-   // `to`â€”the depths must line up, and the surrounding nodes must be
-   // able to be joined with the open sides of the slice. When
-   // `structure` is true, the step will fail if the content between
-   // from and to is not just a sequence of closing and then opening
-   // tokens (this is to guard against rebased replace steps
-   // overwriting something they weren't supposed to).
-   constructor(from, to, slice, structure) {
+   slice: Slice;
+   structure: boolean;
+
+   /**
+    * @param slice The `slice` should fit the 'gap' between `from` and `to`
+    * the depths must line up, and the surrounding nodes must be able to be
+    * joined with the open sides of the slice.
+    * @param structure When `true`, the step will fail if the content between
+    * from and to is not just a sequence of closing and then opening tokens
+    * (this is to guard against rebased replace steps overwriting something they
+    * weren't supposed to)
+    */
+   constructor(from: number, to: number, slice: Slice, structure?: boolean) {
       super();
+
       this.from = from;
       this.to = to;
       this.slice = slice;
       this.structure = !!structure;
    }
 
-   apply(doc) {
-      if (this.structure && contentBetween(doc, this.from, this.to))
+   apply(doc: EditorNode) {
+      if (this.structure && contentBetween(doc, this.from, this.to)) {
          return StepResult.fail('Structure replace would overwrite content');
+      }
       return StepResult.fromReplace(doc, this.from, this.to, this.slice);
    }
 
@@ -31,7 +40,7 @@ export class ReplaceStep extends Step {
       return new StepMap([this.from, this.to - this.from, this.slice.size]);
    }
 
-   invert(doc) {
+   invert(doc: EditorNode) {
       return new ReplaceStep(
          this.from,
          this.from + this.slice.size,
@@ -39,16 +48,22 @@ export class ReplaceStep extends Step {
       );
    }
 
-   map(mapping) {
-      let from = mapping.mapResult(this.from, 1),
-         to = mapping.mapResult(this.to, -1);
-      if (from.deleted && to.deleted) return null;
+   map(mapping: Mappable) {
+      const from = mapping.mapResult(this.from, 1);
+      const to = mapping.mapResult(this.to, -1);
+      if (from.deleted && to.deleted) {
+         return null;
+      }
       return new ReplaceStep(from.pos, Math.max(from.pos, to.pos), this.slice);
    }
 
-   merge(other) {
-      if (!(other instanceof ReplaceStep) || other.structure != this.structure)
+   merge(other: Step) {
+      if (
+         !(other instanceof ReplaceStep) ||
+         other.structure != this.structure
+      ) {
          return null;
+      }
 
       if (
          this.from + this.slice.size == other.from &&
@@ -88,16 +103,25 @@ export class ReplaceStep extends Step {
       }
    }
 
-   toJSON() {
-      let json = { stepType: 'replace', from: this.from, to: this.to };
-      if (this.slice.size) json.slice = this.slice.toJSON();
-      if (this.structure) json.structure = true;
+   toJSON(): StepJSON {
+      let json: StepJSON = {
+         stepType: 'replace',
+         from: this.from,
+         to: this.to
+      };
+      if (this.slice.size) {
+         json.slice = this.slice.toJSON();
+      }
+      if (this.structure) {
+         json.structure = true;
+      }
       return json;
    }
 
-   static fromJSON(schema, json) {
-      if (typeof json.from != 'number' || typeof json.to != 'number')
+   static fromJSON(schema: Schema, json: StepJSON) {
+      if (typeof json.from != 'number' || typeof json.to != 'number') {
          throw new RangeError('Invalid input for ReplaceStep.fromJSON');
+      }
       return new ReplaceStep(
          json.from,
          json.to,
@@ -109,16 +133,32 @@ export class ReplaceStep extends Step {
 
 Step.jsonID('replace', ReplaceStep);
 
-// ::- Replace a part of the document with a slice of content, but
-// preserve a range of the replaced content by moving it into the
-// slice.
+/**
+ * Replace a part of the document with a slice of content, but preserve a range
+ * of the replaced content by moving it into the slice.
+ */
 export class ReplaceAroundStep extends Step {
-   // :: (number, number, number, number, Slice, number, ?bool)
-   // Create a replace-around step with the given range and gap.
-   // `insert` should be the point in the slice into which the content
-   // of the gap should be moved. `structure` has the same meaning as
-   // it has in the [`ReplaceStep`](#transform.ReplaceStep) class.
-   constructor(from, to, gapFrom, gapTo, slice, insert, structure) {
+   gapFrom: number;
+   gapTo: number;
+   slice: Slice;
+   insert: number;
+   structure: boolean;
+
+   /**
+    * Create a replace-around step with the given range and gap.
+    * @param insert Point in the slice into which the content of the gap should
+    * be moved
+    * @param structure Has the same meaning as it has in the `ReplaceStep` class
+    */
+   constructor(
+      from: number,
+      to: number,
+      gapFrom: number,
+      gapTo: number,
+      slice: Slice,
+      insert: number,
+      structure?: boolean
+   ) {
       super();
       this.from = from;
       this.to = to;
@@ -129,7 +169,7 @@ export class ReplaceAroundStep extends Step {
       this.structure = !!structure;
    }
 
-   apply(doc) {
+   apply(doc: EditorNode) {
       if (
          this.structure &&
          (contentBetween(doc, this.from, this.gapFrom) ||
@@ -140,15 +180,20 @@ export class ReplaceAroundStep extends Step {
          );
 
       let gap = doc.slice(this.gapFrom, this.gapTo);
-      if (gap.openStart || gap.openEnd)
+
+      if (gap.openStart || gap.openEnd) {
          return StepResult.fail('Gap is not a flat range');
+      }
       let inserted = this.slice.insertAt(this.insert, gap.content);
-      if (!inserted) return StepResult.fail('Content does not fit in gap');
+
+      if (inserted === null) {
+         return StepResult.fail('Content does not fit in gap');
+      }
       return StepResult.fromReplace(doc, this.from, this.to, inserted);
    }
 
-   getMap() {
-      return new StepMap([
+   getMap = () =>
+      new StepMap([
          this.from,
          this.gapFrom - this.from,
          this.insert,
@@ -156,10 +201,10 @@ export class ReplaceAroundStep extends Step {
          this.to - this.gapTo,
          this.slice.size - this.insert
       ]);
-   }
 
-   invert(doc) {
+   invert(doc: EditorNode) {
       let gap = this.gapTo - this.gapFrom;
+
       return new ReplaceAroundStep(
          this.from,
          this.from + this.slice.size + gap,
@@ -191,8 +236,8 @@ export class ReplaceAroundStep extends Step {
       );
    }
 
-   toJSON() {
-      let json = {
+   toJSON(): StepJSON {
+      const json: StepJSON = {
          stepType: 'replaceAround',
          from: this.from,
          to: this.to,
@@ -200,20 +245,25 @@ export class ReplaceAroundStep extends Step {
          gapTo: this.gapTo,
          insert: this.insert
       };
-      if (this.slice.size) json.slice = this.slice.toJSON();
-      if (this.structure) json.structure = true;
+      if (this.slice.size > 0) {
+         json.slice = this.slice.toJSON();
+      }
+      if (this.structure) {
+         json.structure = true;
+      }
       return json;
    }
 
-   static fromJSON(schema, json) {
+   static fromJSON(schema: Schema, json: StepJSON): ReplaceAroundStep {
       if (
          typeof json.from != 'number' ||
          typeof json.to != 'number' ||
          typeof json.gapFrom != 'number' ||
          typeof json.gapTo != 'number' ||
          typeof json.insert != 'number'
-      )
+      ) {
          throw new RangeError('Invalid input for ReplaceAroundStep.fromJSON');
+      }
       return new ReplaceAroundStep(
          json.from,
          json.to,
@@ -228,10 +278,11 @@ export class ReplaceAroundStep extends Step {
 
 Step.jsonID('replaceAround', ReplaceAroundStep);
 
-function contentBetween(doc, from, to) {
-   let $from = doc.resolve(from),
-      dist = to - from,
-      depth = $from.depth;
+function contentBetween(doc: EditorNode, from: number, to: number) {
+   let $from = doc.resolve(from);
+   let dist = to - from;
+   let depth = $from.depth;
+
    while (
       dist > 0 &&
       depth > 0 &&
@@ -242,6 +293,7 @@ function contentBetween(doc, from, to) {
    }
    if (dist > 0) {
       let next = $from.node(depth).maybeChild($from.indexAfter(depth));
+
       while (dist > 0) {
          if (!next || next.isLeaf) return true;
          next = next.firstChild;

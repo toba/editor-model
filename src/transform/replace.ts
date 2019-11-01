@@ -3,36 +3,43 @@ import { Transform } from './transform';
 import { insertPoint } from './structure';
 import { EditorNode } from '../node';
 import { Slice } from '../node/slice';
+import { Step } from './step';
 
 // :: (Node, number, ?number, ?Slice) → ?Step
 // ‘Fit’ a slice into a given position in the document, producing a
 // [step](#transform.Step) that inserts it. Will return null if
 // there's no meaningful way to insert the slice here, or inserting it
 // would be a no-op (an empty slice over an empty range).
-export function replaceStep(
+export function replaceStep<S extends Step>(
    doc: EditorNode,
    from: number,
    to = from,
    slice = Slice.empty
-) {
-   if (from == to && !slice.size) return null;
+): S | null {
+   if (from == to && !slice.size) {
+      return null;
+   }
 
-   let $from = doc.resolve(from),
-      $to = doc.resolve(to);
+   let $from = doc.resolve(from);
+   let $to = doc.resolve(to);
    // Optimization -- avoid work if it's obvious that it's not needed.
-   if (fitsTrivially($from, $to, slice))
+   if (fitsTrivially($from, $to, slice)) {
       return new ReplaceStep(from, to, slice);
+   }
    let placed = placeSlice($from, slice);
 
    let fittedLeft = fitLeft($from, placed);
    let fitted = fitRight($from, $to, fittedLeft);
    if (!fitted) return null;
    if (fittedLeft.size != fitted.size && canMoveText($from, $to, fittedLeft)) {
-      let d = $to.depth,
-         after = $to.after(d);
-      while (d > 1 && after == $to.end(--d)) ++after;
+      let d = $to.depth;
+      let after = $to.after(d);
+      while (d > 1 && after == $to.end(--d)) {
+         ++after;
+      }
       let fittedAfter = fitRight($from, doc.resolve(after), fittedLeft);
-      if (fittedAfter)
+
+      if (fittedAfter) {
          return new ReplaceAroundStep(
             from,
             after,
@@ -41,6 +48,7 @@ export function replaceStep(
             fittedAfter,
             fittedLeft.size
          );
+      }
    }
    return fitted.size || from != to ? new ReplaceStep(from, to, fitted) : null;
 }

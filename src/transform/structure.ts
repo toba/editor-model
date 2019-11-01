@@ -21,20 +21,25 @@ function canCut(node: EditorNode, start: number, end: number) {
  * nodes.
  */
 export function liftTarget(range: NodeRange): number | undefined {
-   let parent = range.parent;
-   let content = parent.content.cutByIndex(range.startIndex, range.endIndex);
+   const parent = range.parent;
+   const content = parent.content.cutByIndex(range.startIndex, range.endIndex);
+
    for (let depth = range.depth; ; --depth) {
-      let node = range.from.node(depth);
-      let index = range.from.index(depth),
-         endIndex = range.to.indexAfter(depth);
-      if (depth < range.depth && node.canReplace(index, endIndex, content))
+      const node = range.from.node(depth);
+      const index = range.from.index(depth);
+      const endIndex = range.to.indexAfter(depth);
+
+      if (depth < range.depth && node.canReplace(index, endIndex, content)) {
          return depth;
+      }
+
       if (
          depth == 0 ||
          node.type.spec.isolating ||
          !canCut(node, index, endIndex)
-      )
+      ) {
          break;
+      }
    }
 }
 
@@ -185,11 +190,15 @@ export function canJoin(doc: EditorNode, idx: number) {
 const joinable = (a?: EditorNode, b?: EditorNode) =>
    a !== undefined && b !== undefined && !a.isLeaf && a.canAppend(b);
 
-// :: (Node, number, ?number) → ?number
-// Find an ancestor of the given position that can be joined to the
-// block before (or after if `dir` is positive). Returns the joinable
-// point, if any.
-export function joinPoint(doc: EditorNode, idx: number, dir = -1) {
+/**
+ * Find an ancestor of the given position that can be joined to the block before
+ * (or after if `dir` is positive). Returns the joinable point, if any.
+ */
+export function joinPoint(
+   doc: EditorNode,
+   idx: number,
+   dir = -1
+): number | undefined {
    let pos = doc.resolve(idx);
 
    for (let d = pos.depth; ; d--) {
