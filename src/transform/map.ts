@@ -1,80 +1,89 @@
-// Mappable:: interface
-// There are several things that positions can be mapped through.
-// Such objects conform to this interface.
-//
-//   map:: (pos: number, assoc: ?number) → number
-//   Map a position through this object. When given, `assoc` (should
-//   be -1 or 1, defaults to 1) determines with which side the
-//   position is associated, which determines in which direction to
-//   move when a chunk of content is inserted at the mapped position.
-//
-//   mapResult:: (pos: number, assoc: ?number) → MapResult
-//   Map a position, and return an object containing additional
-//   information about the mapping. The result's `deleted` field tells
-//   you whether the position was deleted (completely enclosed in a
-//   replaced range) during the mapping. When content on only one side
-//   is deleted, the position itself is only considered deleted when
-//   `assoc` points in the direction of the deleted content.
+/**
+ * There are several things that positions can be mapped through. Such objects
+ * conform to this interface.
+ */
+export interface Mappable {
+   /**
+    * Map a position through this object
+    * @param assoc Determines with which side the position is associated, which
+    * determines in which direction to move when a chunk of content is inserted
+    * at the mapped position
+    */
+   map(pos: number, assoc?: 1 | -1): number;
 
-// Recovery values encode a range index and an offset. They are
-// represented as numbers, because tons of them will be created when
-// mapping, for example, a large number of decorations. The number's
-// lower 16 bits provide the index, the remaining bits the offset.
-//
-// Note: We intentionally don't use bit shift operators to en- and
-// decode these, since those clip to 32 bits, which we might in rare
-// cases want to overflow. A 64-bit float can represent 48-bit
-// integers precisely.
+   /**
+    * Map a position, and return an object containing additional information
+    * about the mapping. The result's `deleted` field tells you whether the
+    * position was deleted (completely enclosed in a replaced range) during the
+    * mapping. When content on only one side is deleted, the position itself is
+    * only considered deleted when `assoc` points in the direction of the
+    * deleted content.
+    */
+   mapResult(pos: number, assoc?: 1 | -1): MapResult;
+}
 
 const lower16 = 0xffff;
 const factor16 = Math.pow(2, 16);
 
+/**
+ * Recovery values encode a range index and an offset. They are represented as
+ * numbers, because tons of them will be created when mapping, for example, a
+ * large number of decorations. The number's lower 16 bits provide the index,
+ * the remaining bits the offset.
+ *
+ * *Note*: We intentionally don't use bit shift operators to en- and decode
+ * these, since those clip to 32 bits, which we might in rare cases want to
+ * overflow. A 64-bit float can represent 48-bit integers precisely.
+ */
 const makeRecover = (index: number, offset: number) =>
    index + offset * factor16;
 
-const recoverIndex = value => value & lower16;
+const recoverIndex = (value: number) => value & lower16;
+const recoverOffset = (value: number) => (value - (value & lower16)) / factor16;
 
-const recoverOffset = value => (value - (value & lower16)) / factor16;
-
-// ::- An object representing a mapped position with extra
-// information.
+/**
+ * A mapped position with extra information.
+ */
 export class MapResult {
+   /**
+    * Whether the position was deleted, that is, whether the step removed its
+    * surroundings from the document deleted: boolean;
+    */
    deleted: boolean;
+
    /** Mapped version of the position */
    pos: number;
 
    recover: number | null;
 
    constructor(pos: number, deleted = false, recover = null) {
-      // :: number The mapped version of the position.
       this.pos = pos;
-      // :: bool Tells you whether the position was deleted, that is,
-      // whether the step removed its surroundings from the document.
       this.deleted = deleted;
       this.recover = recover;
    }
 }
 
-// :: class extends Mappable
-// A map describing the deletions and insertions made by a step, which
-// can be used to find the correspondence between positions in the
-// pre-step version of a document and the same position in the
-// post-step version.
-export class StepMap {
+/**
+ * A map describing the deletions and insertions made by a step, which can be
+ * used to find the correspondence between positions in the pre-step version of
+ * a document and the same position in the post-step version.
+ */
+export class StepMap implements Mappable {
    inverted: boolean;
 
    ranges: number[];
 
-   // :: ([number])
-   // Create a position map. The modifications to the document are
-   // represented as an array of numbers, in which each group of three
-   // represents a modified chunk as `[start, oldSize, newSize]`.
+   /**
+    * Create a position map. The modifications to the document are represented
+    * as an array of numbers, in which each group of three represents a modified
+    * chunk as `[start, oldSize, newSize]`.
+    */
    constructor(ranges: number[], inverted = false) {
       this.ranges = ranges;
       this.inverted = inverted;
    }
 
-   recover(value) {
+   recover(value: number): number {
       let diff = 0;
       let index = recoverIndex(value);
 
@@ -86,11 +95,12 @@ export class StepMap {
       return this.ranges[index * 3] + diff + recoverOffset(value);
    }
 
-   mapResult = (pos, assoc = 1): MapResult => this._map(pos, assoc, false);
+   mapResult = (pos: number, assoc = 1): MapResult =>
+      this._map(pos, assoc, false);
 
    map = (pos: number, assoc = 1): number => this._map(pos, assoc, true);
 
-   _map(pos: number, assoc: number, simple: boolean): number|MapResult {
+   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
       let diff = 0;
       let oldIndex = this.inverted ? 2 : 1;
       let newIndex = this.inverted ? 1 : 2;
@@ -130,7 +140,7 @@ export class StepMap {
       return simple ? pos + diff : new MapResult(pos + diff);
    }
 
-   touches(pos, recover) {
+   touches(pos: number, recover) {
       let diff = 0;
       let index = recoverIndex(recover);
       let oldIndex = this.inverted ? 2 : 1;
@@ -173,49 +183,57 @@ export class StepMap {
       }
    }
 
-   // :: () → StepMap
-   // Create an inverted version of this map. The result can be used to
-   // map positions in the post-step document to the pre-step document.
+   /**
+    * Create an inverted version of this map. The result can be used to map
+    * positions in the post-step document to the pre-step document.
+    */
    invert = () => new StepMap(this.ranges, !this.inverted);
 
    toString = () => (this.inverted ? '-' : '') + JSON.stringify(this.ranges);
 
-   static empty = () => new StepMap([]);
+   static get empty() {
+      return new StepMap([]);
+   }
 
-   // :: (n: number) → StepMap
-   // Create a map that moves all positions by offset `n` (which may be
-   // negative). This can be useful when applying steps meant for a
-   // sub-document to a larger document, or vice-versa.
-   static offset = (n: number) =>
+   /**
+    * Create a map that moves all positions by offset `n` (which may be
+    * negative). This can be useful when applying steps meant for a sub-document
+    * to a larger document, or vice-versa.
+    */
+   static offset = (n: number): StepMap =>
       n == 0 ? StepMap.empty : new StepMap(n < 0 ? [0, -n, 0] : [0, 0, n]);
 }
 
-// :: class extends Mappable
-// A mapping represents a pipeline of zero or more [step
-// maps](#transform.StepMap). It has special provisions for losslessly
-// handling mapping positions through a series of steps in which some
-// steps are inverted versions of earlier steps. (This comes up when
-// ‘[rebasing](/docs/guide/#transform.rebasing)’ steps for
-// collaboration or history management.)
-export class Mapping {
+/**
+ * A mapping represents a pipeline of zero or more `StepMap`s. It has special
+ * provisions for losslessly handling mapping positions through a series of
+ * steps in which some steps are inverted versions of earlier steps. (This comes
+ * up when ‘[rebasing](/docs/guide/#transform.rebasing)’ steps for collaboration
+ * or history management.)
+ */
+export class Mapping implements Mappable {
+   /** Steps in this mapping */
    maps: StepMap[];
+   /**
+    * Starting position in the `maps` array, used when `map` or `mapResult` is
+    * called
+    */
    from: number;
-   to: number;
-   mirror: number[];
+   /** End position in the maps array */
 
-   // :: (?[StepMap])
+   to: number;
+   mirror?: number[];
+
    // Create a new mapping with the given position maps.
-   constructor(maps: StepMap[], mirror: number[], from: number, to: number) {
-      // :: [StepMap]
-      // The step maps in this mapping.
-      this.maps = maps || [];
-      // :: number
-      // The starting position in the `maps` array, used when `map` or
-      // `mapResult` is called.
-      this.from = from || 0;
-      // :: number
-      // The end position in the `maps` array.
-      this.to = to == null ? this.maps.length : to;
+   constructor(
+      maps: StepMap[] = [],
+      mirror?: number[],
+      from: number = 0,
+      to?: number
+   ) {
+      this.maps = maps;
+      this.from = from;
+      this.to = to === undefined ? this.maps.length : to;
       this.mirror = mirror;
    }
 
@@ -267,7 +285,7 @@ export class Mapping {
     * in this mapping (as per the second argument to `appendMap`).
     */
    getMirror(n: number): number | undefined {
-      if (this.mirror) {
+      if (this.mirror !== undefined) {
          for (let i = 0; i < this.mirror.length; i++) {
             if (this.mirror[i] == n) {
                return this.mirror[i + (i % 2 ? -1 : 1)];
@@ -277,7 +295,7 @@ export class Mapping {
    }
 
    setMirror(n: number, m: number) {
-      if (!this.mirror) {
+      if (this.mirror === undefined) {
          this.mirror = [];
       }
       this.mirror.push(n, m);
@@ -313,8 +331,9 @@ export class Mapping {
    /**
     * Map a position through this mapping.
     */
-   map(pos: number, assoc = 1) {
+   map(pos: number, assoc = 1): number {
       if (this.mirror) {
+         // TODO: type guard?
          return this._map(pos, assoc, true);
       }
       for (let i = this.from; i < this.to; i++) {
@@ -329,7 +348,7 @@ export class Mapping {
    mapResult = (pos: number, assoc = 1): MapResult =>
       this._map(pos, assoc, false);
 
-   _map(pos: number, assoc: number, simple: boolean): MapResult {
+   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
       let deleted = false;
       let recoverables = null;
 
