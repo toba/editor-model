@@ -5,13 +5,23 @@ import { EditorNode } from '../node';
 import { Slice } from '../node/slice';
 import { Schema } from '../schema';
 
-function mapFragment(fragment: Fragment, f, parent) {
-   let mapped = [];
+type GetInlineChild = (
+   child: EditorNode,
+   parent?: EditorNode,
+   index?: number
+) => EditorNode;
+
+function mapFragment(
+   fragment: Fragment,
+   f: GetInlineChild,
+   parent?: EditorNode
+): Fragment {
+   const mapped: EditorNode[] = [];
 
    for (let i = 0; i < fragment.childCount; i++) {
       let child = fragment.child(i);
 
-      if (child.content.size) {
+      if (child.content.size > 0) {
          child = child.copy(mapFragment(child.content, f, child));
       }
       if (child.isInline) {
@@ -37,13 +47,15 @@ export class AddMarkStep extends Step {
       const oldSlice = doc.slice(this.from, this.to);
       const from = doc.resolve(this.from);
       const parent = from.node(from.sharedDepth(this.to));
+
       let slice = new Slice(
          mapFragment(
             oldSlice.content,
-            (node, parent) => {
-               if (!parent.type.allowsMarkType(this.mark.type)) return node;
-               return node.mark(this.mark.addTo(node.marks));
-            },
+            (node, parent) =>
+               parent !== undefined &&
+               !parent.type.allowsMarkType(this.mark.type)
+                  ? node
+                  : node.marks(this.mark.addTo(node.marks)),
             parent
          ),
          oldSlice.openStart,
@@ -63,7 +75,7 @@ export class AddMarkStep extends Step {
 
    merge = (other: this): this =>
       other instanceof AddMarkStep &&
-      other.mark.eq(this.mark) &&
+      other.mark.equals(this.mark) &&
       this.from <= other.to &&
       this.to >= other.from
          ? (new AddMarkStep(
@@ -108,9 +120,9 @@ export class RemoveMarkStep extends Step {
    apply(doc: EditorNode) {
       const oldSlice = doc.slice(this.from, this.to);
       const slice = new Slice(
-         mapFragment(oldSlice.content, node => {
-            return node.mark(this.mark.removeFromSet(node.marks));
-         }),
+         mapFragment(oldSlice.content, node =>
+            node.mark(this.mark.removeFrom(node.marks))
+         ),
          oldSlice.openStart,
          oldSlice.openEnd
       );

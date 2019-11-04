@@ -22,6 +22,13 @@ export interface Mappable {
    mapResult(pos: number, assoc?: 1 | -1): MapResult;
 }
 
+export type MapForEachCallback = (
+   oldStart: number,
+   oldEnd: number,
+   newStart: number,
+   newEnd: number
+) => void;
+
 const lower16 = 0xffff;
 const factor16 = Math.pow(2, 16);
 
@@ -54,9 +61,9 @@ export class MapResult {
    /** Mapped version of the position */
    pos: number;
 
-   recover: number | null;
+   recover?: number;
 
-   constructor(pos: number, deleted = false, recover = null) {
+   constructor(pos: number, deleted = false, recover?: number) {
       this.pos = pos;
       this.deleted = deleted;
       this.recover = recover;
@@ -70,7 +77,6 @@ export class MapResult {
  */
 export class StepMap implements Mappable {
    inverted: boolean;
-
    ranges: number[];
 
    /**
@@ -100,34 +106,41 @@ export class StepMap implements Mappable {
 
    map = (pos: number, assoc = 1): number => this._map(pos, assoc, true);
 
-   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
+   _map<B extends boolean>(
+      pos: number,
+      assoc: number,
+      simple: B
+   ): B extends true ? number : MapResult {
       let diff = 0;
-      let oldIndex = this.inverted ? 2 : 1;
-      let newIndex = this.inverted ? 1 : 2;
+      const oldIndex = this.inverted ? 2 : 1;
+      const newIndex = this.inverted ? 1 : 2;
 
       for (let i = 0; i < this.ranges.length; i += 3) {
-         let start = this.ranges[i] - (this.inverted ? diff : 0);
+         const start = this.ranges[i] - (this.inverted ? diff : 0);
+
          if (start > pos) {
             break;
          }
 
          let oldSize = this.ranges[i + oldIndex];
          let newSize = this.ranges[i + newIndex];
-         let end = start + oldSize;
+         const end = start + oldSize;
 
          if (pos <= end) {
-            let side = !oldSize
+            const side = !oldSize
                ? assoc
                : pos == start
                ? -1
                : pos == end
                ? 1
                : assoc;
-            let result = start + diff + (side < 0 ? 0 : newSize);
-            if (simple) {
+
+            const result = start + diff + (side < 0 ? 0 : newSize);
+
+            if (simple === true) {
                return result;
             }
-            let recover = makeRecover(i / 3, pos - start);
+            const recover = makeRecover(i / 3, pos - start);
 
             return new MapResult(
                result,
@@ -140,7 +153,7 @@ export class StepMap implements Mappable {
       return simple ? pos + diff : new MapResult(pos + diff);
    }
 
-   touches(pos: number, recover) {
+   touches(pos: number, recover: number) {
       let diff = 0;
       let index = recoverIndex(recover);
       let oldIndex = this.inverted ? 2 : 1;
@@ -163,21 +176,22 @@ export class StepMap implements Mappable {
       return false;
    }
 
-   // :: ((oldStart: number, oldEnd: number, newStart: number, newEnd: number))
-   // Calls the given function on each of the changed ranges included in
-   // this map.
-   forEach(f) {
-      let oldIndex = this.inverted ? 2 : 1;
-      let newIndex = this.inverted ? 1 : 2;
+   /**
+    * Calls the given function on each of the changed ranges included in this
+    * map.
+    */
+   forEach(fn: MapForEachCallback) {
+      const oldIndex = this.inverted ? 2 : 1;
+      const newIndex = this.inverted ? 1 : 2;
 
       for (let i = 0, diff = 0; i < this.ranges.length; i += 3) {
-         let start = this.ranges[i];
-         let oldStart = start - (this.inverted ? diff : 0);
-         let newStart = start + (this.inverted ? 0 : diff);
-         let oldSize = this.ranges[i + oldIndex];
-         let newSize = this.ranges[i + newIndex];
+         const start = this.ranges[i];
+         const oldStart = start - (this.inverted ? diff : 0);
+         const newStart = start + (this.inverted ? 0 : diff);
+         const oldSize = this.ranges[i + oldIndex];
+         const newSize = this.ranges[i + newIndex];
 
-         f(oldStart, oldStart + oldSize, newStart, newStart + newSize);
+         fn(oldStart, oldStart + oldSize, newStart, newStart + newSize);
 
          diff += newSize - oldSize;
       }
@@ -275,7 +289,7 @@ export class Mapping implements Mappable {
          let mirr = mapping.getMirror(i);
          this.appendMap(
             mapping.maps[i],
-            mirr != null && mirr < i ? startSize + mirr : null
+            mirr != undefined && mirr < i ? startSize + mirr : undefined
          );
       }
    }
@@ -314,7 +328,7 @@ export class Mapping implements Mappable {
          let mirr = mapping.getMirror(i);
          this.appendMap(
             mapping.maps[i].invert(),
-            mirr != null && mirr > i ? totalSize - mirr - 1 : null
+            mirr != undefined && mirr > i ? totalSize - mirr - 1 : undefined
          );
       }
    }
@@ -348,36 +362,45 @@ export class Mapping implements Mappable {
    mapResult = (pos: number, assoc = 1): MapResult =>
       this._map(pos, assoc, false);
 
-   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
+   _map<B extends boolean>(
+      pos: number,
+      assoc: number,
+      simple: B
+   ): B extends true ? number : MapResult {
       let deleted = false;
-      let recoverables = null;
+      let recoverables: { [key: number]: number } | null = null;
 
       for (let i = this.from; i < this.to; i++) {
-         let map = this.maps[i];
-         let rec = recoverables && recoverables[i];
+         const map: StepMap = this.maps[i];
+         const rec = recoverables !== null ? recoverables[i] : null;
 
-         if (rec != null && map.touches(pos, rec)) {
+         if (rec !== null && map.touches(pos, rec)) {
             pos = map.recover(rec);
             continue;
          }
 
-         let result = map.mapResult(pos, assoc);
+         const result = map.mapResult(pos, assoc);
 
-         if (result.recover != null) {
-            let corr = this.getMirror(i);
-            if (corr != null && corr > i && corr < this.to) {
+         if (result.recover !== undefined) {
+            const corr = this.getMirror(i);
+
+            if (corr !== undefined && corr > i && corr < this.to) {
                if (result.deleted) {
                   i = corr;
                   pos = this.maps[corr].recover(result.recover);
                   continue;
                } else {
-                  (recoverables || (recoverables = Object.create(null)))[corr] =
-                     result.recover;
+                  if (recoverables === null) {
+                     recoverables = Object.create(null);
+                  }
+                  recoverables![corr] = result.recover;
                }
             }
          }
 
-         if (result.deleted) deleted = true;
+         if (result.deleted) {
+            deleted = true;
+         }
          pos = result.pos;
       }
 
