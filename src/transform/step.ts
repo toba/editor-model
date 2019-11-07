@@ -59,7 +59,7 @@ export abstract class Step {
     * step with its positions adjusted, or `null` if the step was entirely
     * deleted by the mapping.
     */
-   abstract map(mapping: Mappable): Step | null;
+   abstract map(mapping: Mappable): this | null;
 
    /**
     * Try to merge this step with another one, to be applied directly after it.

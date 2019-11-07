@@ -4,6 +4,7 @@ import { Mark } from '../mark';
 import { EditorNode } from '../node';
 import { Slice } from '../node/slice';
 import { Schema } from '../schema';
+import { Mappable } from './map';
 
 type GetInlineChild = (
    child: EditorNode,
@@ -55,7 +56,7 @@ export class AddMarkStep extends Step {
                parent !== undefined &&
                !parent.type.allowsMarkType(this.mark.type)
                   ? node
-                  : node.marks(this.mark.addTo(node.marks)),
+                  : node.withMarks(this.mark.addTo(node.marks)),
             parent
          ),
          oldSlice.openStart,
@@ -66,11 +67,14 @@ export class AddMarkStep extends Step {
 
    invert = () => new RemoveMarkStep(this.from, this.to, this.mark);
 
-   map(mapping) {
-      let from = mapping.mapResult(this.from, 1),
-         to = mapping.mapResult(this.to, -1);
-      if ((from.deleted && to.deleted) || from.pos >= to.pos) return null;
-      return new AddMarkStep(from.pos, to.pos, this.mark);
+   map<AddMarkStep>(mapping: Mappable) {
+      const from = mapping.mapResult(this.from, 1);
+      const to = mapping.mapResult(this.to, -1);
+
+      if ((from.deleted && to.deleted) || from.pos >= to.pos) {
+         return null;
+      }
+      return new AddMarkStep(from.pos, to.pos, this.mark) as this;
    }
 
    merge = (other: this): this =>
@@ -93,7 +97,11 @@ export class AddMarkStep extends Step {
    });
 
    static fromJSON(schema: Schema, json: StepJSON): AddMarkStep {
-      if (typeof json.from != 'number' || typeof json.to != 'number') {
+      if (
+         typeof json.from != 'number' ||
+         typeof json.to != 'number' ||
+         json.mark === undefined
+      ) {
          throw new RangeError('Invalid input for AddMarkStep.fromJSON');
       }
       return new AddMarkStep(
@@ -121,7 +129,7 @@ export class RemoveMarkStep extends Step {
       const oldSlice = doc.slice(this.from, this.to);
       const slice = new Slice(
          mapFragment(oldSlice.content, node =>
-            node.mark(this.mark.removeFrom(node.marks))
+            node.withMarks(this.mark.removeFrom(node.marks))
          ),
          oldSlice.openStart,
          oldSlice.openEnd
@@ -131,16 +139,19 @@ export class RemoveMarkStep extends Step {
 
    invert = () => new AddMarkStep(this.from, this.to, this.mark);
 
-   map(mapping) {
-      let from = mapping.mapResult(this.from, 1),
-         to = mapping.mapResult(this.to, -1);
-      if ((from.deleted && to.deleted) || from.pos >= to.pos) return null;
-      return new RemoveMarkStep(from.pos, to.pos, this.mark);
+   map(mapping: Mappable) {
+      const from = mapping.mapResult(this.from, 1);
+      const to = mapping.mapResult(this.to, -1);
+
+      if ((from.deleted && to.deleted) || from.pos >= to.pos) {
+         return null;
+      }
+      return new RemoveMarkStep(from.pos, to.pos, this.mark) as this;
    }
 
    merge = (other: this): this =>
       other instanceof RemoveMarkStep &&
-      other.mark.eq(this.mark) &&
+      other.mark.equals(this.mark) &&
       this.from <= other.to &&
       this.to >= other.from
          ? (new RemoveMarkStep(
@@ -158,7 +169,11 @@ export class RemoveMarkStep extends Step {
    });
 
    static fromJSON(schema: Schema, json: StepJSON): RemoveMarkStep {
-      if (typeof json.from != 'number' || typeof json.to != 'number') {
+      if (
+         typeof json.from != 'number' ||
+         typeof json.to != 'number' ||
+         json.mark === undefined
+      ) {
          throw new RangeError('Invalid input for RemoveMarkStep.fromJSON');
       }
       return new RemoveMarkStep(
