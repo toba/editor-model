@@ -17,7 +17,7 @@ export interface StepJSON {
    to: number;
 }
 
-const stepsByID = Object.create(null);
+const stepsByID: { [key: string]: typeof Step } = Object.create(null);
 
 /**
  * A step object represents an atomic change. It generally applies only to the
@@ -33,6 +33,7 @@ export abstract class Step {
    from: number;
    to: number;
    mark: Mark;
+   jsonID: string;
 
    /**
     * Applies this step to the given document, returning a result object that
@@ -52,7 +53,7 @@ export abstract class Step {
     * Create an inverted version of this step. Needs the document as it was
     * before the step as argument.
     */
-   abstract invert<S extends Step>(doc: EditorNode): S;
+   abstract invert<S extends this>(doc: EditorNode): S;
 
    /**
     * Map this step through a mappable thing, returning either a version of that
@@ -91,18 +92,19 @@ export abstract class Step {
       return type.fromJSON(schema, json);
    }
 
-   // :: (string, constructor<Step>)
-   // To be able to serialize steps to JSON, each step needs a string
-   // ID to attach to its JSON representation. Use this method to
-   // register an ID for your step classes. Try to pick something
-   // that's unlikely to clash with steps from other modules.
-   static jsonID(id: string, stepClass: constructor<Step>) {
+   /**
+    * To be able to serialize steps to JSON, each step needs a string ID to
+    * attach to its JSON representation. Use this method to register an ID for
+    * your step classes. Try to pick something that's unlikely to clash with
+    * steps from other modules.
+    */
+   static register<S extends typeof Step>(id: string, subclass: S) {
       if (id in stepsByID) {
          throw new RangeError('Duplicate use of step JSON ID ' + id);
       }
-      stepsByID[id] = stepClass;
-      stepClass.prototype.jsonID = id;
-      return stepClass;
+      stepsByID[id] = subclass;
+      subclass.prototype.jsonID = id;
+      return subclass;
    }
 }
 

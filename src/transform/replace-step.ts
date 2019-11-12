@@ -131,7 +131,7 @@ export class ReplaceStep extends Step {
    }
 }
 
-Step.jsonID('replace', ReplaceStep);
+Step.register('replace', ReplaceStep);
 
 /**
  * Replace a part of the document with a slice of content, but preserve a range
@@ -276,7 +276,7 @@ export class ReplaceAroundStep extends Step {
    }
 }
 
-Step.jsonID('replaceAround', ReplaceAroundStep);
+Step.register('replaceAround', ReplaceAroundStep);
 
 function contentBetween(doc: EditorNode, from: number, to: number) {
    let $from = doc.resolve(from);
