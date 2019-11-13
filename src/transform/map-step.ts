@@ -65,10 +65,10 @@ export class AddMarkStep extends Step {
       return StepResult.fromReplace(doc, this.from, this.to, slice);
    }
 
-   invert = <RemoveMarkStep>() =>
-      new RemoveMarkStep(this.from, this.to, this.mark);
+   invert = <S extends Step>() =>
+      (new RemoveMarkStep(this.from, this.to, this.mark) as any) as S;
 
-   map<AddMarkStep>(mapping: Mappable) {
+   map(mapping: Mappable) {
       const from = mapping.mapResult(this.from, 1);
       const to = mapping.mapResult(this.to, -1);
 
@@ -113,7 +113,7 @@ export class AddMarkStep extends Step {
    }
 }
 
-Step.register('addMark', AddMarkStep);
+Step.register('addMark', AddMarkStep as any);
 
 /**
  * Remove a mark from all inline content between two positions.
@@ -138,7 +138,8 @@ export class RemoveMarkStep extends Step {
       return StepResult.fromReplace(doc, this.from, this.to, slice);
    }
 
-   invert = () => new AddMarkStep(this.from, this.to, this.mark);
+   invert = <S extends Step>() =>
+      (new AddMarkStep(this.from, this.to, this.mark) as any) as S;
 
    map(mapping: Mappable) {
       const from = mapping.mapResult(this.from, 1);
@@ -185,4 +186,4 @@ export class RemoveMarkStep extends Step {
    }
 }
 
-Step.register('removeMark', RemoveMarkStep);
+Step.register('removeMark', RemoveMarkStep as any);

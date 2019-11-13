@@ -53,7 +53,7 @@ export abstract class Step {
     * Create an inverted version of this step. Needs the document as it was
     * before the step as argument.
     */
-   abstract invert<S extends this>(doc: EditorNode): S;
+   abstract invert<S extends Step>(doc: EditorNode): S;
 
    /**
     * Map this step through a mappable thing, returning either a version of that
