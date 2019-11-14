@@ -20,18 +20,11 @@ import { SimpleMap } from './types';
  *
  * @see https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#optional-elements-in-tuple-types
  */
-type TreeSpec<T> = [
+export type ElementSpec = [
    string,
-   (Attributes | T | 0)?,
-   (T | 0)?, // ugly until recursive types are supported (see comment below)
-   (T | 0)?,
-   (T | 0)?,
-   (T | 0)?
+   (Attributes | ElementSpec | 0)?,
+   ...(ElementSpec | 0)[]
 ];
-
-// trick to support recursive types until 3.7
-// https://stackoverflow.com/questions/47842266/recursive-types-in-typescript
-export interface ElementSpec extends TreeSpec<ElementSpec> {}
 
 /**
  * Represent `RenderSpec` rendered to DOM.

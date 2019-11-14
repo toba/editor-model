@@ -132,7 +132,6 @@ export function parseNum(stream: TokenStream): number {
    const next = stream.next;
 
    if (next === undefined || /\D/.test(next)) {
-      // TODO: with TS 3.7 stream.err can be an assert
       return stream.throw("Expected number, got '" + next + "'");
    }
    const result = Number(next);

@@ -34,13 +34,10 @@ export type NFA = Edge[][];
  */
 export function parseNFA(expr: Expression): NFA {
    const nfa: NFA = [[]];
-   /** Add new `Edges` array tp `NFA` and return its index */
+   /** Add new `Edges` array to `NFA` and return its index */
    const node = (): number => nfa.push([]) - 1;
 
-   connect(
-      compile(expr, 0),
-      node()
-   );
+   connect(compile(expr, 0), node());
    return nfa;
 
    /**
@@ -81,10 +78,7 @@ export function parseNFA(expr: Expression): NFA {
             if (i == expr.exprs.length - 1) {
                return next;
             }
-            connect(
-               next,
-               (from = node())
-            );
+            connect(next, (from = node()));
          }
       } else if (expr.type == TokenType.Star) {
          if (expr.expr === undefined) {
@@ -93,10 +87,7 @@ export function parseNFA(expr: Expression): NFA {
          const loop = node();
 
          edge(from, loop);
-         connect(
-            compile(expr.expr, loop),
-            loop
-         );
+         connect(compile(expr.expr, loop), loop);
          return [edge(loop)];
       } else if (expr.type == TokenType.Plus) {
          if (expr.expr === undefined) {
@@ -104,14 +95,8 @@ export function parseNFA(expr: Expression): NFA {
          }
          const loop = node();
 
-         connect(
-            compile(expr.expr, from),
-            loop
-         );
-         connect(
-            compile(expr.expr, loop),
-            loop
-         );
+         connect(compile(expr.expr, from), loop);
+         connect(compile(expr.expr, loop), loop);
          return [edge(loop)];
       } else if (expr.type == TokenType.Optional) {
          return [edge(from)].concat(compile(expr.expr!, from));
@@ -121,26 +106,17 @@ export function parseNFA(expr: Expression): NFA {
          for (let i = 0; i < expr.min!; i++) {
             const next = node();
 
-            connect(
-               compile(expr.expr!, cur),
-               next
-            );
+            connect(compile(expr.expr!, cur), next);
             cur = next;
          }
          if (expr.max == -1) {
-            connect(
-               compile(expr.expr!, cur),
-               cur
-            );
+            connect(compile(expr.expr!, cur), cur);
          } else {
             for (let i = expr.min; i! < expr.max!; i!++) {
                const next = node();
 
                edge(cur, next);
-               connect(
-                  compile(expr.expr!, cur),
-                  next
-               );
+               connect(compile(expr.expr!, cur), next);
                cur = next;
             }
          }
