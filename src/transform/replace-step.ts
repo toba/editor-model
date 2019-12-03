@@ -1,4 +1,4 @@
-import { Step, StepResult, StepJSON } from './step';
+import { StepResult, StepJSON, BaseStep, Step } from './step';
 import { StepMap, Mappable } from './map';
 import { Slice } from '../node/slice';
 import { EditorNode } from '../node';
@@ -7,7 +7,7 @@ import { Schema } from '../schema';
 /**
  * Replace a part of the document with a slice of new content.
  */
-export class ReplaceStep extends Step {
+export class ReplaceStep extends BaseStep {
    slice: Slice;
    structure: boolean;
 
@@ -36,28 +36,30 @@ export class ReplaceStep extends Step {
       return StepResult.fromReplace(doc, this.from, this.to, this.slice);
    }
 
-   getMap() {
-      return new StepMap([this.from, this.to - this.from, this.slice.size]);
-   }
+   getMap = () =>
+      new StepMap([this.from, this.to - this.from, this.slice.size]);
 
-   invert(doc: EditorNode) {
-      return new ReplaceStep(
+   invert = (doc: EditorNode) =>
+      new ReplaceStep(
          this.from,
          this.from + this.slice.size,
          doc.slice(this.from, this.to)
       );
-   }
 
    map(mapping: Mappable) {
       const from = mapping.mapResult(this.from, 1);
       const to = mapping.mapResult(this.to, -1);
-      if (from.deleted && to.deleted) {
-         return null;
-      }
-      return new ReplaceStep(from.pos, Math.max(from.pos, to.pos), this.slice);
+
+      return from.deleted && to.deleted
+         ? null
+         : (new ReplaceStep(
+              from.pos,
+              Math.max(from.pos, to.pos),
+              this.slice
+           ) as this);
    }
 
-   merge(other: Step) {
+   merge(other: this) {
       if (
          !(other instanceof ReplaceStep) ||
          other.structure != this.structure
@@ -83,7 +85,7 @@ export class ReplaceStep extends Step {
             this.to + (other.to - other.from),
             slice,
             this.structure
-         );
+         ) as this;
       } else if (
          other.to == this.from &&
          !this.slice.openStart &&
@@ -97,7 +99,12 @@ export class ReplaceStep extends Step {
                     other.slice.openStart,
                     this.slice.openEnd
                  );
-         return new ReplaceStep(other.from, this.to, slice, this.structure);
+         return new ReplaceStep(
+            other.from,
+            this.to,
+            slice,
+            this.structure
+         ) as this;
       } else {
          return null;
       }
@@ -131,13 +138,13 @@ export class ReplaceStep extends Step {
    }
 }
 
-Step.register('replace', ReplaceStep);
+BaseStep.register('replace', ReplaceStep as any);
 
 /**
  * Replace a part of the document with a slice of content, but preserve a range
  * of the replaced content by moving it into the slice.
  */
-export class ReplaceAroundStep extends Step {
+export class ReplaceAroundStep extends BaseStep {
    gapFrom: number;
    gapTo: number;
    slice: Slice;
@@ -218,22 +225,29 @@ export class ReplaceAroundStep extends Step {
       );
    }
 
-   map(mapping) {
-      let from = mapping.mapResult(this.from, 1),
+   map(mapping: Mappable): this | null {
+      const from = mapping.mapResult(this.from, 1),
          to = mapping.mapResult(this.to, -1);
-      let gapFrom = mapping.map(this.gapFrom, -1),
+      const gapFrom = mapping.map(this.gapFrom, -1),
          gapTo = mapping.map(this.gapTo, 1);
-      if ((from.deleted && to.deleted) || gapFrom < from.pos || gapTo > to.pos)
-         return null;
-      return new ReplaceAroundStep(
-         from.pos,
-         to.pos,
-         gapFrom,
-         gapTo,
-         this.slice,
-         this.insert,
-         this.structure
-      );
+
+      return (from.deleted && to.deleted) ||
+         gapFrom < from.pos ||
+         gapTo > to.pos
+         ? null
+         : (new ReplaceAroundStep(
+              from.pos,
+              to.pos,
+              gapFrom,
+              gapTo,
+              this.slice,
+              this.insert,
+              this.structure
+           ) as this);
+   }
+
+   merge(other: this): never {
+      throw new Error('Not implemented');
    }
 
    toJSON(): StepJSON {
@@ -276,26 +290,30 @@ export class ReplaceAroundStep extends Step {
    }
 }
 
-Step.register('replaceAround', ReplaceAroundStep);
+BaseStep.register('replaceAround', ReplaceAroundStep as any);
 
 function contentBetween(doc: EditorNode, from: number, to: number) {
-   let $from = doc.resolve(from);
+   const pos = doc.resolve(from);
    let dist = to - from;
-   let depth = $from.depth;
+   let depth = pos.depth;
 
    while (
       dist > 0 &&
       depth > 0 &&
-      $from.indexAfter(depth) == $from.node(depth).childCount
+      pos.indexAfter(depth) == pos.node(depth).childCount
    ) {
       depth--;
       dist--;
    }
    if (dist > 0) {
-      let next = $from.node(depth).maybeChild($from.indexAfter(depth));
+      let next: EditorNode | undefined | null = pos
+         .node(depth)
+         .maybeChild(pos.indexAfter(depth));
 
       while (dist > 0) {
-         if (!next || next.isLeaf) return true;
+         if (next === null || next === undefined || next.isLeaf) {
+            return true;
+         }
          next = next.firstChild;
          dist--;
       }

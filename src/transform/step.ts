@@ -17,7 +17,50 @@ export interface StepJSON {
    to: number;
 }
 
-const stepsByID: { [key: string]: typeof Step } = Object.create(null);
+const stepsByID: { [key: string]: typeof BaseStep } = Object.create(null);
+
+export interface Step {
+   /**
+    * Applies this step to the given document, returning a result object that
+    * either indicates failure, if the step can not be applied to this document,
+    * or indicates success by containing a transformed document.
+    */
+   apply(doc: EditorNode): StepResult;
+
+   /**
+    * Get the step map that represents the changes made by this step, and which
+    * can be used to transform between positions in the old and the new
+    * document.
+    */
+   getMap(): StepMap;
+
+   /**
+    * Create an inverted version of this step. Needs the document as it was
+    * before the step as argument.
+    */
+   invert(doc: EditorNode): Step;
+
+   /**
+    * Map this step through a mappable thing, returning either a version of that
+    * step with its positions adjusted, or `null` if the step was entirely
+    * deleted by the mapping.
+    */
+   map(mapping: Mappable): this | null;
+
+   /**
+    * Try to merge this step with another one, to be applied directly after it.
+    * Returns the merged step when possible, `null` if the steps can't be
+    * merged.
+    */
+   merge(other: this): this | null;
+
+   /**
+    * Create a JSON-serializeable representation of this step. When defining
+    * this for a custom subclass, make sure the result object includes the step
+    * type's [JSON id](#transform.Step^jsonID) under the `stepType` property.
+    */
+   toJSON(): StepJSON;
+}
 
 /**
  * A step object represents an atomic change. It generally applies only to the
@@ -29,7 +72,7 @@ const stepsByID: { [key: string]: typeof Step } = Object.create(null);
  * registering your class with a unique JSON-serialization identifier using
  * [`Step.jsonID`](#transform.Step^jsonID).
  */
-export abstract class Step {
+export abstract class BaseStep implements Step {
    from: number;
    to: number;
    mark: Mark;
@@ -53,7 +96,7 @@ export abstract class Step {
     * Create an inverted version of this step. Needs the document as it was
     * before the step as argument.
     */
-   abstract invert<S extends Step>(doc: EditorNode): S;
+   abstract invert(doc: EditorNode): Step;
 
    /**
     * Map this step through a mappable thing, returning either a version of that
@@ -80,7 +123,7 @@ export abstract class Step {
     * Deserialize a step from its JSON representation. Will call through to the
     * step class' own implementation of this method.
     */
-   static fromJSON(schema: Schema, json: StepJSON): Step {
+   static fromJSON(schema: Schema, json: StepJSON): BaseStep {
       if (!json || !json.stepType) {
          throw new RangeError('Invalid input for Step.fromJSON');
       }
@@ -98,7 +141,7 @@ export abstract class Step {
     * your step classes. Try to pick something that's unlikely to clash with
     * steps from other modules.
     */
-   static register<S extends typeof Step>(id: string, subclass: S) {
+   static register<S extends typeof BaseStep>(id: string, subclass: S) {
       if (id in stepsByID) {
          throw new RangeError('Duplicate use of step JSON ID ' + id);
       }

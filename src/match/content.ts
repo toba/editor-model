@@ -167,7 +167,10 @@ export class ContentMatch {
     *
     * For example, a `p` directly in an `ol` should be wrapped with `li`.
     */
-   findWrapping(target: NodeType): NodeType[] | undefined {
+   findWrapping(target?: NodeType): NodeType[] | undefined {
+      if (target === undefined) {
+         return target;
+      }
       for (let i = 0; i < this.wrapCache.size(); i++) {
          const [type, wrapTypes] = this.wrapCache.item(i)!;
 

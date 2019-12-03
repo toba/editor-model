@@ -1,4 +1,4 @@
-import { Step, StepResult, StepJSON } from './step';
+import { BaseStep, StepResult, StepJSON } from './step';
 import { Fragment } from '../node/fragment';
 import { Mark } from '../mark';
 import { EditorNode } from '../node';
@@ -36,7 +36,7 @@ function mapFragment(
 /**
  * Add a mark to all inline content between two positions.
  */
-export class AddMarkStep extends Step {
+export class AddMarkStep extends BaseStep {
    constructor(from: number, to: number, mark: Mark) {
       super();
       this.from = from;
@@ -65,17 +65,15 @@ export class AddMarkStep extends Step {
       return StepResult.fromReplace(doc, this.from, this.to, slice);
    }
 
-   invert = <S extends Step>() =>
-      (new RemoveMarkStep(this.from, this.to, this.mark) as any) as S;
+   invert = () => new RemoveMarkStep(this.from, this.to, this.mark);
 
    map(mapping: Mappable) {
       const from = mapping.mapResult(this.from, 1);
       const to = mapping.mapResult(this.to, -1);
 
-      if ((from.deleted && to.deleted) || from.pos >= to.pos) {
-         return null;
-      }
-      return new AddMarkStep(from.pos, to.pos, this.mark) as this;
+      return (from.deleted && to.deleted) || from.pos >= to.pos
+         ? null
+         : (new AddMarkStep(from.pos, to.pos, this.mark) as this);
    }
 
    merge = (other: this): this =>
@@ -113,12 +111,12 @@ export class AddMarkStep extends Step {
    }
 }
 
-Step.register('addMark', AddMarkStep as any);
+BaseStep.register('addMark', AddMarkStep as any);
 
 /**
  * Remove a mark from all inline content between two positions.
  */
-export class RemoveMarkStep extends Step {
+export class RemoveMarkStep extends BaseStep {
    constructor(from: number, to: number, mark: Mark) {
       super();
       this.from = from;
@@ -138,17 +136,15 @@ export class RemoveMarkStep extends Step {
       return StepResult.fromReplace(doc, this.from, this.to, slice);
    }
 
-   invert = <S extends Step>() =>
-      (new AddMarkStep(this.from, this.to, this.mark) as any) as S;
+   invert = () => new AddMarkStep(this.from, this.to, this.mark);
 
    map(mapping: Mappable) {
       const from = mapping.mapResult(this.from, 1);
       const to = mapping.mapResult(this.to, -1);
 
-      if ((from.deleted && to.deleted) || from.pos >= to.pos) {
-         return null;
-      }
-      return new RemoveMarkStep(from.pos, to.pos, this.mark) as this;
+      return (from.deleted && to.deleted) || from.pos >= to.pos
+         ? null
+         : (new RemoveMarkStep(from.pos, to.pos, this.mark) as this);
    }
 
    merge = (other: this): this =>
@@ -186,4 +182,4 @@ export class RemoveMarkStep extends Step {
    }
 }
 
-Step.register('removeMark', RemoveMarkStep as any);
+BaseStep.register('removeMark', RemoveMarkStep as any);

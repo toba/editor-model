@@ -131,19 +131,20 @@ export class Fragment {
       if (this.size == 0) {
          return other;
       }
-      const last: EditorNode | null = this.lastChild;
-      const first: EditorNode | null = other.firstChild;
+      const last: EditorNode | undefined = this.lastChild;
+      const first: EditorNode | undefined = other.firstChild;
       const content: (EditorNode | TextNode)[] = this.content.slice();
       let i = 0;
 
       if (
-         last !== null &&
-         first !== null &&
+         last !== undefined &&
+         first !== undefined &&
          last.isText &&
          last.sameMarkup(first)
       ) {
          const firstText = (first as unknown) as TextNode;
          const lastText = (last as unknown) as TextNode;
+
          content[content.length - 1] = lastText.withText(
             lastText.text + firstText.text
          );
@@ -195,7 +196,7 @@ export class Fragment {
       return new Fragment(result, size);
    }
 
-   cutByIndex(from: number, to: number): Fragment {
+   cutByIndex(from: number, to?: number): Fragment {
       if (from == to) {
          return Fragment.empty;
       }
@@ -249,21 +250,20 @@ export class Fragment {
       return true;
    }
 
-   /** Retain old name for ProseMirror compatibility */
-   eq = this.equals;
-
    /**
-    * The first child of the fragment, or `null` if it is empty.
+    * The first child of the fragment, or `undefined` if it is empty.
     */
-   get firstChild(): EditorNode | null {
-      return this.content.length ? this.content[0] : null;
+   get firstChild(): EditorNode | undefined {
+      return this.content.length > 0 ? this.content[0] : undefined;
    }
 
    /**
-    * The last child of the fragment, or `null` if it is empty.
+    * The last child of the fragment, or `undefined` if it is empty.
     */
-   get lastChild(): EditorNode | null {
-      return this.content.length ? this.content[this.content.length - 1] : null;
+   get lastChild(): EditorNode | undefined {
+      return this.content.length > 0
+         ? this.content[this.content.length - 1]
+         : undefined;
    }
 
    /**

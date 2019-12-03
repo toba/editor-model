@@ -169,16 +169,16 @@ export class EditorNode {
    ): string => this.content.textBetween(from, to, blockSeparator, leafText);
 
    /**
-    * Returns this node's first child, or `null` if there are no children.
+    * Returns this node's first child, or `undefined` if there are no children.
     */
-   get firstChild(): EditorNode | null {
+   get firstChild(): EditorNode | undefined {
       return this.content.firstChild;
    }
 
    /**
-    * Returns this node's last child, or `null` if there are no children.
+    * Returns this node's last child, or `undefined` if there are no children.
     */
-   get lastChild(): EditorNode | null {
+   get lastChild(): EditorNode | undefined {
       return this.content.lastChild;
    }
 
@@ -271,7 +271,7 @@ export class EditorNode {
    /**
     * Find the node directly after the given position.
     */
-   nodeAt(pos: number): EditorNode | null {
+   nodeAt(pos: number): EditorNode | undefined {
       let node: EditorNode | undefined;
 
       for (node = this; ; ) {
@@ -279,7 +279,7 @@ export class EditorNode {
          node = node.maybeChild(index);
 
          if (!node) {
-            return null;
+            return undefined;
          }
          if (offset == pos || node.isText) {
             return node;

@@ -111,12 +111,6 @@ function findWrappingInside(
    return inside;
 }
 
-function canChangeType(doc: EditorNode, pos: number, type: NodeType) {
-   let $pos = doc.resolve(pos);
-   let index = $pos.index();
-   return $pos.parent.canReplaceWith(index, index + 1, type);
-}
-
 /**
  * Whether splitting at the given position is allowed.
  */
@@ -187,6 +181,12 @@ export function canJoin(doc: EditorNode, idx: number) {
    );
 }
 
+export function canChangeType(doc: EditorNode, pos: number, type: NodeType) {
+   let $pos = doc.resolve(pos);
+   let index = $pos.index();
+   return $pos.parent.canReplaceWith(index, index + 1, type);
+}
+
 const joinable = (a?: EditorNode, b?: EditorNode) =>
    a !== undefined && b !== undefined && !a.isLeaf && a.canAppend(b);
 
@@ -231,7 +231,11 @@ export function joinPoint(
  * place but is at the start or end of a node. Return null if no position was
  * found.
  */
-export function insertPoint(doc: EditorNode, idx: number, nodeType: NodeType) {
+export function insertPoint(
+   doc: EditorNode,
+   idx: number,
+   nodeType: NodeType
+): number | undefined {
    const pos = doc.resolve(idx);
 
    if (pos.parent.canReplaceWith(pos.index(), pos.index(), nodeType))
@@ -245,7 +249,7 @@ export function insertPoint(doc: EditorNode, idx: number, nodeType: NodeType) {
             return pos.before(d + 1);
          }
          if (index > 0) {
-            return null;
+            return undefined;
          }
       }
    }
@@ -257,7 +261,7 @@ export function insertPoint(doc: EditorNode, idx: number, nodeType: NodeType) {
             return pos.after(d + 1);
          }
          if (index < pos.node(d).childCount) {
-            return null;
+            return undefined;
          }
       }
 }
@@ -281,10 +285,11 @@ export function dropPoint(
    let content: Fragment = slice.content;
 
    for (let i = 0; i < slice.openStart; i++) {
-      if (content.firstChild !== null) {
+      if (content.firstChild !== undefined) {
          content = content.firstChild.content;
       }
    }
+
    for (
       let pass = 1;
       pass <= (slice.openStart == 0 && slice.size ? 2 : 1);
@@ -298,13 +303,14 @@ export function dropPoint(
                ? -1
                : 1;
          const insertPos = pos.index(d) + (bias > 0 ? 1 : 0);
+
          if (
             pass == 1
                ? pos.node(d).canReplace(insertPos, insertPos, content)
                : pos
                     .node(d)
                     .contentMatchAt(insertPos)
-                    .findWrapping(content.firstChild.type)
+                    .findWrapping(content.firstChild?.type)
          )
             return bias == 0
                ? pos.pos
