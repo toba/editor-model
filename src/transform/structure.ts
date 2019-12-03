@@ -243,7 +243,7 @@ export function insertPoint(
 
    if (pos.parentOffset == 0) {
       for (let d = pos.depth - 1; d >= 0; d--) {
-         let index = pos.index(d);
+         const index = pos.index(d);
 
          if (pos.node(d).canReplaceWith(index, index, nodeType)) {
             return pos.before(d + 1);

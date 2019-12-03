@@ -6,7 +6,7 @@ import { Step } from './step';
 import { Position } from '../position';
 import { Fragment } from '../node/fragment';
 import { ContentMatch } from '../match';
-import { Frontier, Placed } from './frontier';
+import { InsertionPoint, Placed } from './insertion-point';
 
 /**
  * "Fit" a slice into a given position in the document, producing a `Step` that
@@ -373,26 +373,27 @@ function nodeRight(content: Fragment, depth: number): EditorNode | undefined {
  * node.
  */
 function placeSlice(from: Position, slice: Slice): Placed[] {
-   let frontier = new Frontier(from);
+   const insertionPoint = new InsertionPoint(from);
 
    for (let pass = 1; slice.size && pass <= 3; pass++) {
-      let value = frontier.placeSlice(
+      const value: Slice = insertionPoint.placeSlice(
          slice.content,
          slice.openStart,
          slice.openEnd,
          pass
       );
-      if (pass == 3 && value != slice && value.size) {
-         // Restart if the 3rd pass made progress but left content
+      if (pass == 3 && value != slice && value.size > 0) {
+         // restart if the 3rd pass made progress but left content
          pass = 0;
       }
       slice = value;
    }
-   while (frontier.open.length) {
-      frontier.closeNode();
+
+   while (insertionPoint.open.length) {
+      insertionPoint.closeNode();
    }
 
-   return frontier.placed;
+   return insertionPoint.placed;
 }
 
 export function closeFragment(

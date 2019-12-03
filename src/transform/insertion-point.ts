@@ -19,11 +19,20 @@ export interface Placed {
    depth: number;
 }
 
+const enum Placement {
+   /** Try to fit directly */
+   DirectFit = 1,
+   /** Allow wrapper nodes to be introduced */
+   AddWrappingNodes,
+   /** Allow unwrapping of nodes that aren't open */
+   UnwrapClosedNodes
+}
+
 /**
  * Helper class that models the open side of the insert position, keeping track
  * of the content match and already inserted content at each depth.
  */
-export class Frontier {
+export class InsertionPoint {
    placed: Placed[];
    open: Opening[];
 
@@ -31,8 +40,8 @@ export class Frontier {
       this.open = [];
 
       for (let d = 0; d <= pos.depth; d++) {
-         let parent = pos.node(d);
-         let match = parent.contentMatchAt(pos.indexAfter(d));
+         const parent = pos.node(d);
+         const match = parent.contentMatchAt(pos.indexAfter(d));
 
          this.open.push({
             parent,
@@ -47,18 +56,14 @@ export class Frontier {
    }
 
    /**
-    * Tries to place the content of the given slice, and returns a slice
-    * containing unplaced content.
-    *
-    * pass 1: try to fit directly
-    * pass 2: allow wrapper nodes to be introduced
-    * pass 3: allow unwrapping of nodes that aren't open
+    * Try to place the content of the given slice and return a slice
+    * containing any unplaced content.
     */
    placeSlice(
       fragment: Fragment,
       openStart: number,
       openEnd: number,
-      pass: number,
+      placement: Placement,
       parent?: EditorNode
    ): Slice {
       if (openStart > 0) {
@@ -69,7 +74,7 @@ export class Frontier {
                first.content,
                Math.max(0, openStart - 1),
                openEnd && fragment.childCount == 1 ? openEnd - 1 : 0,
-               pass,
+               placement,
                first
             );
 
@@ -94,11 +99,15 @@ export class Frontier {
          fragment,
          openStart,
          openEnd,
-         pass,
+         placement,
          parent
       );
 
-      if (pass > 2 && result.size && openStart == 0) {
+      if (
+         placement == Placement.UnwrapClosedNodes &&
+         result.size > 0 &&
+         openStart == 0
+      ) {
          const child = result.content.firstChild;
          const single = result.content.childCount == 1;
 
@@ -107,7 +116,7 @@ export class Frontier {
                child.content,
                0,
                openEnd && single ? openEnd - 1 : 0,
-               pass,
+               placement,
                child
             );
          }
@@ -122,7 +131,7 @@ export class Frontier {
       fragment: Fragment,
       openStart: number,
       openEnd: number,
-      pass: number,
+      placement: Placement,
       parent?: EditorNode
    ) {
       let i = 0;
@@ -137,11 +146,11 @@ export class Frontier {
             let open: Opening = this.open[d];
             let wrap: NodeType[] | undefined;
 
-            // If pass > 1, it is allowed to wrap the node to help find a
-            // fit, so if `findWrapping` returns something, we add open
-            // nodes to the frontier for that wrapping.
+            // If placement > DirectFit, allow wrapping the node to find a
+            // fit, so if `findWrapping` returns something, add open
+            // nodes to the `InsertionPoint` for that wrapping
             if (
-               pass > 1 &&
+               placement > Placement.DirectFit &&
                open.match !== undefined &&
                (wrap = open.match.findWrapping(child.type)) &&
                !(
@@ -183,7 +192,7 @@ export class Frontier {
                      match = open.match?.matchFragment(ch);
                   }
                } else if (
-                  parent &&
+                  parent !== undefined &&
                   open.match !== undefined &&
                   open.match.matchType(parent.type)
                ) {
@@ -201,7 +210,9 @@ export class Frontier {
                this.closeNode();
             }
             // Strip marks from the child or close its start when necessary
-            child = child.mark(open.parent.type.allowedMarks(child.marks));
+            child = child.withMarks(
+               open.parent.type.removeDisallowedMarks(child.marks)
+            );
 
             if (openStart) {
                child = closeNodeStart(child, openStart, last ? openEnd : 0);
@@ -210,13 +221,17 @@ export class Frontier {
             // Add the child to this open node and adjust its metadata
             this.addNode(open, child, last ? openEnd : 0);
             open.match = match;
-            if (last) openEnd = 0;
+            if (last) {
+               openEnd = 0;
+            }
             placed = true;
             break;
          }
          // As soon as we've failed to place a node we stop looking at
          // later nodes
-         if (!placed) break;
+         if (!placed) {
+            break;
+         }
       }
       // Close the current open node if it's not the the root and we
       // either placed up to the end of the node or the the current
@@ -224,10 +239,11 @@ export class Frontier {
       if (
          this.open.length > 1 &&
          ((i > 0 && i == fragment.childCount) ||
-            (parent &&
+            (parent !== undefined &&
                this.open[this.open.length - 1].parent.type == parent.type))
-      )
+      ) {
          this.closeNode();
+      }
 
       return new Slice(fragment.cutByIndex(i), openStart, openEnd);
    }
@@ -275,9 +291,9 @@ function closeNodeStart(
       );
       content = node.content.replaceChild(0, first);
    }
-   let fill = node.type.contentMatch.fillBefore(content, openEnd == 0);
+   const fill = node.type.contentMatch?.fillBefore(content, openEnd == 0);
 
-   return node.copy(fill.append(content));
+   return node.copy(fill?.append(content));
 }
 
 function closeNodeEnd(node: EditorNode, depth: number) {

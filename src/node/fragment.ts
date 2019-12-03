@@ -279,7 +279,7 @@ export class Fragment {
     */
    child(index: number): EditorNode {
       const found = this.content[index];
-      if (!found) {
+      if (found === undefined) {
          throw new RangeError('Index ' + index + ' out of range for ' + this);
       }
       return found;
@@ -301,12 +301,6 @@ export class Fragment {
          p += child.size;
       }
    }
-
-   /**
-    * Retain old name for ProseMirror compatibility
-    * @deprecated
-    */
-   forEach = this.forEachChild;
 
    /**
     * Find the first position at which this fragment and another fragment

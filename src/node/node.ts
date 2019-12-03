@@ -222,7 +222,7 @@ export class EditorNode {
     * Create a copy of this node with the given set of marks instead of the
     * current marks.
     */
-   withMarks = (marks: Mark[]): this =>
+   withMarks = (marks?: Mark[]): this =>
       marks === this.marks
          ? this
          : (new EditorNode(this.type, this.attrs, this.content, marks) as this);

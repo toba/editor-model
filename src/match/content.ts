@@ -125,7 +125,7 @@ export class ContentMatch {
       startIndex = 0
    ): Fragment | undefined {
       /** Matches that have already been processed */
-      let seen: ContentMatch[] = [this];
+      const seen: ContentMatch[] = [this];
 
       function search(
          searchMatch: ContentMatch,

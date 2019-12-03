@@ -178,11 +178,13 @@ export class Slice {
    static maxOpen(fragment: Fragment, openIsolating = true): Slice {
       let openStart = 0;
       let openEnd = 0;
-      let n: EditorNode | null;
+      let n: EditorNode | undefined;
 
       /** Whether valid to continue traversing the node */
-      const valid = (n: EditorNode | null): boolean =>
-         n !== null && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
+      const valid = (n?: EditorNode): boolean =>
+         n !== undefined &&
+         !n.isLeaf &&
+         (openIsolating || !n.type.spec.isolating);
 
       for (n = fragment.firstChild; valid(n); n = n!.firstChild) {
          openStart++;
