@@ -4,7 +4,7 @@ import { Mark } from '../mark';
 import { EditorNode } from '../node';
 import { Slice } from '../node/slice';
 import { Schema } from '../schema';
-import { Mappable } from './map';
+import { Mappable } from './step-map';
 
 type GetInlineChild = (
    child: EditorNode,

@@ -1,25 +1,34 @@
 /**
+ * Determines with which side the position is associated, which determines in
+ * which direction to move when a chunk of content is inserted at the mapped
+ * position.
+ */
+export const enum Association {
+   Before = -1,
+   After = 1
+}
+
+/**
  * There are several things that positions can be mapped through. Such objects
  * conform to this interface.
  */
 export interface Mappable {
    /**
     * Map a position through this object
-    * @param assoc Determines with which side the position is associated, which
-    * determines in which direction to move when a chunk of content is inserted
-    * at the mapped position
     */
-   map(pos: number, assoc?: 1 | -1): number;
+   map(pos: number, assoc?: Association): number;
 
    /**
     * Map a position, and return an object containing additional information
     * about the mapping. The result's `deleted` field tells you whether the
     * position was deleted (completely enclosed in a replaced range) during the
-    * mapping. When content on only one side is deleted, the position itself is
-    * only considered deleted when `assoc` points in the direction of the
-    * deleted content.
+    * mapping.
+    *
+    * When content on only one side is deleted, the position itself is only
+    * considered deleted when `assoc` points in the direction of the deleted
+    * content.
     */
-   mapResult(pos: number, assoc?: 1 | -1): MapResult;
+   mapResult(pos: number, assoc?: Association): MapResult;
 }
 
 export type MapForEachCallback = (
@@ -54,7 +63,7 @@ const recoverOffset = (value: number) => (value - (value & lower16)) / factor16;
 export class MapResult {
    /**
     * Whether the position was deleted, that is, whether the step removed its
-    * surroundings from the document deleted: boolean;
+    * surroundings from the document
     */
    deleted: boolean;
 
@@ -101,14 +110,17 @@ export class StepMap implements Mappable {
       return this.ranges[index * 3] + diff + recoverOffset(value);
    }
 
-   mapResult = (pos: number, assoc = 1): MapResult =>
+   mapResult = (pos: number, assoc = Association.After): MapResult =>
       this._map(pos, assoc, false);
 
-   map = (pos: number, assoc = 1): number => this._map(pos, assoc, true);
+   map = (pos: number, assoc = Association.After): number =>
+      this._map(pos, assoc, true);
 
+   // For `B extends true` pattern see
+   // https://www.typescriptlang.org/docs/handbook/advanced-types.html#conditional-types
    _map<B extends boolean>(
       pos: number,
-      assoc: number,
+      assoc: Association,
       simple: B
    ): B extends true ? number : MapResult {
       let diff = 0;
@@ -153,7 +165,7 @@ export class StepMap implements Mappable {
       return simple ? pos + diff : new MapResult(pos + diff);
    }
 
-   touches(pos: number, recover: number) {
+   touches(pos: number, recover: number): boolean {
       let diff = 0;
       let index = recoverIndex(recover);
       let oldIndex = this.inverted ? 2 : 1;
@@ -216,194 +228,4 @@ export class StepMap implements Mappable {
     */
    static offset = (n: number): StepMap =>
       n == 0 ? StepMap.empty : new StepMap(n < 0 ? [0, -n, 0] : [0, 0, n]);
-}
-
-/**
- * A mapping represents a pipeline of zero or more `StepMap`s. It has special
- * provisions for losslessly handling mapping positions through a series of
- * steps in which some steps are inverted versions of earlier steps. (This comes
- * up when ‘[rebasing](/docs/guide/#transform.rebasing)’ steps for collaboration
- * or history management.)
- */
-export class Mapping implements Mappable {
-   /** Steps in this mapping */
-   maps: StepMap[];
-   /**
-    * Starting position in the `maps` array, used when `map` or `mapResult` is
-    * called
-    */
-   from: number;
-   /** End position in the maps array */
-
-   to: number;
-   mirror?: number[];
-
-   // Create a new mapping with the given position maps.
-   constructor(
-      maps: StepMap[] = [],
-      mirror?: number[],
-      from: number = 0,
-      to?: number
-   ) {
-      this.maps = maps;
-      this.from = from;
-      this.to = to === undefined ? this.maps.length : to;
-      this.mirror = mirror;
-   }
-
-   /**
-    * Create a mapping that maps only through a part of this one.
-    */
-   slice = (from = 0, to = this.maps.length): Mapping =>
-      new Mapping(this.maps, this.mirror, from, to);
-
-   copy = () =>
-      new Mapping(
-         this.maps.slice(),
-         this.mirror && this.mirror.slice(),
-         this.from,
-         this.to
-      );
-
-   // :: (StepMap, ?number)
-   // Add a step map to the end of this mapping. If `mirrors` is
-   // given, it should be the index of the step map that is the mirror
-   // image of this one.
-   appendMap(map: StepMap, mirrors?: number) {
-      this.to = this.maps.push(map);
-      if (mirrors != null) {
-         this.setMirror(this.maps.length - 1, mirrors);
-      }
-   }
-
-   /**
-    * Add all the step maps in a given mapping to this one (preserving mirroring
-    * information).
-    */
-   appendMapping(mapping: Mapping) {
-      for (
-         let i = 0, startSize = this.maps.length;
-         i < mapping.maps.length;
-         i++
-      ) {
-         let mirr = mapping.getMirror(i);
-         this.appendMap(
-            mapping.maps[i],
-            mirr != undefined && mirr < i ? startSize + mirr : undefined
-         );
-      }
-   }
-
-   /**
-    * Finds the offset of the step map that mirrors the map at the given offset,
-    * in this mapping (as per the second argument to `appendMap`).
-    */
-   getMirror(n: number): number | undefined {
-      if (this.mirror !== undefined) {
-         for (let i = 0; i < this.mirror.length; i++) {
-            if (this.mirror[i] == n) {
-               return this.mirror[i + (i % 2 ? -1 : 1)];
-            }
-         }
-      }
-   }
-
-   setMirror(n: number, m: number) {
-      if (this.mirror === undefined) {
-         this.mirror = [];
-      }
-      this.mirror.push(n, m);
-   }
-
-   /**
-    * Append the inverse of the given mapping to this one.
-    */
-   appendMappingInverted(mapping: Mapping) {
-      for (
-         let i = mapping.maps.length - 1,
-            totalSize = this.maps.length + mapping.maps.length;
-         i >= 0;
-         i--
-      ) {
-         let mirr = mapping.getMirror(i);
-         this.appendMap(
-            mapping.maps[i].invert(),
-            mirr != undefined && mirr > i ? totalSize - mirr - 1 : undefined
-         );
-      }
-   }
-
-   /**
-    * Create an inverted version of this mapping.
-    */
-   invert(): Mapping {
-      let inverse = new Mapping();
-      inverse.appendMappingInverted(this);
-      return inverse;
-   }
-
-   /**
-    * Map a position through this mapping.
-    */
-   map(pos: number, assoc = 1): number {
-      if (this.mirror) {
-         // TODO: type guard?
-         return this._map(pos, assoc, true);
-      }
-      for (let i = this.from; i < this.to; i++) {
-         pos = this.maps[i].map(pos, assoc);
-      }
-      return pos;
-   }
-
-   /**
-    * Map a position through this mapping, returning a mapping result.
-    */
-   mapResult = (pos: number, assoc = 1): MapResult =>
-      this._map(pos, assoc, false);
-
-   _map<B extends boolean>(
-      pos: number,
-      assoc: number,
-      simple: B
-   ): B extends true ? number : MapResult {
-      let deleted = false;
-      let recoverables: { [key: number]: number } | null = null;
-
-      for (let i = this.from; i < this.to; i++) {
-         const map: StepMap = this.maps[i];
-         const rec = recoverables !== null ? recoverables[i] : null;
-
-         if (rec !== null && map.touches(pos, rec)) {
-            pos = map.recover(rec);
-            continue;
-         }
-
-         const result = map.mapResult(pos, assoc);
-
-         if (result.recover !== undefined) {
-            const corr = this.getMirror(i);
-
-            if (corr !== undefined && corr > i && corr < this.to) {
-               if (result.deleted) {
-                  i = corr;
-                  pos = this.maps[corr].recover(result.recover);
-                  continue;
-               } else {
-                  if (recoverables === null) {
-                     recoverables = Object.create(null);
-                  }
-                  recoverables![corr] = result.recover;
-               }
-            }
-         }
-
-         if (result.deleted) {
-            deleted = true;
-         }
-         pos = result.pos;
-      }
-
-      return simple ? pos : new MapResult(pos, deleted);
-   }
 }

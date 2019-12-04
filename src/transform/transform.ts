@@ -1,4 +1,4 @@
-import { Mapping } from './map';
+import { Mapping } from './mapping';
 import { EditorNode, NodeType, NodeRange } from '../node';
 import { Step, StepResult } from './step';
 import { Attributes } from '../node/attribute';
@@ -13,7 +13,7 @@ import {
 import { canChangeType, insertPoint, Wrapping } from './structure';
 import { Fragment } from '../node/fragment';
 import { Slice } from '../node/slice';
-import { RemoveMarkStep, AddMarkStep } from './map-step';
+import { RemoveMarkStep, AddMarkStep } from './mark-step';
 import { forEach } from '@toba/tools';
 import { ContentMatch } from '../match';
 
@@ -67,6 +67,7 @@ export class Transform {
     */
    step(s: Step): this {
       const result = this.maybeStep(s);
+
       if (result.failed) {
          throw new TransformError(result.failed);
       }
@@ -79,6 +80,7 @@ export class Transform {
     */
    maybeStep(step: Step): StepResult {
       const result = step.apply(this.doc);
+
       if (!result.failed) {
          this.addStep(step, result.doc!);
       }

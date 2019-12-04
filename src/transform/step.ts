@@ -1,4 +1,4 @@
-import { StepMap, Mappable } from './map';
+import { StepMap, Mappable } from './step-map';
 import { EditorNode } from '../node';
 import { Slice, SliceJSON } from '../node/slice';
 import { ReplaceError } from '../position/replace';
@@ -49,7 +49,7 @@ export interface Step {
 
    /**
     * Try to merge this step with another one, to be applied directly after it.
-    * Returns the merged step when possible, `null` if the steps can't be
+    * Returns the merged step when possible or `null` if the steps can't be
     * merged.
     */
    merge(other: this): this | null;

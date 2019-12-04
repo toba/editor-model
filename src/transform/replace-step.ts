@@ -1,5 +1,5 @@
 import { StepResult, StepJSON, BaseStep, Step } from './step';
-import { StepMap, Mappable } from './map';
+import { StepMap, Mappable } from './step-map';
 import { Slice } from '../node/slice';
 import { EditorNode } from '../node';
 import { Schema } from '../schema';
