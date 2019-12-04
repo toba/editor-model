@@ -2,6 +2,8 @@ import '@toba/test';
 import { makeTestItems } from '.';
 import { basicSchema, SchemaTag as tag } from '../schema';
 
+export { basicSchema as schema } from '../schema';
+
 /**
  * @see https://github.com/ProseMirror/prosemirror-test-builder/blob/master/src/index.js
  */

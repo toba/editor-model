@@ -151,11 +151,15 @@ export class Mapping implements Mappable {
    mapResult = (pos: number, assoc = Association.After): MapResult =>
       this._map(pos, assoc, false);
 
+   // For `B extends true` pattern see
+   // https://www.typescriptlang.org/docs/handbook/advanced-types.html#conditional-types
+   // https://stackoverflow.com/a/52818072
    _map<B extends boolean>(
       pos: number,
       assoc: Association,
       simple: B
-   ): B extends true ? number : MapResult {
+   ): B extends true ? number : MapResult;
+   _map(pos: number, assoc: Association, simple: boolean): number | MapResult {
       let deleted = false;
       let recoverables: { [key: number]: number } | null = null;
 

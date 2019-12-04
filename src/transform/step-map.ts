@@ -118,11 +118,13 @@ export class StepMap implements Mappable {
 
    // For `B extends true` pattern see
    // https://www.typescriptlang.org/docs/handbook/advanced-types.html#conditional-types
+   // https://stackoverflow.com/a/52818072
    _map<B extends boolean>(
       pos: number,
       assoc: Association,
       simple: B
-   ): B extends true ? number : MapResult {
+   ): B extends true ? number : MapResult;
+   _map(pos: number, assoc: Association, simple: boolean): number | MapResult {
       let diff = 0;
       const oldIndex = this.inverted ? 2 : 1;
       const newIndex = this.inverted ? 1 : 2;

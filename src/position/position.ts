@@ -2,9 +2,6 @@ import { TrioList, makeTrioList } from '@toba/tools';
 import { Mark } from '../mark/mark';
 import { EditorNode, NodeRange } from '../node/';
 
-/** Node, index and offset */
-//type PathItem = [EditorNode, number, number];
-
 const cache: Position[] = [];
 let cacheIndex = 0;
 let cacheSize = 12;
@@ -23,13 +20,12 @@ let cacheSize = 12;
 export class Position {
    /** Position that was resolved */
    pos: number;
-   //path: PathItem[];
    /** `EditorNode`, index and offset */
    path: TrioList<EditorNode, number, number>;
    /**
-    * The number of levels the parent node is from the root. If this position
-    * points directly into the root node, it is 0. If it points into a top-level
-    * paragraph, 1, and so on.
+    * Zero-based number of levels the parent node is from the root. If this
+    * position points directly into the root node, it is 0. If it points into a
+    * top-level paragraph, 1, and so on.
     */
    depth: number;
    /** Offset this position has into its parent node */
@@ -42,7 +38,7 @@ export class Position {
    ) {
       this.pos = pos;
       this.path = path;
-      this.depth = path.size();
+      this.depth = path.size() - 1;
       this.parentOffset = parentOffset;
    }
 
@@ -75,8 +71,8 @@ export class Position {
     */
    node = (depth: number = this.depth): EditorNode => {
       const d = this.resolveDepth(depth);
-      if (d < 0 || d > this.path.size()) {
-         throw new RangeError(`Depth ${d} is invalid`);
+      if (d < 0 || d >= this.path.size()) {
+         throw new RangeError(`Depth ${d} is out of range`);
       }
       return this.path.item(d)![0];
    };
@@ -107,7 +103,7 @@ export class Position {
     */
    start(depth?: number): number {
       const d = this.resolveDepth(depth);
-      return d == 0 || d > this.path.size() ? 0 : this.path.item(d)![1] + 1;
+      return d == 0 || d >= this.path.size() ? 0 : this.path.item(d)![1] + 1;
    }
 
    /**
@@ -349,8 +345,8 @@ export class Position {
    }
 
    static resolve(doc: EditorNode, pos: number): Position {
-      if (!(pos >= 0 && pos <= doc.content.size)) {
-         throw new RangeError('Position ' + pos + ' out of range');
+      if (pos < 0 || pos > doc.content.size) {
+         throw new RangeError('Position ' + pos + ' is out of range');
       }
       const path: TrioList<EditorNode, number, number> = makeTrioList();
       let start = 0;

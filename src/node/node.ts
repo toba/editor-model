@@ -316,8 +316,7 @@ export class EditorNode {
    }
 
    /**
-    * Resolve the given position in the document, returning an
-    * [object](#model.ResolvedPos) with information about its context.
+    * Resolve the given position in the document.
     */
    resolve = (pos: number): Position => Position.resolveCached(this, pos);
 
