@@ -4,6 +4,7 @@ import { ParseContext } from '../parse';
 import { EditorNode, NodeType, NodeContext } from '../node';
 import { makeNFA } from './compare';
 import { Step, StepResult } from '../transform/step';
+import { Position } from '../position';
 
 export function expectSameMatch(
    match: ContentMatch | undefined,
@@ -136,5 +137,25 @@ export function expectSameStepResult(res: StepResult, pm_res: any): void {
       expect(pm_res.failed).toBeNull();
       expect(res.doc).toBeDefined();
       expectSameNode(res.doc!, pm_res.doc);
+   }
+}
+
+export function expectSamePosition(pos: Position, pm_pos: any): void {
+   expect(pos.pos).toBe(pm_pos.pos);
+   expect(pos.depth).toBe(pm_pos.depth);
+   expect(pos.parentOffset).toBe(pm_pos.parentOffset);
+   expectSameNode(pos.doc, pm_pos.doc);
+   expectSameNode(pos.parent, pm_pos.parent);
+
+   if (pos.nodeBefore === undefined) {
+      expect(pm_pos.nodeBefore).toBeUndefined();
+   } else {
+      expectSameNode(pos.nodeBefore, pm_pos.nodeBefore);
+   }
+
+   if (pos.nodeAfter === undefined) {
+      expect(pm_pos.nodeAfter).toBeUndefined();
+   } else {
+      expectSameNode(pos.nodeAfter, pm_pos.nodeAfter);
    }
 }

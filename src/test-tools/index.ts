@@ -15,7 +15,8 @@ import {
    expectSameParseContext,
    expectSameNFA,
    expectSameStep,
-   expectSameStepResult
+   expectSameStepResult,
+   expectSamePosition
 } from './expect-same';
 
 import {
@@ -59,5 +60,6 @@ export const expectSame = {
    nodeType: expectSameNodeType,
    parseContext: expectSameParseContext,
    step: expectSameStep,
-   stepResult: expectSameStepResult
+   stepResult: expectSameStepResult,
+   position: expectSamePosition
 };

@@ -20,7 +20,11 @@ export class ReplaceError extends Error {
 /**
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/replace.js#L121
  */
-export function replace(from: Position, to: Position, slice: Slice) {
+export function replace(
+   from: Position,
+   to: Position,
+   slice: Slice
+): EditorNode {
    if (slice.openStart > from.depth) {
       throw new ReplaceError('Inserted content deeper than insertion position');
    }
