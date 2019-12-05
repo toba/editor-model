@@ -1,5 +1,6 @@
 import { StepMap } from './step-map';
 import { Mapping } from './mapping';
+import { forEach } from '@toba/tools';
 
 /** `from`, `to`, `bias` and `lossy` flag */
 type Case = [number, number, number?, boolean?];
@@ -7,15 +8,13 @@ type Case = [number, number, number?, boolean?];
 function testMapping(mapping: Mapping, ...cases: Case[]) {
    let inverted = mapping.invert();
 
-   for (let i = 0; i < cases.length; i++) {
-      const [from, to, bias = 1, lossy = false] = cases[i];
-
+   forEach(cases, ([from, to, bias = 1, lossy = false]) => {
       expect(mapping.map(from, bias)).toBe(to);
 
       if (!lossy) {
          expect(inverted.map(to, bias)).toBe(from);
       }
-   }
+   });
 }
 
 function mk(...args: (number[] | { [key: number]: number })[]): Mapping {

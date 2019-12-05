@@ -3,6 +3,7 @@ import { ContentMatch, Edge, NFA } from '../match';
 import { ParseContext } from '../parse';
 import { EditorNode, NodeType, NodeContext } from '../node';
 import { makeNFA } from './compare';
+import { Step, StepResult } from '../transform/step';
 
 export function expectSameMatch(
    match: ContentMatch | undefined,
@@ -122,4 +123,18 @@ export function expectSameNFA(pattern: string): [NFA, any] {
    }
 
    return [nfa, pm_nfa];
+}
+
+export function expectSameStep(step: Step, pm_step: any): void {
+   expect(step.toJSON()).toEqual(pm_step.toJSON());
+}
+
+export function expectSameStepResult(res: StepResult, pm_res: any): void {
+   if (res.failed !== undefined) {
+      expect(res.failed).toBe(pm_res.failed);
+   } else {
+      expect(pm_res.failed).toBeNull();
+      expect(res.doc).toBeDefined();
+      expectSameNode(res.doc!, pm_res.doc);
+   }
 }

@@ -8,8 +8,11 @@ import {
    NodeType,
    ContentMatch,
    ParseContext,
-   DOMParser
+   DOMParser,
+   Fragment,
+   Slice
 } from '@toba/test-prosemirror-model';
+import { ReplaceStep } from '@toba/test-prosemirror-transform';
 
 /**
  * Original ProseMirror methods and types for comparison, renamed to match
@@ -27,5 +30,8 @@ export const pm = {
    parseExpr,
    takeAttrs,
    testSchema,
-   TokenStream
+   TokenStream,
+   Fragment,
+   Slice,
+   ReplaceStep
 };

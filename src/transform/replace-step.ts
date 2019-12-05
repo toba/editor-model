@@ -1,4 +1,4 @@
-import { StepResult, StepJSON, BaseStep, Step } from './step';
+import { StepResult, StepJSON, BaseStep } from './step';
 import { StepMap, Mappable } from './step-map';
 import { Slice } from '../node/slice';
 import { EditorNode } from '../node';
@@ -29,7 +29,7 @@ export class ReplaceStep extends BaseStep {
       this.structure = !!structure;
    }
 
-   apply(doc: EditorNode) {
+   apply(doc: EditorNode): StepResult {
       if (this.structure && contentBetween(doc, this.from, this.to)) {
          return StepResult.fail('Structure replace would overwrite content');
       }
@@ -59,7 +59,7 @@ export class ReplaceStep extends BaseStep {
            ) as this);
    }
 
-   merge(other: this) {
+   merge(other: this): this | null {
       if (
          !(other instanceof ReplaceStep) ||
          other.structure != this.structure
@@ -116,7 +116,7 @@ export class ReplaceStep extends BaseStep {
          from: this.from,
          to: this.to
       };
-      if (this.slice.size) {
+      if (this.slice.size > 0) {
          json.slice = this.slice.toJSON();
       }
       if (this.structure) {

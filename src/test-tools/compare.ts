@@ -6,12 +6,15 @@ import {
    NFA,
    ContentMatch
 } from '../match';
-import { NodeType } from '../node';
+import { NodeType, EditorNode } from '../node';
 import { pm } from './proxy';
 import { doc, p } from './mocks';
 import { typeSequence, TestNode } from './test-maker';
 import { basicSchema, SchemaTag as tag } from '../schema';
 import { ParseContext, Parser } from '../parse';
+import { ReplaceStep } from '../transform/replace-step';
+import { Slice } from '../node/slice';
+import { Fragment } from '../node/fragment';
 
 // Methods to create parallel instances of ProseMirror and Toba entities
 // based on the basic schema
@@ -99,4 +102,36 @@ export function makeFragMatch(
    const pm_fragMatch = pm_match.matchFragment(pm_node.content);
 
    return [fragMatch, pm_fragMatch];
+}
+
+export const makeTextDoc = (text: string): [TestNode, any] => [
+   doc(p(text)),
+   pm.mock.doc(pm.mock.p(text))
+];
+
+export const makeTextFragment = (text: string): [Fragment, any] => [
+   Fragment.from(basicSchema.text(text)),
+   pm.Fragment.from(pm.testSchema.text(text))
+];
+
+function makeTextSlice(text: string | null): [Slice, any] {
+   if (text === null) {
+      return [Slice.empty, pm.Slice.empty];
+   }
+   const [frag, pm_frag] = makeTextFragment(text);
+
+   return [new Slice(frag, 0, 0), new pm.Slice(pm_frag, 0, 0)];
+}
+
+export function makeReplaceStep(
+   from: number,
+   to: number,
+   text: string | null = null
+): [ReplaceStep, any] {
+   const [slice, pm_slice] = makeTextSlice(text);
+
+   return [
+      new ReplaceStep(from, to, slice),
+      new pm.ReplaceStep(from, to, pm_slice)
+   ];
 }

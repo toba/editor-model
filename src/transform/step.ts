@@ -173,9 +173,8 @@ export class StepResult {
    static fail = (message?: string) => new StepResult(undefined, message);
 
    /**
-    * Call [`Node.replace`](#model.Node.replace) with the given arguments.
-    * Create a successful result if it succeeds, and a failed one if it throws a
-    * `ReplaceError`.
+    * Call `EditorNode.replace` with the given arguments. Create a successful
+    * result if it succeeds, and a failed one if it throws a `ReplaceError`.
     */
    static fromReplace(
       doc: EditorNode,

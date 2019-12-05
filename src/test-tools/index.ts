@@ -13,7 +13,9 @@ import {
    expectSameNodeContext,
    expectSameNodeType,
    expectSameParseContext,
-   expectSameNFA
+   expectSameNFA,
+   expectSameStep,
+   expectSameStepResult
 } from './expect-same';
 
 import {
@@ -23,7 +25,10 @@ import {
    makeNodeTypes,
    makeParseContext,
    makeParseMatch,
-   makeFragMatch
+   makeFragMatch,
+   makeReplaceStep,
+   makeTextFragment,
+   makeTextDoc
 } from './compare';
 
 /**
@@ -37,7 +42,10 @@ export const compare = {
    nodeTypes: makeNodeTypes,
    parseContext: makeParseContext,
    parseMatch: makeParseMatch,
-   fragMatch: makeFragMatch
+   fragMatch: makeFragMatch,
+   replaceStep: makeReplaceStep,
+   textFragment: makeTextFragment,
+   textDoc: makeTextDoc
 };
 
 /**
@@ -49,5 +57,7 @@ export const expectSame = {
    node: expectSameNode,
    nodeContext: expectSameNodeContext,
    nodeType: expectSameNodeType,
-   parseContext: expectSameParseContext
+   parseContext: expectSameParseContext,
+   step: expectSameStep,
+   stepResult: expectSameStepResult
 };
