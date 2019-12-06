@@ -4,7 +4,7 @@ import { Mark, MarkJSON, MarkType } from '../mark';
 import { NodeType } from './type';
 import { Attributes } from './attribute';
 import { Slice } from './slice';
-import { Position, replace } from '../position/';
+import { Location, replace } from '../location/';
 import { compareDeep } from '../compare-deep';
 import { ContentMatch } from '../match/content';
 import { Schema } from '../schema/schema';
@@ -244,18 +244,18 @@ export class EditorNode {
       if (from == to) {
          return Slice.empty;
       }
-      const fromPos: Position = this.resolve(from);
-      const toPos: Position = this.resolve(to);
-      const depth: number = includeParents ? 0 : fromPos.sharedDepth(to);
-      const node: EditorNode | undefined = fromPos.node(depth);
+      const fromLoc: Location = this.resolve(from);
+      const toLoc: Location = this.resolve(to);
+      const depth: number = includeParents ? 0 : fromLoc.sharedDepth(to);
+      const node: EditorNode | undefined = fromLoc.node(depth);
 
       if (node == undefined) {
          return Slice.empty;
       }
-      const start: number = fromPos.start(depth);
-      const content = node.content.cut(fromPos.pos - start, toPos.pos - start);
+      const start: number = fromLoc.start(depth);
+      const content = node.content.cut(fromLoc.pos - start, toLoc.pos - start);
 
-      return new Slice(content, fromPos.depth - depth, toPos.depth - depth);
+      return new Slice(content, fromLoc.depth - depth, toLoc.depth - depth);
    }
 
    /**
@@ -318,9 +318,9 @@ export class EditorNode {
    /**
     * Resolve the given position in the document.
     */
-   resolve = (pos: number): Position => Position.resolveCached(this, pos);
+   resolve = (pos: number): Location => Location.resolveCached(this, pos);
 
-   resolveNoCache = (pos: number): Position => Position.resolve(this, pos);
+   resolveNoCache = (pos: number): Location => Location.resolve(this, pos);
 
    /**
     * Test whether a mark of the given type occurs in this document between the

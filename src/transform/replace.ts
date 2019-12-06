@@ -3,7 +3,7 @@ import { Transform } from './transform';
 import { EditorNode } from '../node';
 import { Slice } from '../node/slice';
 import { Step } from './step';
-import { Position } from '../position';
+import { Location } from '../location';
 import { Fragment } from '../node/fragment';
 import { ContentMatch } from '../match';
 import { InsertionPoint, Placed } from './insertion-point';
@@ -23,16 +23,16 @@ export function replaceStep(
       return undefined;
    }
 
-   let fromPos = doc.resolve(from);
-   let toPos = doc.resolve(to);
+   let fromLoc = doc.resolve(from);
+   let toLoc = doc.resolve(to);
 
    // Optimization -- avoid work if it's obvious that it's not needed.
-   if (fitsTrivially(fromPos, toPos, slice)) {
+   if (fitsTrivially(fromLoc, toLoc, slice)) {
       return new ReplaceStep(from, to, slice);
    }
-   const placed: Placed[] = placeSlice(fromPos, slice);
-   const fittedLeft = fitLeft(fromPos, placed);
-   const fitted = fitRight(fromPos, toPos, fittedLeft);
+   const placed: Placed[] = placeSlice(fromLoc, slice);
+   const fittedLeft = fitLeft(fromLoc, placed);
+   const fitted = fitRight(fromLoc, toLoc, fittedLeft);
 
    if (fitted === undefined) {
       return undefined;
@@ -40,21 +40,21 @@ export function replaceStep(
 
    if (
       fittedLeft.size != fitted.size &&
-      canMoveText(fromPos, toPos, fittedLeft)
+      canMoveText(fromLoc, toLoc, fittedLeft)
    ) {
-      let d = toPos.depth;
-      let after = toPos.after(d);
-      while (d > 1 && after == toPos.end(--d)) {
+      let d = toLoc.depth;
+      let after = toLoc.after(d);
+      while (d > 1 && after == toLoc.end(--d)) {
          ++after;
       }
-      let fittedAfter = fitRight(fromPos, doc.resolve(after), fittedLeft);
+      let fittedAfter = fitRight(fromLoc, doc.resolve(after), fittedLeft);
 
       if (fittedAfter) {
          return new ReplaceAroundStep(
             from,
             after,
             to,
-            toPos.end(),
+            toLoc.end(),
             fittedAfter,
             fittedLeft.size
          );
@@ -66,7 +66,7 @@ export function replaceStep(
 }
 
 function fitLeftInner(
-   from: Position,
+   from: Location,
    depth: number,
    placed: Placed[],
    placedBelow: boolean | Placed
@@ -103,7 +103,7 @@ function fitLeftInner(
    return { content, openEnd };
 }
 
-function fitLeft(from: Position, placed: Placed[]) {
+function fitLeft(from: Location, placed: Placed[]) {
    let { content, openEnd } = fitLeftInner(from, 0, placed, false);
    return new Slice(content, from.depth, openEnd || 0);
 }
@@ -111,8 +111,8 @@ function fitLeft(from: Position, placed: Placed[]) {
 function fitRightJoin(
    content: Fragment,
    parent: EditorNode,
-   from: Position,
-   to: Position,
+   from: Location,
+   to: Location,
    depth: number,
    openStart: number,
    openEnd: number
@@ -234,7 +234,7 @@ function fitRightJoin(
 function fitRightClosed(
    node: EditorNode,
    openEnd: number,
-   from: Position,
+   from: Location,
    depth: number,
    openStart: number
 ) {
@@ -265,7 +265,7 @@ function fitRightClosed(
    return node.copy(content.append(match?.fillBefore(Fragment.empty, true)));
 }
 
-function fitRightSeparate(to: Position, depth: number) {
+function fitRightSeparate(to: Location, depth: number) {
    const node = to.node(depth);
    let fill = node
       .contentMatchAt(0)
@@ -291,8 +291,8 @@ function normalizeSlice(
 }
 
 function fitRight(
-   from: Position,
-   to: Position,
+   from: Location,
+   to: Location,
    slice: Slice
 ): Slice | undefined {
    const fitted: Fragment | undefined = fitRightJoin(
@@ -310,13 +310,13 @@ function fitRight(
       : fitted;
 }
 
-export const fitsTrivially = (from: Position, to: Position, slice: Slice) =>
+export const fitsTrivially = (from: Location, to: Location, slice: Slice) =>
    !slice.openStart &&
    !slice.openEnd &&
    from.start() == to.start() &&
    from.parent.canReplace(from.index(), to.index(), slice.content);
 
-function canMoveText(from: Position, to: Position, slice: Slice): boolean {
+function canMoveText(from: Location, to: Location, slice: Slice): boolean {
    if (!to.parent.isTextblock) {
       return false;
    }
@@ -372,7 +372,7 @@ function nodeRight(content: Fragment, depth: number): EditorNode | undefined {
  * side. When no place is found for an open node's content, it is left in that
  * node.
  */
-function placeSlice(from: Position, slice: Slice): Placed[] {
+function placeSlice(from: Location, slice: Slice): Placed[] {
    const insertionPoint = new InsertionPoint(from);
 
    for (let pass = 1; slice.size && pass <= 3; pass++) {
@@ -429,7 +429,7 @@ export function closeFragment(
  * Returns an array of all depths for which `from` - `to` spans the whole
  * content of the nodes at that depth.
  */
-export function coveredDepths(from: Position, to: Position): number[] {
+export function coveredDepths(from: Location, to: Location): number[] {
    const result: number[] = [];
    const minDepth = Math.min(from.depth, to.depth);
 

@@ -1,7 +1,7 @@
 import { StepMap, Mappable } from './step-map';
 import { EditorNode } from '../node';
 import { Slice, SliceJSON } from '../node/slice';
-import { ReplaceError } from '../position/replace';
+import { ReplaceError } from '../location/replace';
 import { Schema } from '../schema';
 import { Mark, MarkJSON } from '../mark';
 

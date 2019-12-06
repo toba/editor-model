@@ -1,14 +1,14 @@
 import { TrioList, makeTrioList } from '@toba/tools';
 import { Mark } from '../mark/mark';
-import { EditorNode, NodeRange } from '../node/';
+import { EditorNode, NodeRange } from '../node';
 
-const cache: Position[] = [];
+const cache: Location[] = [];
 let cacheIndex = 0;
 let cacheSize = 12;
 
 /**
- * You can [_resolve_](#model.Node.resolve) a position to get more information
- * about it. Objects of this class represent such a resolved position, providing
+ * You can `EditorNode.resolve()` a position to get more information about it.
+ * Objects of this class represent such a resolved position, providing
  * various pieces of context information, and some helper methods.
  *
  * Throughout this interface, methods that take an optional `depth` parameter
@@ -17,7 +17,7 @@ let cacheSize = 12;
  *
  * @see https://github.com/ProseMirror/prosemirror-model/blob/master/src/resolvedpos.js
  */
-export class Position {
+export class Location {
    /** Position that was resolved */
    pos: number;
    /** `EditorNode`, index and offset */
@@ -249,7 +249,7 @@ export class Position {
     * if this position is at the end of its parent node or its parent node isn't
     * a textblock (in which case no marks should be preserved).
     */
-   marksAcross(end: Position): Mark[] | null {
+   marksAcross(end: Location): Mark[] | null {
       const after = this.parent.maybeChild(this.index());
 
       if (after === undefined || !after.isInline) {
@@ -293,7 +293,7 @@ export class Position {
     * see if a range into that parent is acceptable
     */
    blockRange(
-      other: Position = this,
+      other: Location = this,
       pred?: (node: EditorNode | undefined) => boolean
    ): NodeRange | null {
       if (other.pos < this.pos) {
@@ -319,18 +319,18 @@ export class Position {
    /**
     * Whether given position has the same parent node.
     */
-   sameParent = (other: Position): boolean =>
+   sameParent = (other: Location): boolean =>
       this.pos - this.parentOffset == other.pos - other.parentOffset;
 
    /**
     * Return the greater of this and another position.
     */
-   max = (other: Position): Position => (other.pos > this.pos ? other : this);
+   max = (other: Location): Location => (other.pos > this.pos ? other : this);
 
    /**
     * Return the smaller of this and another position.
     */
-   min = (other: Position): Position => (other.pos < this.pos ? other : this);
+   min = (other: Location): Location => (other.pos < this.pos ? other : this);
 
    toString(): string {
       let str = '';
@@ -344,7 +344,7 @@ export class Position {
       return str + ':' + this.parentOffset;
    }
 
-   static resolve(doc: EditorNode, pos: number): Position {
+   static resolve(doc: EditorNode, pos: number): Location {
       if (pos < 0 || pos > doc.content.size) {
          throw new RangeError('Position ' + pos + ' is out of range');
       }
@@ -369,17 +369,17 @@ export class Position {
          parentOffset = remaining - 1;
          start += offset + 1;
       }
-      return new Position(pos, path, parentOffset);
+      return new Location(pos, path, parentOffset);
    }
 
-   static resolveCached(doc: EditorNode, pos: number): Position {
+   static resolveCached(doc: EditorNode, pos: number): Location {
       for (let i = 0; i < cache.length; i++) {
-         const cached: Position = cache[i];
+         const cached: Location = cache[i];
          if (cached.pos == pos && cached.doc === doc) {
             return cached;
          }
       }
-      const result = Position.resolve(doc, pos);
+      const result = Location.resolve(doc, pos);
 
       cache[cacheIndex] = result;
       cacheIndex = (cacheIndex + 1) % cacheSize;

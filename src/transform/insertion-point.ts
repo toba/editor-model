@@ -1,4 +1,4 @@
-import { Position } from '../position';
+import { Location } from '../location';
 import { Fragment } from '../node/fragment';
 import { EditorNode, NodeType } from '../node';
 import { Slice } from '../node/slice';
@@ -36,12 +36,12 @@ export class InsertionPoint {
    placed: Placed[];
    open: Opening[];
 
-   constructor(pos: Position) {
+   constructor(loc: Location) {
       this.open = [];
 
-      for (let d = 0; d <= pos.depth; d++) {
-         const parent = pos.node(d);
-         const match = parent.contentMatchAt(pos.indexAfter(d));
+      for (let d = 0; d <= loc.depth; d++) {
+         const parent = loc.node(d);
+         const match = parent.contentMatchAt(loc.indexAfter(d));
 
          this.open.push({
             parent,

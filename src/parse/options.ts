@@ -1,7 +1,7 @@
 import { EditorNode } from '../node';
 import { ContentMatch } from '../match';
 import { ParseRule } from './rule';
-import { Position } from '../position/position';
+import { Location } from '../location';
 
 export interface NodesToFind {
    node: Node;
@@ -57,11 +57,11 @@ export interface ParseOptions {
    topMatch?: ContentMatch;
 
    /**
-    * A set of additional nodes to count as [context](#model.ParseRule.context)
-    * when parsing, above the given [top node](#model.ParseOptions.topNode).
+    * A set of additional nodes to count as `ParseRule.context` when parsing,
+    * above the given `ParseOptions.topNode`.
     * TODO: this comment doesn't make sense
     */
-   context?: Position;
+   context?: Location;
 
    /**
     * Custom method to return a parsing rule for a specific DOM node.

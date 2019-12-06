@@ -13,7 +13,7 @@ import {
    ignoreTags,
    blockTags
 } from '../constants';
-import { Position } from '../position/position';
+import { Location } from '../location';
 
 export type PreserveSpace = boolean | 'full';
 
@@ -725,7 +725,7 @@ export class ParseContext {
    matchesContext = this.matches;
 
    textblockFromContext(): NodeType | null {
-      let context: Position | undefined = this.options.context;
+      let context: Location | undefined = this.options.context;
 
       const valid = (t: NodeType | undefined): t is NodeType =>
          t !== undefined && t.isTextblock && t.defaultAttrs !== null;
