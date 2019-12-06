@@ -7,7 +7,7 @@ describe('duplicate ProseMirror functionality', () => {
       const [testDoc, pm_testDoc] = compare.textDoc('foobar');
 
       [2, 3].forEach(p => {
-         expectSame.position(testDoc.resolve(p), pm_testDoc.resolve(p));
+         expectSame.location(testDoc.resolve(p), pm_testDoc.resolve(p));
       });
    });
 

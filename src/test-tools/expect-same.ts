@@ -4,7 +4,7 @@ import { ParseContext } from '../parse';
 import { EditorNode, NodeType, NodeContext } from '../node';
 import { makeNFA } from './compare';
 import { Step, StepResult } from '../transform/step';
-import { Position } from '../position';
+import { Location } from '../location';
 
 export function expectSameMatch(
    match: ContentMatch | undefined,
@@ -140,22 +140,22 @@ export function expectSameStepResult(res: StepResult, pm_res: any): void {
    }
 }
 
-export function expectSamePosition(pos: Position, pm_pos: any): void {
-   expect(pos.pos).toBe(pm_pos.pos);
-   expect(pos.depth).toBe(pm_pos.depth);
-   expect(pos.parentOffset).toBe(pm_pos.parentOffset);
-   expectSameNode(pos.doc, pm_pos.doc);
-   expectSameNode(pos.parent, pm_pos.parent);
+export function expectSameLocation(loc: Location, pm_loc: any): void {
+   expect(loc.pos).toBe(pm_loc.pos);
+   expect(loc.depth).toBe(pm_loc.depth);
+   expect(loc.parentOffset).toBe(pm_loc.parentOffset);
+   expectSameNode(loc.doc, pm_loc.doc);
+   expectSameNode(loc.parent, pm_loc.parent);
 
-   if (pos.nodeBefore === undefined) {
-      expect(pm_pos.nodeBefore).toBeUndefined();
+   if (loc.nodeBefore === undefined) {
+      expect(pm_loc.nodeBefore).toBeUndefined();
    } else {
-      expectSameNode(pos.nodeBefore, pm_pos.nodeBefore);
+      expectSameNode(loc.nodeBefore, pm_loc.nodeBefore);
    }
 
-   if (pos.nodeAfter === undefined) {
-      expect(pm_pos.nodeAfter).toBeUndefined();
+   if (loc.nodeAfter === undefined) {
+      expect(pm_loc.nodeAfter).toBeUndefined();
    } else {
-      expectSameNode(pos.nodeAfter, pm_pos.nodeAfter);
+      expectSameNode(loc.nodeAfter, pm_loc.nodeAfter);
    }
 }
